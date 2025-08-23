@@ -4,71 +4,113 @@ const { REST, Routes } = require('discord.js');
 
 module.exports = (client) => {
     const config = client.config;
-    // Prefix Command Handler
-    const prefixPath = path.join(__dirname, '../Commands/PrefixCmds');
-    const prefixFolders = fs.readdirSync(prefixPath);
-    for (const folder of prefixFolders) {
-        const folderPath = path.join(prefixPath, folder);
-        const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-        for (const file of commandFiles) {
-            const filePath = path.join(folderPath, file);
-            const command = require(filePath);
-            if (command && command.name) {
-                client.commands.set(command.name, command);
-                console.log(`[INFO] Loaded prefix command: ${command.name}`);
-            } else {
-                console.warn(`[ERR] Skipping invalid prefix command: ${file}`);
-            }
-        }
-    }
 
-    // Slash Command Handler
-    const slashPath = path.join(__dirname, '../Commands/SlashCmds');
-    const slashFolders = fs.readdirSync(slashPath);
-    const slashCommandsArray = [];
-    for (const folder of slashFolders) {
-        const folderPath = path.join(slashPath, folder);
-        const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-        for (const file of commandFiles) {
-            const command = require(path.join(folderPath, file));
-            if (command && command.data && command.data.name) {
-                client.slashCommands.set(command.data.name, command);
-                slashCommandsArray.push(command.data.toJSON());
-                console.log(`[INFO] Loaded slash command: ${command.data.name}`);
-            } else {
-                console.warn(`[ERR] Skipping invalid slash command: ${file}`);
-            }
-        }
-    }
+    // ========================
+    //  CARGA DE COMANDOS DE PREFIJO
+    // ========================
+    const loadPrefixCommands = () => {
+        const prefixPath = path.join(__dirname, '../Commands/PrefixCmds');
+        const prefixFolders = fs.readdirSync(prefixPath);
+        let count = 0;
 
-    // Registro solo en servidor especifico
-    client.once('ready', async () => {
-        const rest = new REST({ version: '10' }).setToken(config.token);
-        
-        try {
-            // Limpieza de comandos globales
-            console.log('🧹 [LIMPIEZA] Eliminando comandos globales innecesarios...');
-            await rest.put(Routes.applicationCommands(config.BotId), { body: [] });
-            console.log('✅ [LIMPIEZA] Comandos globales eliminados');
-            
-            // Espera para que Discord procese
-            console.log('⏰ Esperando 3 segundos...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // 📝 REGISTRA solo en tu servidor (instantáneo)
-            if (Array.isArray(config.GuildId)) {
-                for (const guildId of config.GuildId) {
-                    console.log(`📝 [REGISTRO] Registrando comandos en servidor: ${guildId}`);
-                    await rest.put(
-                        Routes.applicationGuildCommands(config.BotId, guildId),
-                        { body: slashCommandsArray }
-                    );
-                    console.log(`✅ [ÉXITO] ${slashCommandsArray.length} comandos registrados correctamente`);
+        for (const folder of prefixFolders) {
+            const folderPath = path.join(prefixPath, folder);
+            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
+
+            for (const file of commandFiles) {
+                try {
+                    const command = require(path.join(folderPath, file));
+                    if (command && command.name) {
+                        client.commands.set(command.name, command);
+                        count++;
+                    }
+                } catch (err) {
+                    console.error(`❌ Falló al cargar prefijo ${file}: ${err.message}`);
                 }
             }
-            
-        } catch (err) {
-            console.error('❌ [ERROR] Falló el registro:', err);
         }
+        console.log(`📜 ${count} comandos de prefijo cargados`);
+    };
+    loadPrefixCommands();
+
+    // ========================
+    //  CARGA DE SLASH COMMANDS
+    // ========================
+    const loadSlashCommands = () => {
+        const slashPath = path.join(__dirname, '../Commands/SlashCmds');
+        const slashFolders = fs.readdirSync(slashPath);
+        const slashCommandsArray = [];
+        for (const folder of slashFolders) {
+            const folderPath = path.join(slashPath, folder);
+            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
+
+            for (const file of commandFiles) {
+                try {
+                    const command = require(path.join(folderPath, file));
+                    if (command && command.data && command.execute) {
+                        if (Array.isArray(command.data)) {
+                            for (const cmdData of command.data) {
+                                if (cmdData?.name) {
+                                    client.slashCommands.set(cmdData.name, command);
+                                    slashCommandsArray.push(cmdData.toJSON());
+                                }
+                            }
+                        } else if (command.data.name) {
+                            client.slashCommands.set(command.data.name, command);
+                            slashCommandsArray.push(command.data.toJSON());
+                        }
+                    }
+                } catch (err) {
+                    console.error(`❌ Falló al cargar slash ${file}: ${err.message}`);
+                }
+            }
+        }
+        return slashCommandsArray;
+    };
+    const slashCommandsArray = loadSlashCommands();
+
+    // ========================
+    //  REGISTRO DE SLASH COMMANDS EN DISCORD 🌸
+    // ========================
+    client.once('ready', async () => {
+        const rest = new REST({ version: '10' }).setToken(config.token);
+
+        const resumen = { registered: {}, failed: [] };
+
+        if (!Array.isArray(config.guildIds) || config.guildIds.length === 0) {
+            console.warn('⚠️ Nyaa~ No hay GuildId configurado. Registro omitido!');
+            return;
+        }
+
+        for (const guildId of config.guildIds) {
+            try {
+                await rest.put(
+                    Routes.applicationGuildCommands(config.BotId, guildId),
+                    { body: slashCommandsArray }
+                );
+                resumen.registered[guildId] = slashCommandsArray.map(cmd => cmd.name);
+            } catch (err) {
+                resumen.failed.push({ guildId, error: err.message });
+            }
+        }
+
+        // ========================
+        //  MENSAJE RESUMIDO KAWAII
+        // ========================
+        let output = `🌸✨ Nyaa~ ¡Registro de comandos completado! 💖\n`;
+
+        for (const guildId in resumen.registered) {
+            const guildName = client.guilds.cache.get(guildId)?.name || 'Servidor desconocido';
+            output += `\n💮 Comandos listos en ${guildName} (${guildId}):\n`;
+            resumen.registered[guildId].forEach(name => output += `   - /${name}\n`);
+        }
+
+        if (resumen.failed.length > 0) {
+            output += `\n⚠️ Ups~ Algunos comandos fallaron:\n`;
+            resumen.failed.forEach(f => output += `   - Servidor ${f.guildId}: ${f.error}\n`);
+        }
+
+        output += `\n🌟 ¡Todo listo para ronronear con tus comandos! >w<`;
+        console.log(output);
     });
 };
