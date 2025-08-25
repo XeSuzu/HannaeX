@@ -3,11 +3,11 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('disc
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('userinfo')
-        .setDescription('Obtén información detallada de un usuario')
+        .setDescription('Revela un perfil detallado de un usuario, nyaa~!')
         .addUserOption(option =>
             option
                 .setName('usuario')
-                .setDescription('El usuario del que quieres información')
+                .setDescription('Usuario del que deseas ver la informacion')
                 .setRequired(false)
         ),
     async execute(interaction) {

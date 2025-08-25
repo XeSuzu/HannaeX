@@ -33,7 +33,7 @@ const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("kiss")
-    .setDescription("😽 Manda un besito kawaii a alguien (nya~)")
+    .setDescription("💞 Manda un besito kawaii a alguien (nya~)")
     .addUserOption((option) =>
       option
         .setName("usuario")
@@ -47,7 +47,7 @@ module.exports = {
 
     if (targetUser.id === authorUser.id) {
       return interaction.reply({
-        content: "Nyaa~ ¡no puedes besarte a ti mism@, gatit@ travies@! 🐾😽",
+        content: "Nyaa~ ¡no puedes besarte a ti mism@, gatit@ travies@! 🐾💞",
         ephemeral: true,
       });
     }
@@ -63,24 +63,24 @@ module.exports = {
     // ==== EMBED PRINCIPAL ====
     const embed = new EmbedBuilder()
       .setColor(0xff9eb5)
-      .setTitle("💖 Nyaa~ ¡momento de besitos!")
+      .setTitle("💖 Nyaa~ ¡momento especial!")
       .setDescription(
-        `**${authorUser}** le dio un besito a **${targetUser}** 😽\n\n` +
+        `**${authorUser}** le dio un besito a **${targetUser}** 💞\n\n` +
           `💞 Entre **${authorUser.username}** y **${targetUser.username}** ya se han dado **${coupleData.kisses}** besitos compartidos, nya~ ✨`
       )
       .setImage(getRandom(kissGifs))
-      .setFooter({ text: "Ronroneos y mimos incluidos 🐱💗" })
+      .setFooter({ text: "Mimos infiniroa 🐱💗" })
       .setTimestamp();
 
     // ==== BOTONES ====
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("return_kiss")
-        .setLabel("😽 Devolver besito")
+        .setLabel("💞 Devolver beso")
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId("reject_kiss")
-        .setLabel("🚫 Rechazar besito")
+        .setLabel("🚫 Rechazar beso")
         .setStyle(ButtonStyle.Danger)
     );
 
@@ -115,8 +115,8 @@ module.exports = {
           .setColor(0xffbfd6)
           .setTitle("💖 Nyaa~ ¡besito correspondido!")
           .setDescription(
-            `**${targetUser}** ronronea y devuelve un besito a **${authorUser}** 😽\n\n` +
-              `💞 Entre **${authorUser.username}** y **${targetUser.username}** ya se han dado **${coupleDataReturn.kisses}** besitos compartidos, kyaaa~ ✨`
+            `**${targetUser}** devuelve el besito a **${authorUser}** 💞\n\n` +
+              `💞 Entre **${authorUser.username}** y **${targetUser.username}** ya se han dado **${coupleDataReturn.kisses}** besitos, kyaaa~ ✨`
           )
           .setImage(getRandom(returnGifs))
           .setFooter({ text: "Mimos infinitos 🐾💗" })

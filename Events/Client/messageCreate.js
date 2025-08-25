@@ -1,7 +1,9 @@
 const { EmbedBuilder } = require("discord.js");
-const AFK = require("../../Models/afk.js"); 
-const { getHistory, addToHistory } = require("../../Database/conversation.js"); 
-const { generateResponse, splitMessage } = require("../../Services/gemini.js"); 
+const AFK = require("../../Models/afk.js");
+const { getHistory, addToHistory } = require("../../Database/conversation.js");
+const { generateResponse, splitMessage } = require("../../Services/gemini.js");
+const ServerConfig = require("../../Models/serverConfig"); // Asegúrate de importar tu modelo
+const Meme = require("../../Database/meme"); // Asegúrate de importar tu modelo
 const cooldown = new Set();
 
 module.exports = {
@@ -23,9 +25,13 @@ module.exports = {
         const embedMention = new EmbedBuilder()
           .setColor(0xffb6c1)
           .setTitle(`😽 ${user.username} está AFK`)
-          .setDescription(`> Razón: ${afkData.reason}\n> Ausente desde hace: ${tiempoAFK} minuto(s)`)
+          .setDescription(
+            `> Razón: ${afkData.reason}\n> Ausente desde hace: ${tiempoAFK} minuto(s)`
+          )
           .setTimestamp()
-          .setFooter({ text: "Nyaa~ por favor sé paciente con los gatitos 🐾💗" });
+          .setFooter({
+            text: "Nyaa~ por favor sé paciente con los gatitos 🐾💗",
+          });
         message.reply({ embeds: [embedMention] }).catch(() => {});
       }
     });
@@ -45,7 +51,9 @@ module.exports = {
       const embedReturn = new EmbedBuilder()
         .setColor(0xffc0cb)
         .setTitle(`😽 Bienvenido de vuelta, ${message.author.username}!`)
-        .setDescription(`Llevabas AFK ${tiempoTotal} minuto(s), nya~ 🐾`)
+        .setDescription(
+          `Llevabas AFK ${tiempoTotal} minuto(s), nya~ 🐾`
+        )
         .setTimestamp()
         .setFooter({ text: "Ronroneos y mimos retomados 🐱💗" });
       message.reply({ embeds: [embedReturn] }).catch(() => {});
@@ -65,13 +73,46 @@ module.exports = {
             (perm) => !message.member.permissions.has(perm)
           );
           if (missing.length) {
-            return message.reply(`❌ No tienes permisos suficientes: ${missing.join(", ")}`);
+            return message.reply(
+              `❌ No tienes permisos suficientes: ${missing.join(", ")}`
+            );
           }
         }
         await command.execute(message, args, client);
       } catch (err) {
         console.error(`❌ Error ejecutando comando "${commandName}":`, err);
         message.reply("⚠️ Oops, ocurrió un error, nya~").catch(() => {});
+      }
+      return;
+    }
+
+    // --- LÓGICA DE MEMES ---
+    const guildId = message.guild.id;
+    const config = await ServerConfig.findOne({ guildId: guildId });
+
+    if (config && message.channel.id === config.memeChannelId) {
+      if (message.attachments.size > 0) {
+        const emojiParaVotar = '👍';
+        const emojiParaDislike = '👎'; 
+        try {
+          await message.react(emojiParaVotar);
+          await message.react(emojiParaDislike);
+
+          const memeExistente = await Meme.findOne({ messageId: message.id, guildId: guildId });
+          if (!memeExistente) {
+            const nuevoMeme = new Meme({
+              messageId: message.id,
+              authorId: message.author.id,
+              guildId: guildId,
+              channelId: message.channel.id, // <-- Asegurado aquí
+              points: 0,
+              memeUrl: message.attachments.first().url,
+            });
+            await nuevoMeme.save();
+          }
+        } catch (error) {
+          console.error("Error al reaccionar al meme:", error);
+        }
       }
       return;
     }

@@ -7,47 +7,56 @@ module.exports = {
 
     async execute(interaction) {
         const commands = interaction.client.slashCommands;
+        const categorizedCommands = {};
 
-        const funCommands = [];
-        const infoCommands = [];
-        const interactionCommands = [];
-        const moderationCommands = [];
-
-        // Iteramos sobre todos los comandos para categorizarlos
+        // 1. Agrupamos los comandos por categoría
         commands.forEach(command => {
-            const commandName = command.data.name;
-            const commandDescription = command.data.description;
-            
-            // Usamos una lógica simple para categorizar los comandos
-            if (['help', 'ping', 'say-context', 'say'].includes(commandName)) {
-                funCommands.push(`\`/${commandName}\` - ${commandDescription}`);
-            } else if (['avatar', 'info-creator', 'userinfo'].includes(commandName)) {
-                infoCommands.push(`\`/${commandName}\` - ${commandDescription}`);
-            } else if (['hug', 'kiss'].includes(commandName)) {
-                interactionCommands.push(`\`/${commandName}\` - ${commandDescription}`);
-            } else if (['tempmute'].includes(commandName)) {
-                moderationCommands.push(`\`/${commandName}\` - ${commandDescription}`);
+            const category = command.category || 'Otros';
+            if (!categorizedCommands[category]) {
+                categorizedCommands[category] = [];
             }
+            categorizedCommands[category].push(`\`/${command.data.name}\` - ${command.data.description}`);
         });
 
-        // Creamos el embed de ayuda con todos los detalles
+        // 2. Creamos el embed con el nuevo diseño
         const helpEmbed = new EmbedBuilder()
-            .setColor(0xFFA500) // Un color cálido y acogedor
-            .setTitle('¡Mi guia de ayuda nya! 💖')
-            .setDescription('¡Hola, soy HannaeX! Aquí tienes una guía de mis comandos. ¡Usa los comandos de barra para jugar conmigo!')
-            .setThumbnail(interaction.client.user.displayAvatarURL())
-            .addFields(
-                { name: '✨ Diversión', value: funCommands.join('\n') || 'No hay comandos de diversión disponibles.' },
-                { name: '📚 Información', value: infoCommands.join('\n') || 'No hay comandos de información disponibles.' },
-                { name: '💞 Interacciones', value: interactionCommands.join('\n') || 'No hay comandos de interacción disponibles.' },
-                { name: '🛡️ Moderación', value: moderationCommands.join('\n') || 'No hay comandos de moderación disponibles.' },
-                // Nuevo campo para la IA
-                { name: '🤖 Inteligencia Artificial', value: `¡Además de mis comandos, puedes **mencionarme** en cualquier canal para que te responda con mi inteligencia! Por ejemplo: \`@${interaction.client.user.username} ¿Qué significa el universo?\`` }
-            )
-            .setTimestamp()
-            .setFooter({ text: '¡Usa un comando de barra para acariciarme! 🐾' });
+            .setColor(0xffc0cb) // Un color rosa pastel para un toque más dulce 🌸
+            .setTitle('💖 Mi guía de ayuda Nyaa~! 🐾')
+            .setDescription('¡Hola, soy HannaeX! Nya~ Aquí tienes una guía de todos mis comanditos disponibles para darle vida a tus chats.')
+            .setThumbnail(interaction.client.user.displayAvatarURL());
 
-        // Enviamos el embed al canal, nyaa.
+        // 3. Añadimos los campos con emojis lindos
+        for (const category in categorizedCommands) {
+            const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
+            let emoji = '✨'; // Emoji por defecto
+            
+            // Asignamos un emoji según la categoría
+            if (category === 'Fun') emoji = '🐱';
+            if (category === 'Information') emoji = '📚';
+            if (category === 'Interactions') emoji = '💞';
+            if (category === 'Moderation') emoji = '🛡️';
+            if (category === 'Leaderboards') emoji = '🏆';
+            if (category === 'Profiles') emoji = '👤';
+
+
+            helpEmbed.addFields({
+                name: `${emoji} ${capitalizedCategory}`,
+                value: categorizedCommands[category].join('\n') || `No hay comandos en esta categoría, nyaa.`,
+                inline: false,
+            });
+        }
+        
+        // 4. Campo especial para la IA
+        helpEmbed.addFields({
+            name: '🧠 Inteligencia Artificial',
+            value: `¡Puedes **mencionar a HannaeX** en cualquier canal para que te responda con su inteligencia! Por ejemplo: \`@${interaction.client.user.username} ¿Qué es un agujero de gusano?\``,
+            inline: false
+        });
+
+        helpEmbed
+            .setTimestamp()
+            .setFooter({ text: 'Powered by v.sxn 💖' });
+
         await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
     },
 };
