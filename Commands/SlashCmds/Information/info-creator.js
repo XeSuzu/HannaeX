@@ -21,10 +21,8 @@ module.exports = {
         // Frases aleatorias neko uwu
         const frasesNeko = [
             'Nyaa~ ¿Me estabas buscando? 🐾',
-            'UwU ¡Estoy feliz de verte, senpai~! 💖',
             'M-meow~ ¡Aquí tienes mi información! 🌸',
             'Nyan~ ¡Listo para ayudarte cuando quieras! 🐱',
-            'Kawaii mode activado, nya~ 💕'
         ];
         const fraseRandom = frasesNeko[Math.floor(Math.random() * frasesNeko.length)];
 
@@ -41,7 +39,7 @@ module.exports = {
         const infoEmbed = new EmbedBuilder()
             .setColor('#FFB6C1')
             .setTitle(`🌸 ${client.user.username} - Perfil Neko 🐾`)
-            .setDescription(`${fraseRandom}\n\n💌 *Soy un bot tierno que quiere ayudarte y ser tu amigo.*`)
+            .setDescription(`${fraseRandom}\n\n💌 *Bot multiproposito para ayudarte a mejorar tu servidor y darle alegria.*`)
             .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
             .setImage(gifUrl)
 
@@ -49,9 +47,6 @@ module.exports = {
                 { name: '💌 Creador/a', value: `**Nombre:** \`${creatorUser.username}\`\n**ID:** \`${creatorUser.id}\`\n[Perfil lindo~](https://discordapp.com/users/${creatorId})`, inline: true },
                 { name: '📊 Estadísticas', value: `🏠 **Servidorecitos:** \`${numberFormat.format(client.guilds.cache.size)}\`\n👥 **Amiguitos:** \`${numberFormat.format(client.users.cache.size)}\`\n💓 **Latencia:** \`${Math.round(client.ws.ping)}ms\``, inline: true },
                 { name: '📜 Comanditos', value: `Tengo **${commandsCount}** comandos~\nUsa \`/help\` para verlos todos, nya~`, inline: false },
-                { name: '⏳ Tiempo despiertita', value: uptime, inline: true },
-                { name: '⚡ Energía', value: energiaBot, inline: true },
-                { name: '💻 Datos Técnicos', value: `🖥 **SO:** \`${os.type()} ${os.release()}\`\n🛠 **Node.js:** \`${process.version}\`\n📦 **discord.js:** \`${djsVersion}\``, inline: false }
             )
 
             .setTimestamp()

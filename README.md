@@ -124,19 +124,7 @@ Este proyecto es privado y no debe ser distribuido sin autorización del autor.
 
 ## 📝 Roadmap: ¡Comandos por venir!
 
-- [ ] Comando para iniciar el servidor principal
-- [ ] Comando para detener el servidor
-- [ ] Comando para reiniciar el servidor
-- [ ] Comando para mostrar el estado del sistema
-- [ ] Comando para listar usuarios registrados
-- [ ] Comando para agregar un nuevo usuario
-- [ ] Comando para eliminar un usuario
-- [ ] Comando para actualizar la configuración
-- [ ] Comando para mostrar logs recientes
-- [ ] Comando para limpiar la caché
-- [ ] Comando para realizar backup de la base de datos
-- [ ] Comando para restaurar backup
-- [ ] Comando para mostrar la versión del sistema
+- [ ] NSFW
 
 ---
 

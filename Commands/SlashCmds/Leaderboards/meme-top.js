@@ -11,18 +11,9 @@ module.exports = {
     await interaction.deferReply();
 
     try {
-      const config = await ServerConfig.findOne({ guildId: interaction.guildId });
-      if (!config || !config.memeChannelId) {
-        return interaction.editReply({
-          content: 'El canal de memes no está configurado. Usa `/setup-memes` primero.',
-          ephemeral: true
-        });
-      }
-
-      // Buscar el meme más votado, si hay empate el más reciente
+      // Buscar el meme más votado solo por el ID del servidor
       const topMeme = await Meme.findOne({
-        guildId: interaction.guildId,
-        channelId: config.memeChannelId
+        guildId: interaction.guildId
       }).sort({ points: -1, _id: -1 });
 
       if (!topMeme) {

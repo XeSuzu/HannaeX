@@ -1,5 +1,5 @@
-const { SlashCommandBuilder } = require('discord.js');
-const Suggestion = require('../../../Models/suggestion'); // Importa el nuevo modelo
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const Suggestion = require('../../../Models/suggestion');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,7 +11,8 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        // Usamos flags: MessageFlags.Ephemeral para mensajes privados y evitar la advertencia
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         
         const suggestion = interaction.options.getString('idea');
         
@@ -24,6 +25,9 @@ module.exports = {
             });
 
             await newSuggestion.save();
+
+            // Mensaje para la consola que pediste, ¡muy útil para ti!
+            console.log(`✅ Sugerencia recibida de ${interaction.user.tag} en el servidor ${interaction.guild.name}: "${suggestion}"`);
 
             // Enviamos una confirmación al usuario
             await interaction.editReply({ content: '¡Gracias por tu sugerencia! Ha sido guardada exitosamente. 💖' });

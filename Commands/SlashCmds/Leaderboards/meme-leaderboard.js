@@ -21,14 +21,15 @@ module.exports = {
 
       // Top 10 usuarios por puntos en el canal de memes
       const topUsers = await Meme.aggregate([
-        { $match: { guildId: interaction.guildId, channelId: config.memeChannelId } },
+        // Cambiamos la búsqueda para que no se filtre por channelId
+        { $match: { guildId: interaction.guildId } }, 
         {
           $group: {
             _id: "$authorId",
             totalPoints: { $sum: "$points" }
           }
         },
-        { $match: { totalPoints: { $gt: 0 } } }, // <-- Solo usuarios con puntos positivos
+        { $match: { totalPoints: { $gt: 0 } } },
         { $sort: { totalPoints: -1 } },
         { $limit: 10 }
       ]);

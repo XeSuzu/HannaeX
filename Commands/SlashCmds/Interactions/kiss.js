@@ -5,6 +5,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  MessageFlags // Importa MessageFlags
 } = require("discord.js");
 const mongoose = require("mongoose");
 
@@ -28,6 +29,11 @@ const rejectGifs = [
   "https://i.pinimg.com/originals/71/89/b3/7189b36e4a0ef770cda47d2f65747ef1.gif",
 ];
 
+const selfKissGifs = [
+    "https://i.pinimg.com/originals/c9/28/aa/c928aa1a7c787e954b41b9d4c72d62d2.gif",
+    "https://i.pinimg.com/originals/82/72/79/8272791e847c0b05b33100657989396f.gif"
+];
+
 const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 module.exports = {
@@ -45,16 +51,27 @@ module.exports = {
     const targetUser = interaction.options.getUser("usuario");
     const authorUser = interaction.user;
 
+    // === Lógica mejorada para besos a uno mismo para evitar el error ===
     if (targetUser.id === authorUser.id) {
+      const selfKissEmbed = new EmbedBuilder()
+        .setColor(0xffc0cb)
+        .setTitle("💖 ¡Un besito para ti!")
+        .setDescription("Nyaa~ ¡es muy importante amarse a uno mismo! 🐾")
+        .setImage(getRandom(selfKissGifs))
+        .setFooter({ text: "¡El amor propio es el mejor! 💗" })
+        .setTimestamp();
+      
+      // Responde sin guardar en la DB para evitar el error
       return interaction.reply({
-        content: "Nyaa~ ¡no puedes besarte a ti mism@, gatit@ travies@! 🐾💞",
-        ephemeral: true,
+        embeds: [selfKissEmbed]
       });
     }
 
-    // ==== ACTUALIZAR CONTADOR DE PAREJA ====
+    // ==== LÓGICA PARA DOS USUARIOS ====
     const coupleIds = [authorUser.id, targetUser.id].sort();
-    let coupleData = await Couple.findOneAndUpdate(
+    
+    // Busca y actualiza o crea la pareja en la DB
+    const coupleData = await Couple.findOneAndUpdate(
       { users: coupleIds },
       { $inc: { kisses: 1 } },
       { new: true, upsert: true }
@@ -69,7 +86,7 @@ module.exports = {
           `💞 Entre **${authorUser.username}** y **${targetUser.username}** ya se han dado **${coupleData.kisses}** besitos compartidos, nya~ ✨`
       )
       .setImage(getRandom(kissGifs))
-      .setFooter({ text: "Mimos infiniroa 🐱💗" })
+      .setFooter({ text: "Mimos infinitos 🐱💗" })
       .setTimestamp();
 
     // ==== BOTONES ====
@@ -93,13 +110,15 @@ module.exports = {
     // ==== COLECTOR DE BOTÓN ====
     const collector = message.createMessageComponentCollector({
       componentType: ComponentType.Button,
+      time: 300000 // 5 minutos de tiempo para reaccionar
     });
 
     collector.on("collect", async (i) => {
+      // Revisa si la interacción es del usuario correcto
       if (i.user.id !== targetUser.id) {
         return i.reply({
           content: "Solo la persona besada puede interactuar, nya~ 😼",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral, // Usamos flags
         });
       }
 
@@ -108,7 +127,7 @@ module.exports = {
         let coupleDataReturn = await Couple.findOneAndUpdate(
           { users: coupleIds },
           { $inc: { kisses: 1 } },
-          { new: true, upsert: true }
+          { new: true } // Solo actualizamos, no creamos de nuevo
         );
 
         const returnEmbed = new EmbedBuilder()
@@ -139,6 +158,13 @@ module.exports = {
           .setTimestamp();
 
         await i.update({ embeds: [rejectEmbed], components: [] });
+      }
+    });
+
+    // Deshabilita los botones si el tiempo de espera termina
+    collector.on('end', collected => {
+      if (collected.size === 0) {
+        interaction.editReply({ components: [] }).catch(() => {});
       }
     });
   },
