@@ -206,6 +206,7 @@ Hoshiko:
       `;
 
       let text = await generateResponse(prompt);
+      
       // === AHORA REVISAMOS LA RESPUESTA DE LA IA ANTES DE ENVIARLA ===
       text = text.replace(/@everyone/g, 'everyone').replace(/@here/g, 'here');
 

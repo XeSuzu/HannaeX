@@ -30,7 +30,7 @@ module.exports = (client) => {
         }
     }
 
-    // 3. Procesa las carpetas (el código original)
+    // 3. Procesamiento de carpetas dentro de Events 
     const eventFolders = eventFilesAndFolders.filter(folder => fs.statSync(path.join(eventsPath, folder)).isDirectory());
     for (const folder of eventFolders) {
         const folderPath = path.join(eventsPath, folder);

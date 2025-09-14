@@ -1,8 +1,8 @@
-# 🌸 HannaeX Discord Bot - Manual Técnico y Kawaii 🌸
+# 🌸 Hoshiko Discord Bot - Manual Técnico y Kawaii 🌸
 
-¡Bienvenido al mundo de **HannaeX**!  
+¡Bienvenido al mundo de **Hoshiko**!  
 Un bot de Discord adorable, profesional y ultra completo, listo para ronronear en tu servidor.  
-Desarrollado en Node.js, HannaeX combina moderación, interacción social, utilidades informativas y la magia de la inteligencia artificial Gemini, todo con un toque neko irresistible.  
+Desarrollado en Node.js, Hoshiko combina moderación, interacción social, utilidades informativas y la magia de la inteligencia artificial Gemini, todo con un toque neko irresistible.  
 
 ---
 
@@ -17,14 +17,16 @@ Desarrollado en Node.js, HannaeX combina moderación, interacción social, utili
 │   │   ├── Fun/
 │   │   ├── Information/
 │   │   ├── Interactions/
-│   │   └── Moderation/
+│   │   ├── Moderation/
+│   │   ├── Profiles/
+│   │   └── Leaderboards/
 │   └── PrefixCmds/          # Comandos clásicos con prefijo
 │
-├── Database/                # Persistencia y lógica de datos
+├── Database/                # Persistencia y lógica de datos (memes, conversación IA, etc)
 ├── Events/                  # Eventos de Discord (Client, Guild, etc)
 │   └── Client/
 ├── Handlers/                # Cargadores automáticos de comandos/eventos
-├── Models/                  # Modelos de datos para MongoDB
+├── Models/                  # Modelos de datos para MongoDB (memes, AFK, configuración, etc)
 ├── Services/                # Integraciones externas (ej: Gemini AI)
 ├── .env                     # Variables de entorno (¡no subir!)
 ├── index.js                 # Punto de entrada principal
@@ -46,10 +48,11 @@ Desarrollado en Node.js, HannaeX combina moderación, interacción social, utili
 ## 🌟 Características Destacadas
 
 ### 🎮 Comandos Slash y Prefijo
-- **Slash**: Modernos, organizados y fáciles de usar (`/help`, `/ping`, `/avatar`, `/userinfo`, `/hug`, `/tempmute`, etc).
+- **Slash**: Modernos, organizados y fáciles de usar (`/help`, `/ping`, `/avatar`, `/userinfo`, `/hug`, `/tempmute`, `/mute`, `/unmute`, `/setup-memes`, `/meme-top`, `/memes-top`, `/mi-reputacion`, etc).
 - **Prefijo**: Compatibilidad con comandos clásicos (`!userinfo`, `!ping`...).
 
 ### 🛡️ Moderación Inteligente
+- **/mute** y **/unmute**: Silencia y reactiva usuarios usando el rol Muted (mute permanente).
 - **/tempmute**: Silencia usuarios temporalmente con rol y desmuteo automático.
 - **AFK**: Marca y detecta estados AFK persistentes.
 
@@ -74,7 +77,7 @@ Desarrollado en Node.js, HannaeX combina moderación, interacción social, utili
 
 ---
 
-## 🚀 ¿Cómo funciona HannaeX?
+## 🚀 ¿Cómo funciona Hoshiko?
 
 1. **Inicialización**: `index.js` valida variables, conecta a MongoDB y carga handlers/eventos.
 2. **Carga dinámica**: Los handlers recorren carpetas y registran comandos/eventos automáticamente.
@@ -108,11 +111,24 @@ MONGO_URI=         # URI de conexión a MongoDB
 
 ---
 
+## 🐾 Sistema de Memes
+
+- **Configuración:** Usa `/setup-memes` para definir el canal de memes por servidor.
+- **Guardado:** Los memes se guardan con información de autor, canal, puntos y URL.
+- **Votación:** Cada reacción 👍 o 👎 suma o resta puntos al meme en tiempo real.
+- **Ranking:**  
+  - `/meme-top`: Muestra el meme más votado del canal configurado.
+  - `/memes-top`: Muestra el top 10 de usuarios por reputación de memes.
+  - `/mi-reputacion`: Muestra tu meme más votado y tu reputación total.
+- **Migración:** Incluye script para migrar memes antiguos sin campo `channelId`.
+
+---
+
 ## 🐾 Créditos y Comunidad
 
-- **Creador/a**: [HannaeX Developer](https://discordapp.com/users/727583213253558373)
+- **Creador/a**: [Hoshiko Developer](https://discordapp.com/users/727583213253558373)
 - **Inspiración**: Comunidad Discord y desarrolladores de bots open-source.
-- **Agradecimientos**: A todos los que aportan ideas y reportan bugs, ¡gracias por hacer crecer a HannaeX!
+- **Agradecimientos**: A todos los que aportan ideas y reportan bugs, ¡gracias por hacer crecer a Hoshiko!
 
 ---
 
@@ -122,11 +138,5 @@ Este proyecto es privado y no debe ser distribuido sin autorización del autor.
 
 ---
 
-## 📝 Roadmap: ¡Comandos por venir!
-
-- [ ] NSFW
-
----
-
 > *"Nyaa~ Gracias por confiar en mí. ¡Estoy lista para ronronear y ayudarte en tu servidor!"*  
-> — **HannaeX**
+> — **Hoshiko**

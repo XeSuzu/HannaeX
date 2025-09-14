@@ -1,6 +1,3 @@
-// =====================
-// COMANDO /AFK
-// =====================
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const mongoose = require("mongoose");
 
@@ -16,7 +13,7 @@ const AFK = mongoose.models.AFK || mongoose.model("AFK", afkSchema);
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("afk")
-    .setDescription("😽 Marca que estás AFK, nya~")
+    .setDescription("😽 Marca que estás AFK")
     .addStringOption((option) =>
       option
         .setName("razon")
@@ -25,7 +22,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const reason = interaction.options.getString("razon") || "Estoy ausente, nya~ 🐾";
+    const reason = interaction.options.getString("razon") || "Estoy ausente 🐾";
 
     // Guardar o actualizar AFK
     await AFK.findOneAndUpdate(
@@ -36,7 +33,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0xffc0cb)
-      .setTitle("😽 Nyaa~ Estás AFK")
+      .setTitle("😽 Ahora estas AFK, notificare a cualquiera que te mencione")
       .setDescription(
         `Ahora estás AFK ${interaction.user.username} 🐾\n> Razón: ${reason}\n> Tiempo: 0 minuto(s)`
       )
