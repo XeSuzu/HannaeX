@@ -95,9 +95,9 @@ module.exports = (client) => {
         }
 
         // ========================
-        //  MENSAJE RESUMIDO KAWAII
+        //  MENSAJE RESUMIDO
         // ========================
-        let output = `🌸✨ Nyaa~ ¡Registro de comandos completado! 💖\n`;
+        let output = `🌸✨  ¡Registro de comandos completado! 💖\n`;
 
         for (const guildId in resumen.registered) {
             const guildName = client.guilds.cache.get(guildId)?.name || 'Servidor desconocido';
@@ -110,7 +110,7 @@ module.exports = (client) => {
             resumen.failed.forEach(f => output += `   - Servidor ${f.guildId}: ${f.error}\n`);
         }
 
-        output += `\n🌟 ¡Todo listo para ronronear con tus comandos! >w<`;
+        output += `\n Comandos cargados: ${slashCommandsArray.length} | Comandos fallidos: ${resumen.failed.length}\n`;
         console.log(output);
     });
 };

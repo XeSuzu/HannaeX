@@ -5,28 +5,34 @@ module.exports = {
   once: true,
   async execute(client) {
     // ===== Mensaje de inicio =====
-    console.log(`🌸 Nyaa~ ${client.user.tag} está lista para ronronear 💖`);
+    console.log(`🌸 Nyaa~ ${client.user.tag} está lista 💖`);
 
-    // ===== Actividades dinámicas =====
+    // ===== Lista de Actividades =====
     const activities = [
-      { name: "jugando contigo >w<", type: ActivityType.Playing },
-      { name: "tus historias kawaii 😽", type: ActivityType.Listening },
-      { name: "cómo crece tu servidor 🐾", type: ActivityType.Watching },
-      { name: "trayendo diversión y mimos 💖", type: ActivityType.Playing }
+      { name: `en ${client.guilds.cache.size} servidores`, type: ActivityType.Watching },
+      { name: 'mis comandos con /', type: ActivityType.Playing },
+      { name: `a ${client.users.cache.size} usuarios`, type: ActivityType.Listening },
+      { name: 'que todo funcione bien', type: ActivityType.Competing }
     ];
-    let i = 0;
-    client.user.setPresence({
-      activities: [{ name: activities[i].name, type: activities[i].type }],
-      status: "online"
-    });
-    setInterval(() => {
-      i = (i + 1) % activities.length;
-      client.user.setPresence({
-        activities: [{ name: activities[i].name, type: activities[i].type }],
-        status: "online"
-      });
-    }, 15000);
     
-    console.log("🌟 ¡Todo listo para ronronear! >w<");
+    let i = 0;
+
+    // Establecer la primera actividad inmediatamente
+    client.user.setPresence({
+        activities: [{ name: activities[i].name, type: activities[i].type }],
+        status: 'online' // Puedes poner 'online', 'idle', 'dnd' (no molestar)
+    });
+
+    // Cambiar la actividad cada 15 segundos
+    setInterval(() => {
+        // Ciclamos al siguiente índice de la lista
+        i = (i + 1) % activities.length;
+
+        // Actualizamos la presencia del bot
+        client.user.setActivity(activities[i].name, { type: activities[i].type });
+
+    }, 15000); // 15000 milisegundos = 15 segundos
+    
+    console.log("🌟 ¡Estados dinámicos cargados!");
   },
 };

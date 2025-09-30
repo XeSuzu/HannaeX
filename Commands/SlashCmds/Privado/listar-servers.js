@@ -6,12 +6,10 @@ module.exports = {
         .setDescription('Ve la lista de servidores en los que está el bot. (Solo para el dueño)'),
 
     async execute(interaction, client) {
-        // Asegúrate de que solo la dueña del bot pueda usar este comando
-        // El ID del bot_owner debe estar en tu archivo .env
         if (interaction.user.id !== process.env.BOT_OWNER_ID) {
             return interaction.reply({
-                content: 'Nyaa... este es un comandito secreto solo para la dueña. ¡Lo siento mucho! 😿',
-                ephemeral: true // Solo tú verás este mensaje
+                content: 'Nyaa... este es un comando solo para el propietario del bot. ¡Lo siento mucho! 😿',
+                ephemeral: true 
             });
         }
 
@@ -20,7 +18,6 @@ module.exports = {
         try {
             const guilds = client.guilds.cache.map(guild => `> **${guild.name}** (${guild.id})\n> Miembros: ${guild.memberCount}`);
             
-            // Dividimos la lista si es muy larga para evitar el límite de caracteres de Discord
             const guildsList = [];
             let currentList = '';
 
@@ -36,9 +33,9 @@ module.exports = {
 
             // Crear el embed principal
             const embed = new EmbedBuilder()
-                .setColor(0x87ceeb) // Un color lindo como el cielo 🦋
+                .setColor(0x87ceeb) 
                 .setTitle(`🌟 ¡Estoy en ${client.guilds.cache.size} servidores! 🌟`)
-                .setDescription('¡Aquí están todos los lugares donde puedo ronronear! 🐾')
+                .setDescription('¡Servidores donde me han incluido! 🐾')
                 .setTimestamp()
                 .setFooter({ text: 'Nyaa~ 💕' });
 
