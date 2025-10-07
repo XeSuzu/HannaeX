@@ -1,116 +1,135 @@
 const path = require('path');
 const fs = require('fs');
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, Collection } = require('discord.js');
 
-module.exports = (client) => {
-    const config = client.config;
+/**
+ * Lee recursivamente los archivos de comando de un directorio y los carga.
+ * @param {string} directoryPath La ruta al directorio que contiene las carpetas de comandos.
+ * @returns {Array<object>} Un array con todos los comandos cargados.
+ */
+function loadCommands(directoryPath) {
+    const commands = [];
+    if (!fs.existsSync(directoryPath)) {
+        console.warn(`⚠️ El directorio de comandos no existe: ${directoryPath}`);
+        return commands;
+    }
 
-    // ========================
-    //  CARGA DE COMANDOS DE PREFIJO
-    // ========================
-    const loadPrefixCommands = () => {
-        const prefixPath = path.join(__dirname, '../Commands/PrefixCmds');
-        const prefixFolders = fs.readdirSync(prefixPath);
-        let count = 0;
+    const commandFolders = fs.readdirSync(directoryPath);
 
-        for (const folder of prefixFolders) {
-            const folderPath = path.join(prefixPath, folder);
-            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
+    for (const folder of commandFolders) {
+        const folderPath = path.join(directoryPath, folder);
+        const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
 
-            for (const file of commandFiles) {
-                try {
-                    const command = require(path.join(folderPath, file));
-                    if (command && command.name) {
-                        client.commands.set(command.name, command);
-                        count++;
-                    }
-                } catch (err) {
-                    console.error(`❌ Falló al cargar prefijo ${file}: ${err.message}`);
-                }
-            }
-        }
-        console.log(`📜 ${count} comandos de prefijo cargados`);
-    };
-    loadPrefixCommands();
-
-    // ========================
-    //  CARGA DE SLASH COMMANDS
-    // ========================
-    const loadSlashCommands = () => {
-        const slashPath = path.join(__dirname, '../Commands/SlashCmds');
-        const slashFolders = fs.readdirSync(slashPath);
-        const slashCommandsArray = [];
-        for (const folder of slashFolders) {
-            const folderPath = path.join(slashPath, folder);
-            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.js'));
-
-            for (const file of commandFiles) {
-                try {
-                    const command = require(path.join(folderPath, file));
-                    if (command && command.data && command.execute) {
-                        if (Array.isArray(command.data)) {
-                            for (const cmdData of command.data) {
-                                if (cmdData?.name) {
-                                    client.slashCommands.set(cmdData.name, command);
-                                    slashCommandsArray.push(cmdData.toJSON());
-                                }
-                            }
-                        } else if (command.data.name) {
-                            client.slashCommands.set(command.data.name, command);
-                            slashCommandsArray.push(command.data.toJSON());
-                        }
-                    }
-                } catch (err) {
-                    console.error(`❌ Falló al cargar slash ${file}: ${err.message}`);
-                }
-            }
-        }
-        return slashCommandsArray;
-    };
-    const slashCommandsArray = loadSlashCommands();
-
-    // ========================
-    //  REGISTRO DE SLASH COMMANDS EN DISCORD 🌸
-    // ========================
-    client.once('ready', async () => {
-        const rest = new REST({ version: '10' }).setToken(config.token);
-
-        const resumen = { registered: {}, failed: [] };
-
-        if (!Array.isArray(config.guildIds) || config.guildIds.length === 0) {
-            console.warn('⚠️ Nyaa~ No hay GuildId configurado. Registro omitido!');
-            return;
-        }
-
-        for (const guildId of config.guildIds) {
+        for (const file of commandFiles) {
+            const filePath = path.join(folderPath, file);
             try {
-                await rest.put(
-                    Routes.applicationGuildCommands(config.BotId, guildId),
-                    { body: slashCommandsArray }
-                );
-                resumen.registered[guildId] = slashCommandsArray.map(cmd => cmd.name);
-            } catch (err) {
-                resumen.failed.push({ guildId, error: err.message });
+                const command = require(filePath);
+                if (command) {
+                    commands.push(command);
+                }
+            } catch (error) {
+                console.error(`❌ Error al cargar el comando en ${filePath}:`, error);
             }
         }
+    }
+    return commands;
+}
 
-        // ========================
-        //  MENSAJE RESUMIDO
-        // ========================
-        let output = `🌸✨  ¡Registro de comandos completado! 💖\n`;
+/**
+ * Registra los slash commands en los servidores (guilds) especificados en la configuración.
+ * @param {Client} client El cliente de Discord.js.
+ * @param {Array<object>} slashCommandsData Los datos de los slash commands listos para ser registrados.
+ */
+async function registerSlashCommands(client, slashCommandsData) {
+    const { config } = client;
+    if (!Array.isArray(config.guildIds) || config.guildIds.length === 0) {
+        console.warn('⚠️ Nyaa~ No hay IDs de servidor (guildIds) en la configuración. Se omite el registro de slash commands.');
+        return;
+    }
 
-        for (const guildId in resumen.registered) {
-            const guildName = client.guilds.cache.get(guildId)?.name || 'Servidor desconocido';
-            output += `\n💮 Comandos listos en ${guildName} (${guildId}):\n`;
-            resumen.registered[guildId].forEach(name => output += `   - /${name}\n`);
+    const rest = new REST({ version: '10' }).setToken(config.token);
+    const summary = { registered: {}, failed: [] };
+
+    for (const guildId of config.guildIds) {
+        try {
+            await rest.put(
+                Routes.applicationGuildCommands(config.BotId, guildId), 
+                { body: slashCommandsData }
+            );
+            summary.registered[guildId] = slashCommandsData.map(cmd => cmd.name);
+        } catch (error) {
+            summary.failed.push({ guildId, error: error.message });
+            console.error(`❌ Falló el registro de comandos en el servidor ${guildId}:`, error);
         }
+    }
 
-        if (resumen.failed.length > 0) {
-            output += `\n⚠️ Ups~ Algunos comandos fallaron:\n`;
-            resumen.failed.forEach(f => output += `   - Servidor ${f.guildId}: ${f.error}\n`);
+    logRegistrationSummary(client, summary, slashCommandsData.length);
+}
+
+/**
+ * Muestra en consola un resumen del resultado del registro de comandos.
+ * @param {Client} client El cliente de Discord.js.
+ * @param {object} summary El objeto con los resultados del registro.
+ * @param {number} totalCommands El número total de comandos que se intentaron registrar.
+ */
+function logRegistrationSummary(client, summary, totalCommands) {
+    const outputLines = ['🌸✨ ¡Registro de comandos completado! 💖'];
+
+    for (const guildId in summary.registered) {
+        const guild = client.guilds.cache.get(guildId);
+        outputLines.push(`\n💮 Comandos listos en "${guild?.name || 'Servidor desconocido'}" (${guildId}):`);
+        summary.registered[guildId].forEach(name => outputLines.push(`   - /${name}`));
+    }
+
+    if (summary.failed.length > 0) {
+        outputLines.push('\n⚠️ Ups~ Algunos registros de servidor fallaron:');
+        summary.failed.forEach(f => outputLines.push(`   - Servidor ${f.guildId}: ${f.error}`));
+    }
+
+    const successfulGuilds = Object.keys(summary.registered).length;
+    const failedGuilds = summary.failed.length;
+    outputLines.push(`\nTotal de comandos para registrar: ${totalCommands}`);
+    outputLines.push(`Servidores exitosos: ${successfulGuilds} | Servidores fallidos: ${failedGuilds}`);
+    
+    console.log(outputLines.join('\n'));
+}
+
+/**
+ * Inicializador principal del manejador de comandos.
+ * Carga todos los comandos de prefijo y slash, y configura el registro de estos últimos.
+ * @param {Client} client El cliente de Discord.js. Debe tener una propiedad 'config'.
+ */
+module.exports = (client) => {
+    // Inicializar colecciones si no existen
+    client.commands = new Collection();
+    client.slashCommands = new Collection();
+    
+    // --- Carga de Comandos de Prefijo ---
+    const prefixCommandsPath = path.join(__dirname, '../Commands/PrefixCmds');
+    const prefixCommands = loadCommands(prefixCommandsPath);
+    for (const command of prefixCommands) {
+        if (command.name) {
+            client.commands.set(command.name, command);
         }
+    }
+    console.log(`📜 ${client.commands.size} comandos de prefijo cargados.`);
 
-        output += `\n Comandos cargados: ${slashCommandsArray.length} | Comandos fallidos: ${resumen.failed.length}\n`;
-        console.log(output);
+    // --- Carga de Slash Commands ---
+    const slashCommandsPath = path.join(__dirname, '../Commands/SlashCmds');
+    const slashCommands = loadCommands(slashCommandsPath);
+    const slashCommandsToRegister = [];
+    for (const command of slashCommands) {
+        if (command.data && command.execute) {
+            client.slashCommands.set(command.data.name, command);
+            slashCommandsToRegister.push(command.data.toJSON());
+        }
+    }
+    console.log(`✨ ${client.slashCommands.size} slash commands cargados.`);
+
+    // --- Registro de Slash Commands cuando el bot esté listo ---
+    client.once('ready', () => {
+        if (slashCommandsToRegister.length > 0) {
+            registerSlashCommands(client, slashCommandsToRegister);
+        }
     });
 };

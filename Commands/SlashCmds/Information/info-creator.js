@@ -1,6 +1,149 @@
 const { SlashCommandBuilder, EmbedBuilder, version: djsVersion } = require('discord.js');
 const os = require('os');
 const process = require('process');
+const path = require('path');
+
+/**
+ * ----------------------------------------------------------------
+ * INFO COMMAND - v2.0 (Diseño Mejorado)
+ * ----------------------------------------------------------------
+ * Este comando muestra información completa del bot y del sistema
+ * con un diseño visualmente atractivo.
+ * * Dependencias:
+ * - El paquete 'dotenv' debe estar configurado en tu index.js.
+ * - Un archivo .env con la variable CREATOR_ID="tu_id_de_usuario".
+ * ----------------------------------------------------------------
+ */
+
+// --- Constantes y Configuración ---
+const CREATOR_ID = process.env.BOT_OWNER_ID;
+
+const NEKO_PHRASES = [
+    'Nyaa~ ¿Me estabas buscando? 🐾',
+    'M-meow~ ¡Aquí tienes mi información! 🌸',
+    'Nyan~ ¡Listo para ayudarte cuando quieras! 🐱',
+];
+
+const NEKO_GIF = 'https://i.gifer.com/8Va3.gif';
+
+// --- Funciones de Utilidad ---
+
+/**
+ * Formatea los bytes a un tamaño más legible (KB, MB, GB).
+ * @param {number} bytes El número de bytes a formatear.
+ * @returns {string} El tamaño formateado.
+ */
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+/**
+ * Crea un indicador visual basado en la latencia del bot.
+ * @param {number} ping La latencia en ms.
+ * @returns {string} Un string con un emoji y un estado.
+ */
+function createStatusVisual(ping) {
+    if (ping < 150) return `💖 \`Excelente\``;
+    if (ping < 250) return `💛 \`Estable\``;
+    return `💔 \`Lento\``;
+}
+
+/**
+ * Reúne todas las estadísticas del bot y del sistema.
+ * @param {import('discord.js').Client} client El cliente de Discord.
+ * @returns {Promise<object>} Un objeto con todas las estadísticas.
+ */
+async function gatherStats(client) {
+    let creator = null;
+    if (CREATOR_ID) {
+        creator = await client.users.fetch(CREATOR_ID).catch(() => null);
+    }
+
+    const numberFormat = new Intl.NumberFormat('es-ES');
+    const ping = Math.round(client.ws.ping);
+
+    return {
+        creator: {
+            tag: creator ? creator.tag : 'Desconocido',
+            id: CREATOR_ID || 'No definido',
+            avatar: creator ? creator.displayAvatarURL() : client.user.displayAvatarURL(),
+        },
+        bot: {
+            status: createStatusVisual(ping),
+            ping: `${ping}ms`,
+            uptime: `<t:${Math.floor(client.readyTimestamp / 1000)}:R>`,
+            servers: numberFormat.format(client.guilds.cache.size),
+            commands: client.slashCommands?.size || 0,
+        },
+        system: {
+            platform: os.platform().replace('win32', 'Windows'),
+            cpu: os.cpus()[0].model.split('@')[0].trim(),
+            ram: formatBytes(process.memoryUsage().rss),
+            nodeVersion: process.version,
+            djsVersion: djsVersion,
+        },
+    };
+}
+
+/**
+ * Crea y formatea el Embed con la información del bot y un diseño mejorado.
+ * @param {import('discord.js').ClientUser} botUser El usuario del bot.
+ * @param {object} stats El objeto de estadísticas generado por gatherStats.
+ * @returns {EmbedBuilder} El EmbedBuilder listo para ser enviado.
+ */
+function createInfoEmbed(botUser, stats) {
+    const randomPhrase = NEKO_PHRASES[Math.floor(Math.random() * NEKO_PHRASES.length)];
+
+    return new EmbedBuilder()
+        .setColor('#FFB6C1') // Rosa pastel
+        .setTitle(`🌸 ${botUser.username} - Perfil Neko`)
+        .setThumbnail(botUser.displayAvatarURL({ dynamic: true }))
+        .setDescription(`> ${randomPhrase}`)
+        .setImage(NEKO_GIF)
+        .addFields(
+            // Primera Fila: Estadísticas Generales
+            {
+                name: '📊 Estadísticas',
+                value: `
+                    > 💖 **Estado:** ${stats.bot.status}
+                    > 핑 **Latencia:** \`${stats.bot.ping}\`
+                    > サーバー **Servidores:** \`${stats.bot.servers}\`
+                    > ⏱️ **Activo desde:** ${stats.bot.uptime}
+                `,
+                inline: false,
+            },
+            // Segunda Fila: Host y Versiones
+            {
+                name: '💻 Información del Host',
+                value: `
+                    > ⚙️ **Plataforma:** \`${stats.system.platform}\`
+                    > 🐏 **RAM en uso:** \`${stats.system.ram}\`
+                    > 💽 **CPU:** \`${stats.system.cpu}\`
+                `,
+                inline: true,
+            },
+            {
+                name: '🛠️ Versiones',
+                value: `
+                    > **Node.js:** \`${stats.system.nodeVersion}\`
+                    > **Discord.js:** \`v${stats.system.djsVersion}\`
+                    > **Comandos:** \`${stats.bot.commands}\`
+                `,
+                inline: true,
+            }
+        )
+        .setTimestamp()
+        .setFooter({
+            text: `Hecho con amor por ${stats.creator.tag}`,
+            iconURL: stats.creator.avatar,
+        });
+}
+
+// --- Comando Principal ---
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,53 +151,19 @@ module.exports = {
         .setDescription('🌸 Muestra información adorable y completa del bot~'),
 
     async execute(interaction, client) {
-        const creatorId = '727583213253558373';
-        let creatorUser;
-
         try {
-            creatorUser = await client.users.fetch(creatorId);
+            await interaction.deferReply();
+            
+            const stats = await gatherStats(client);
+            const infoEmbed = createInfoEmbed(client.user, stats);
+
+            await interaction.editReply({ embeds: [infoEmbed] });
         } catch (error) {
-            console.error('No se pudo encontrar al creador:', error);
-            creatorUser = { username: 'Desconocido', id: creatorId, displayAvatarURL: () => null };
-        }
-
-        // Frases aleatorias neko uwu
-        const frasesNeko = [
-            'Nyaa~ ¿Me estabas buscando? 🐾',
-            'M-meow~ ¡Aquí tienes mi información! 🌸',
-            'Nyan~ ¡Listo para ayudarte cuando quieras! 🐱',
-        ];
-        const fraseRandom = frasesNeko[Math.floor(Math.random() * frasesNeko.length)];
-
-        const gifUrl = 'https://i.gifer.com/8Va3.gif';
-        const creatorAvatar = creatorUser.displayAvatarURL?.() || null;
-        const numberFormat = new Intl.NumberFormat('es-ES');
-
-        const commandsCount = client.commands ? client.commands.size : 0;
-        const uptime = `<t:${Math.floor(Date.now() / 1000 - (client.uptime / 1000))}:R>`;
-
-        // Barra de energía kawaii
-        const energiaBot = '💖💖💖💖💖💖💖💖💖💖';
-
-        const infoEmbed = new EmbedBuilder()
-            .setColor('#FFB6C1')
-            .setTitle(`🌸 ${client.user.username} - Perfil Neko 🐾`)
-            .setDescription(`${fraseRandom}\n\n💌 *Bot multiproposito para ayudarte a mejorar tu servidor y darle alegria.*`)
-            .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
-            .setImage(gifUrl)
-
-            .addFields(
-                { name: '💌 Creador/a', value: `**Nombre:** \`${creatorUser.username}\`\n**ID:** \`${creatorUser.id}\`\n[Perfil lindo~](https://discordapp.com/users/${creatorId})`, inline: true },
-                { name: '📊 Estadísticas', value: `🏠 **Servidorecitos:** \`${numberFormat.format(client.guilds.cache.size)}\`\n👥 **Amiguitos:** \`${numberFormat.format(client.users.cache.size)}\`\n💓 **Latencia:** \`${Math.round(client.ws.ping)}ms\``, inline: true },
-                { name: '📜 Comanditos', value: `Tengo **${commandsCount}** comandos~\nUsa \`/help\` para verlos todos, nya~`, inline: false },
-            )
-
-            .setTimestamp()
-            .setFooter({
-                text: 'Arigatou por usarme~ 💕 Nya~',
-                iconURL: creatorAvatar || client.user.displayAvatarURL()
+            console.error(`Error en el comando '${path.basename(__filename)}':`, error);
+            await interaction.editReply({ 
+                content: '😿 ¡Miau! Algo salió mal al intentar obtener mi información. Por favor, inténtalo de nuevo.',
+                ephemeral: true
             });
-
-        await interaction.reply({ embeds: [infoEmbed] });
+        }
     }
 };
