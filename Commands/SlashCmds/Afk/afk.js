@@ -1,14 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const mongoose = require("mongoose");
-
-// ==== MODELO AFK ====
-const afkSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true },
-  reason: { type: String, default: "Estoy ausente, nya~ 🐾" },
-  timestamp: { type: Date, default: Date.now },
-});
-
-const AFK = mongoose.models.AFK || mongoose.model("AFK", afkSchema);
+const AFK = require("../../../Models/afk.js"); // Usa el modelo global
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,16 +15,16 @@ module.exports = {
   async execute(interaction) {
     const reason = interaction.options.getString("razon") || "Estoy ausente 🐾";
 
-    // Guardar o actualizar AFK
+    // Guardar o actualizar AFK por usuario y servidor
     await AFK.findOneAndUpdate(
-      { userId: interaction.user.id },
+      { userId: interaction.user.id, guildId: interaction.guildId },
       { reason, timestamp: Date.now() },
       { upsert: true, new: true }
     );
 
     const embed = new EmbedBuilder()
       .setColor(0xffc0cb)
-      .setTitle("😽 Ahora estas AFK, notificare a cualquiera que te mencione")
+      .setTitle("😽 Ahora estas AFK, notificaré a cualquiera que te mencione")
       .setDescription(
         `Ahora estás AFK ${interaction.user.username} 🐾\n> Razón: ${reason}\n> Tiempo: 0 minuto(s)`
       )
