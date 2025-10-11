@@ -2,10 +2,11 @@
   "name": "hannaex",
   "version": "1.0.0",
   "description": "Bot de Discord",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node .",
-    "dev": "nodemon ."
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "@discord-player/extractor": "^7.1.0",
@@ -23,6 +24,9 @@
     "play-dl": "^1.9.7"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@types/node": "^24.7.2",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
