@@ -5,14 +5,32 @@
  * Requiere la variable de entorno GEMINI_API_KEY.
  */
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 require("dotenv").config();
 
-// Inicializa la instancia de Gemini AI usando la API Key del entorno
+// ========================= 🔑 Inicialización del modelo =========================
+if (!process.env.GEMINI_API_KEY) {
+  console.error("❌ Falta la variable de entorno GEMINI_API_KEY.");
+  process.exit(1);
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Selecciona el modelo a utilizar (puedes cambiar el modelo aquí si lo deseas)
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+// Configuración de seguridad básica para evitar contenido inapropiado
+const safetySettings = [
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+];
+
+// Modelo seleccionado (puedes cambiarlo por "gemini-1.5-pro" si necesitas más profundidad)
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+  safetySettings,
+});
+
+// ========================= 🧠 Funciones principales =========================
 
 /**
  * Genera una respuesta completa a partir de un prompt usando Gemini AI.
@@ -20,17 +38,19 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
  * @returns {Promise<string>} - La respuesta generada por la IA.
  */
 async function generateResponse(prompt) {
-  // Configuración para limitar la longitud de la respuesta y acelerar la generación
-  const generationConfig = {
-    maxOutputTokens: 512,
-  };
+  try {
+    const generationConfig = { maxOutputTokens: 512 };
 
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig,
-  });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+    });
 
-  return result.response.text();
+    return result.response.text() || "Nyaa… no tengo respuesta esta vez 🐾";
+  } catch (err) {
+    console.error("⚠️ Error al generar respuesta:", err);
+    throw err;
+  }
 }
 
 /**
@@ -40,17 +60,19 @@ async function generateResponse(prompt) {
  * @returns {Promise<AsyncIterable<{text: () => string}>>} - Un stream de fragmentos de texto.
  */
 async function generateResponseStream(prompt) {
-  const generationConfig = {
-    maxOutputTokens: 1024,
-  };
+  try {
+    const generationConfig = { maxOutputTokens: 1024 };
 
-  // Usamos la función de streaming del modelo
-  const result = await model.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig,
-  });
+    const result = await model.generateContentStream({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+    });
 
-  return result.stream; // Devuelve el stream para procesar en tiempo real
+    return result.stream;
+  } catch (err) {
+    console.error("⚠️ Error al generar respuesta en streaming:", err);
+    throw err;
+  }
 }
 
 /**
@@ -64,5 +86,5 @@ function splitMessage(text, maxLength = 2000) {
   return text.match(regex) || [];
 }
 
-// Exporta las funciones para uso externo
-module.exports = { generateResponse, splitMessage, generateResponseStream };
+// ========================= 📦 Exportación =========================
+module.exports = { generateResponse, generateResponseStream, splitMessage, model };

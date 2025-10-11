@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const Meme = require('./Database/meme');
-const ServerConfig = require('./Models/serverConfig');
+const Meme = require('../Database/meme');
+const ServerConfig = require('../Models/serverConfig');
 
 // Cambia la URI por la de tu base de datos
 const MONGO_URI = 'mongodb+srv://AmyXs:8Sm2POmjeHRCDo7T@kissdatabase.apzliex.mongodb.net/?retryWrites=true&w=majority&appName=KissDataBase';

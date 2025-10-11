@@ -128,6 +128,7 @@ module.exports = (client) => {
 
     // --- Registro de Slash Commands cuando el bot esté listo ---
     client.once('ready', () => {
+        console.log('[COMMAND HANDLER] El evento "ready" se ha disparado. Registrando comandos...');
         if (slashCommandsToRegister.length > 0) {
             registerSlashCommands(client, slashCommandsToRegister);
         }

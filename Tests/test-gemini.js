@@ -14,7 +14,7 @@ async function runTest() {
 
     // 2. Intentamos inicializar el cliente
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     console.log("Cliente inicializado. Intentando generar contenido de prueba...");
 
     // 3. Hacemos la llamada más simple a la API
