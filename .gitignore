@@ -9,3 +9,6 @@ node_modules/
 
 # Config (si decides mantenerlo como backup)
 config.json
+
+# Build output
+/dist

@@ -8,7 +8,7 @@ import { HoshikoClient } from '../index'; // Importamos nuestra interfaz de clie
 // ==========================================================
 interface CommandFile {
     name?: string; // Para comandos de prefijo
-    data?: any;    // Para slash commands
+    data?: any;    // Para slash commands (puede ser un objeto o un array)
     execute: (...args: any[]) => void;
 }
 
@@ -38,14 +38,25 @@ function loadCommands(directoryPath: string): CommandFile[] {
 
     for (const folder of commandFolders) {
         const folderPath = path.join(directoryPath, folder);
+        
+        // Verificar que sea un directorio
+        if (!fs.statSync(folderPath).isDirectory()) {
+            continue;
+        }
+        
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts'));
 
         for (const file of commandFiles) {
             const filePath = path.join(folderPath, file);
             try {
-                const command = require(filePath);
-                if (command) {
+                const commandModule = require(filePath);
+                // Manejar tanto export default como module.exports
+                const command = commandModule.default || commandModule;
+                
+                if (command && command.execute) {
                     commands.push(command);
+                } else {
+                    console.warn(`⚠️ El comando ${file} no tiene función execute`);
                 }
             } catch (error: any) {
                 console.error(`❌ Error al cargar el comando en ${filePath}:`, error.message);
@@ -101,7 +112,6 @@ function logRegistrationSummary(client: Client, summary: RegistrationSummary, to
         summary.registered[guildId].forEach(name => outputLines.push(`   - /${name}`));
     }
     
-    // ... (El resto de la lógica de log se mantiene igual)
     if (summary.failed.length > 0) {
         outputLines.push('\n⚠️ Ups~ Algunos registros de servidor fallaron:');
         summary.failed.forEach(f => outputLines.push(`   - Servidor ${f.guildId}: ${f.error}`));
@@ -133,14 +143,30 @@ export default (client: HoshikoClient) => {
     const slashCommandsPath = path.join(__dirname, '../Commands/SlashCmds');
     const slashCommands = loadCommands(slashCommandsPath);
     const slashCommandsToRegister: any[] = [];
+    
     for (const command of slashCommands) {
-        // ✅ AQUÍ ESTÁ LA CORRECCIÓN
-        // Confiamos en la interfaz y solo verificamos la existencia de 'data'
         if (command.data) {
-            client.slashCommands.set(command.data.name, command);
-            slashCommandsToRegister.push(command.data.toJSON());
+            // ✅ CORRECCIÓN: Manejar tanto objetos individuales como arrays
+            if (Array.isArray(command.data)) {
+                // Si data es un array (como en comandos híbridos: slash + context menu)
+                for (const dataItem of command.data) {
+                    if (dataItem && typeof dataItem.toJSON === 'function') {
+                        const jsonData = dataItem.toJSON();
+                        client.slashCommands.set(jsonData.name, command);
+                        slashCommandsToRegister.push(jsonData);
+                    }
+                }
+            } else if (typeof command.data.toJSON === 'function') {
+                // Si data es un objeto individual
+                const jsonData = command.data.toJSON();
+                client.slashCommands.set(jsonData.name, command);
+                slashCommandsToRegister.push(jsonData);
+            } else {
+                console.warn(`⚠️ El comando tiene data pero no es válido:`, command.data);
+            }
         }
     }
+    
     console.log(`✨ ${client.slashCommands.size} slash commands cargados.`);
 
     // --- Registro de Slash Commands cuando el bot esté listo ---
@@ -148,6 +174,8 @@ export default (client: HoshikoClient) => {
         console.log('[COMMAND HANDLER] El evento "ready" se ha disparado. Registrando comandos...');
         if (slashCommandsToRegister.length > 0) {
             registerSlashCommands(client, slashCommandsToRegister);
+        } else {
+            console.warn('⚠️ No hay comandos slash para registrar');
         }
     });
 };

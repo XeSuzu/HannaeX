@@ -1,22 +1,24 @@
-import { 
-    SlashCommandBuilder, 
-    EmbedBuilder, 
-    PermissionsBitField, 
-    ChatInputCommandInteraction, 
-    GuildMember, 
-    Message 
+import {
+    SlashCommandBuilder,
+    EmbedBuilder,
+    PermissionsBitField,
+    ChatInputCommandInteraction,
+    GuildMember,
+    Message,
+    MessageFlags,
+    InteractionResponse
 } from "discord.js";
 import AFK from "../../../Models/afk";
 import { HoshikoClient } from "../../../index";
 
-// Interfaz para la estructura de nuestros slash commands
 interface SlashCommand {
-    // ✅ CORRECCIÓN: Permitimos cualquier builder de slash commands
     data: SlashCommandBuilder | any;
-    execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void | Message>;
+    category: string;
+    execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void | Message | InteractionResponse>;
 }
 
 const command: SlashCommand = {
+    category: 'Information',
     data: new SlashCommandBuilder()
         .setName("afk")
         .setDescription("😽 Marca que estás AFK y avisa a quienes te mencionen.")
@@ -27,33 +29,37 @@ const command: SlashCommand = {
         ),
 
     async execute(interaction, client) {
-        // Respondemos de forma efímera para no llenar el chat y evitar timeouts
-        await interaction.deferReply({ ephemeral: true });
+        // ✅ CORRECCIÓN: Eliminamos la bandera 'Ephemeral' para que la respuesta sea pública.
+        await interaction.deferReply();
 
-        // Si el comando no se usa en un servidor, no podemos continuar
         if (!interaction.guild || !interaction.member) {
+            // Este error sigue siendo privado para no molestar.
             return interaction.editReply({ content: "Este comando solo se puede usar en un servidor." });
         }
 
-        // Obtenemos la versión COMPLETA del miembro para tener todos los métodos
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const reason = interaction.options.getString("razon") ?? "Estoy ausente 🐾";
 
-        // --- Lógica de Cambio de Apodo ---
         let nicknameChanged = false;
         const originalNickname = member.displayName;
-        const botMember = await interaction.guild.members.fetchMe();
-        const hasPerms = botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames);
-        const canChange = hasPerms && (botMember.roles.highest.position > member.roles.highest.position);
 
-        if (canChange) {
-            try {
-                const newNickname = `[AFK] ${originalNickname}`.slice(0, 32);
-                await member.setNickname(newNickname);
-                nicknameChanged = true;
-            } catch (error) {
-                console.error(`[AFK] No se pudo cambiar el apodo para ${member.user.tag}:`, error);
+        // Comprobación para no tocar al dueño del servidor
+        if (member.id !== interaction.guild.ownerId) {
+            const botMember = await interaction.guild.members.fetchMe();
+            const hasPerms = botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames);
+            const canChange = hasPerms && (botMember.roles.highest.position > member.roles.highest.position);
+
+            if (canChange) {
+                try {
+                    const newNickname = `[AFK] ${originalNickname}`.slice(0, 32);
+                    await member.setNickname(newNickname);
+                    nicknameChanged = true;
+                } catch (error) {
+                    console.error(`[AFK] No se pudo cambiar el apodo para ${member.user.tag}:`, error);
+                }
             }
+        } else {
+            console.log(`[AFK] Se omitió el cambio de apodo para el dueño del servidor: ${member.user.tag}`);
         }
 
         // --- Lógica de la Base de Datos ---
@@ -77,6 +83,7 @@ const command: SlashCommand = {
         const embed = new EmbedBuilder()
             .setColor(0xffc0cb)
             .setTitle("🌙 Te has marcado como ausente")
+            .setAuthor({ name: `${interaction.user.username} ahora está AFK`, iconURL: interaction.user.displayAvatarURL() })
             .addFields(
                 { name: "Razón", value: `> ${reason}` },
                 { name: "Ausente desde", value: `> <t:${unixTimestamp}:R>` }
@@ -84,9 +91,10 @@ const command: SlashCommand = {
             .setFooter({ text: "Un pequeño descanso... 🐱💗" });
 
         if (nicknameChanged) {
-            embed.addFields({ name: "Apodo", value: "> Se ha actualizado tu apodo a `[AFK]`." });
+            embed.addFields({ name: "Apodo", value: "> Se ha actualizado el apodo a `[AFK]`."});
         }
 
+        // Esta respuesta ahora será pública.
         await interaction.editReply({ embeds: [embed] });
     },
 };
