@@ -1,81 +1,86 @@
-import { Events, Interaction } from 'discord.js';
-import { HoshikoClient } from '../../index'; // Importamos nuestra interfaz de cliente personalizada
+import { Events, Interaction, ChatInputCommandInteraction, MessageContextMenuCommandInteraction, UserContextMenuCommandInteraction } from 'discord.js';
+import { HoshikoClient } from '../../index';
+
+type AnyCtx =
+  | ChatInputCommandInteraction
+  | MessageContextMenuCommandInteraction
+  | UserContextMenuCommandInteraction;
 
 export = {
-    name: Events.InteractionCreate,
-    async execute(interaction: Interaction, client: HoshikoClient) {
+  name: Events.InteractionCreate,
+  async execute(interaction: Interaction, client: HoshikoClient) {
+    if (!interaction.guild || !client.guilds.cache.has(interaction.guild.id)) return;
 
-        // ⚡ Ignora interacciones fuera de servidores donde el bot está presente
-        if (!interaction.guild || !client.guilds.cache.has(interaction.guild.id)) return;
-
-        // ------------------------
-        // Slash Commands
-        // ------------------------
-        if (interaction.isChatInputCommand()) {
-            const command = client.slashCommands.get(interaction.commandName);
-
-            if (!command) {
-                const reply = { content: "❌ ¡Oops! Parece que ese comando no existe. Nyaa~", ephemeral: true };
-                return interaction.deferred ? interaction.editReply(reply) : interaction.reply(reply);
-            }
-
-            try {
-                await command.execute(interaction, client);
-            } catch (error: any) {
-                console.error(`💥 Error ejecutando el comando /${interaction.commandName}:`, error);
-                await handleCommandError(interaction, error);
-            }
-            return;
-        }
-
-        // ------------------------
-        // Menús contextuales (clic derecho -> Apps)
-        // ------------------------
-        if (interaction.isMessageContextMenuCommand() || interaction.isUserContextMenuCommand()) {
-            const command = client.slashCommands.get(interaction.commandName);
-
-            if (!command) {
-                return interaction.reply({
-                    content: "❌ ¡Oops! Parece que ese comando no existe. Nyaa~",
-                    ephemeral: true
-                });
-            }
-
-            try {
-                await command.execute(interaction, client);
-            } catch (error: any) {
-                console.error(`💥 Error ejecutando comando contextual "${interaction.commandName}":`, error);
-                await handleCommandError(interaction, error);
-            }
-            return;
-        }
-
-        // ------------------------
-        // Aquí puedes agregar más tipos de interacciones (botones, selects, modals, etc.)
-        // ------------------------
-        // if (interaction.isButton()) { ... }
-        // if (interaction.isStringSelectMenu()) { ... }
+    const tag = `[PID:${process.pid}] id=${'id' in interaction ? interaction.id : 'na'}`;
+    if (interaction.isRepliable()) {
+      console.log(`${tag} kind=${interaction.type} in=${interaction.guild?.name} (${interaction.guild?.id})`);
     }
+
+    const safeRespond = async (ix: AnyCtx, payload: any) => {
+      try {
+        if (ix.deferred && !ix.replied) {
+          return await ix.editReply(payload);
+        }
+        if (!ix.replied) {
+          return await ix.reply(payload);
+        }
+        return await ix.followUp(payload);
+      } catch {
+        try { return await ix.followUp(payload); } catch { /* nada */ }
+      }
+    };
+
+    if (interaction.isChatInputCommand()) {
+      const cmd = client.slashCommands.get(interaction.commandName);
+
+      if (!cmd) {
+        return safeRespond(interaction, {
+          content: "❌ ¡Oops! Ese comando no existe, nyaa~",
+          ephemeral: true
+        });
+      }
+
+      try {
+        await cmd.execute(interaction, client);
+      } catch (error: any) {
+        console.error(`💥 Error ejecutando /${interaction.commandName}:`, error);
+        await handleCommandError(interaction, error, safeRespond);
+      }
+      return;
+    }
+
+    if (interaction.isMessageContextMenuCommand() || interaction.isUserContextMenuCommand()) {
+      const cmd = client.slashCommands.get(interaction.commandName);
+
+      if (!cmd) {
+        return safeRespond(interaction as AnyCtx, {
+          content: "❌ ¡Oops! Ese comando no existe, nyaa~",
+          ephemeral: true
+        });
+      }
+
+      try {
+        await cmd.execute(interaction as any, client);
+      } catch (error: any) {
+        console.error(`💥 Error ejecutando contextual "${interaction.commandName}":`, error);
+        await handleCommandError(interaction as AnyCtx, error, safeRespond);
+      }
+      return;
+    }
+
+  }
 };
 
-// ------------------------
-// Manejo centralizado de errores
-// ------------------------
-async function handleCommandError(interaction: any, error: any) {
-    let errorMessage = "❌ ¡Nyaa... me quedé dormidita! Hubo un error al ejecutar este comando. Por favor, intenta de nuevo más tarde.";
+async function handleCommandError(interaction: AnyCtx, error: any, safeRespond: (ix: AnyCtx, p: any) => Promise<any>) {
+  let errorMessage = "❌ Nyaa… hubo un error al ejecutar este comando. Intenta más tarde.";
 
-    // Errores de permisos
-    if (error.code === 50013 || error.code === 50001) {
-        errorMessage = "❌ ¡Ay! Me falta un permiso para poder hacer eso. Por favor, asegúrate de que tengo los permisos necesarios en este canal. Nyaa~ 🐾";
-    }
+  if (error?.code === 50013 || error?.code === 50001) {
+    errorMessage = "❌ Me faltan permisos para hacer eso. Revisa los permisos del bot en este canal. Nyaa~ 🐾";
+  }
 
-    try {
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: errorMessage, ephemeral: true });
-        } else {
-            await interaction.reply({ content: errorMessage, ephemeral: true });
-        }
-    } catch (replyError) {
-        console.error("No se pudo enviar el mensaje de error al usuario:", replyError);
-    }
+  try {
+    await safeRespond(interaction, { content: errorMessage, ephemeral: true });
+  } catch (replyError) {
+    console.error("No se pudo enviar el mensaje de error al usuario:", replyError);
+  }
 }

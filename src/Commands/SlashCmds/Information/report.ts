@@ -8,14 +8,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { HoshikoClient } from '../../../index';
 
-// ✅ Interfaz correcta y simple
 interface SlashCommand {
   data: SlashCommandBuilder | any;
   category: string;
   execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void | Message>;
 }
 
-// ✅ Interfaz para los reportes
 interface Report {
   id: number;
   userId: string;
@@ -71,7 +69,6 @@ const command: SlashCommand = {
       return interaction.editReply({ content: 'Hubo un error al guardar tu reporte.' });
     }
 
-    // ✅ Embed kawaii y limpio
     const embedConfirmacion = new EmbedBuilder()
       .setColor(0x3ba55c)
       .setTitle('✅ ¡Reporte Enviado!')

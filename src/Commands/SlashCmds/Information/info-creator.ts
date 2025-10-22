@@ -37,11 +37,9 @@ const command: SlashCommand = {
 
       await creator.fetch(true);
 
-      // 🎨 Paleta suave y diseño limpio
       const pastelColors = [0xFFC0CB, 0xFFB6C1, 0xFFD1DC, 0xF8BBD0];
       const color = pastelColors[Math.floor(Math.random() * pastelColors.length)];
 
-      // 🌸 EMBED PERSONAL, SUAVE Y VISUAL
       const embed = new EmbedBuilder()
         .setColor(color)
         .setAuthor({
@@ -96,7 +94,6 @@ const command: SlashCommand = {
         .setTimestamp()
         .setImage('https://i.pinimg.com/1200x/eb/a3/43/eba34334f0141ac5ef1ab5c3819b300d.jpg'); // 🔧 banner final “By Hoshiko”
 
-      // 🌷 BOTONES (solo activo el de invitación)
       const buttons = new ActionRowBuilder<ButtonBuilder>();
 
       buttons.addComponents(
@@ -113,7 +110,7 @@ const command: SlashCommand = {
         new ButtonBuilder()
           .setLabel('Servidor de Soporte')
           .setStyle(ButtonStyle.Link)
-          .setURL('https://discord.gg/TU-SERVIDOR') // 👉 activa cuando tengas el enlace
+          .setURL('https://discord.gg/TU-SERVIDOR') 
           .setEmoji('💬')
       );
 
@@ -122,7 +119,7 @@ const command: SlashCommand = {
         new ButtonBuilder()
           .setLabel('Donar ☕')
           .setStyle(ButtonStyle.Link)
-          .setURL('https://ko-fi.com/TU-LINK') // 👉 activa cuando tengas tu página
+          .setURL('https://ko-fi.com/TU-LINK') 
           .setEmoji('💝')
       );
       */

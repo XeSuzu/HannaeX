@@ -45,7 +45,6 @@ const command: SlashCommand = {
 
             const channel = interaction.channel;
 
-            // ✅ Enviar solo si el canal permite mensajes
             if (channel && (channel instanceof TextChannel || channel instanceof NewsChannel || channel instanceof ThreadChannel)) {
                 await channel.send(msg);
                 await interaction.editReply({ content: '✅ Mensaje enviado exitosamente, nyaa~' });

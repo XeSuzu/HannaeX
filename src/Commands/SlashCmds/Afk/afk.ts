@@ -29,11 +29,9 @@ const command: SlashCommand = {
         ),
 
     async execute(interaction, client) {
-        // ✅ CORRECCIÓN: Eliminamos la bandera 'Ephemeral' para que la respuesta sea pública.
         await interaction.deferReply();
 
         if (!interaction.guild || !interaction.member) {
-            // Este error sigue siendo privado para no molestar.
             return interaction.editReply({ content: "Este comando solo se puede usar en un servidor." });
         }
 
@@ -43,7 +41,6 @@ const command: SlashCommand = {
         let nicknameChanged = false;
         const originalNickname = member.displayName;
 
-        // Comprobación para no tocar al dueño del servidor
         if (member.id !== interaction.guild.ownerId) {
             const botMember = await interaction.guild.members.fetchMe();
             const hasPerms = botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames);
@@ -62,7 +59,6 @@ const command: SlashCommand = {
             console.log(`[AFK] Se omitió el cambio de apodo para el dueño del servidor: ${member.user.tag}`);
         }
 
-        // --- Lógica de la Base de Datos ---
         try {
             await AFK.findOneAndUpdate(
                 { userId: interaction.user.id, guildId: interaction.guildId },
@@ -78,7 +74,6 @@ const command: SlashCommand = {
             return interaction.editReply({ content: "Hubo un error con la base de datos al establecer tu AFK." });
         }
 
-        // --- Respuesta Final al Usuario ---
         const unixTimestamp = Math.floor(Date.now() / 1000);
         const embed = new EmbedBuilder()
             .setColor(0xffc0cb)
@@ -94,7 +89,6 @@ const command: SlashCommand = {
             embed.addFields({ name: "Apodo", value: "> Se ha actualizado el apodo a `[AFK]`."});
         }
 
-        // Esta respuesta ahora será pública.
         await interaction.editReply({ embeds: [embed] });
     },
 };

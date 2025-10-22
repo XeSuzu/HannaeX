@@ -30,7 +30,8 @@ try {
         const folderPath = path.join(slashPath, folder);
         if (!fs.statSync(folderPath).isDirectory()) continue;
         
-        const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts'));
+        // Aceptar .ts y .js para despliegue según entorno
+        const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
         for (const file of commandFiles) {
             const filePath = path.join(folderPath, file);
             try {
@@ -45,7 +46,7 @@ try {
                     }
                 }
             } catch (error: any) {
-                console.error(`   ❌ Error cargando ${file}:`, error.message);
+                console.error(`   ❌ Error cargando ${file}:`, error.message || error);
             }
         }
     }

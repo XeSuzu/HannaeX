@@ -1,5 +1,5 @@
 import { EmbedBuilder, Message, TextChannel, DMChannel, NewsChannel } from 'discord.js';
-import { HoshikoClient } from '../../../index'; // Ajusta la ruta a tu index.ts principal
+import { HoshikoClient } from '../../../index'; 
 
 interface PrefixCommand {
     name: string;
@@ -12,10 +12,8 @@ const command: PrefixCommand = {
     description: 'Muestra la latencia del bot 🏓',
 
     async execute(message, args, client) {
-        // ✅ Solo ejecutamos si el canal existe y puede enviar mensajes
         if (!message.channel || !message.channel.isTextBased()) return;
 
-        // 🔒 Aseguramos el tipo del canal
         const channel = message.channel as TextChannel | DMChannel | NewsChannel;
 
         let sentMessage: Message;
@@ -41,7 +39,6 @@ const command: PrefixCommand = {
         try {
             await sentMessage.edit({ content: '', embeds: [embed] });
         } catch {
-            // Si no se puede editar (por permisos o error), no hacemos nada.
         }
     }
 };

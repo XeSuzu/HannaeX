@@ -5,12 +5,18 @@ import { Player } from 'discord-player';
 import fs from 'fs';
 import path from 'path';
 import express, { Request, Response } from 'express';
+const initDatabase = require('./Handlers/databaseHandler').default || require('./Handlers/databaseHandler');
+const { disconnect } = require('./Services/mongo');
 
 // Express 
 const app = express();
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Bot is running');
+});
+
+app.get('/healthz', (req: Request, res: Response) => {
+  res.send('ok');
 });
 
 const PORT = process.env.PORT || 8080;
@@ -125,20 +131,36 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
 });
 
-console.log('🔐 Intentando iniciar sesión en Discord...');
-client.login(client.config.token)
-    .then(() => {
-        console.log('✅ Login exitoso, esperando evento ready...');
-    })
-    .catch((error) => {
-        console.error('❌ ERROR AL INICIAR SESIÓN:');
-        console.error('   Detalles:', error);
-        console.error('   Posibles causas:');
-        console.error('   1. Token inválido o expirado');
-        console.error('   2. No tienes conexión a internet');
-        console.error('   3. Discord está caído');
-        console.error('   Verifica tu TOKEN en el archivo .env');
-        process.exit(1);
-    });
+// Arranque principal
+(async () => {
+  try {
+    console.log('🔍 Iniciando conexión a base de datos...');
+    await initDatabase();
+    console.log('✅ Base de datos lista, iniciando Discord...');
+    
+    // Ahora SÍ iniciamos Discord
+    if (!client.config.token) {
+      throw new Error('TOKEN no definido en la configuración del cliente.');
+    }
+    console.log('🔐 Intentando iniciar sesión en Discord...');
+    await client.login(client.config.token);
+    console.log('✅ Login exitoso, bot conectado!');
+    
+  } catch (err) {
+    console.error('❌ Error crítico:', err);
+    process.exit(1);
+  }
+})();
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+  console.log(`Recibido ${signal} — cerrando servicios...`);
+  try { await disconnect(); } catch (e) { console.error(e); }
+  try { await client?.destroy(); } catch (e) { console.error(e); }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default client;

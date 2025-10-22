@@ -1,21 +1,20 @@
 import mongoose from 'mongoose';
+import { connectWithRetry } from '../Services/mongo';
 
-// Exportamos la función usando la sintaxis moderna de TypeScript
-export default () => {
-    // Verificamos si la URI de la base de datos está presente en el .env
-    if (!process.env.MONGO_URI) {
-        console.error("❌ Error: Falta la variable MONGO_URI en el archivo .env");
-        // Cerramos el proceso si no podemos encontrar la URI para evitar errores futuros.
-        return process.exit(1);
-    }
+export default async function initDatabase() {
+  if (!process.env.MONGO_URI) {
+    console.error("❌ Error: Falta la variable MONGO_URI en el archivo .env");
+    return process.exit(1);
+  }
 
-    // Intentamos conectar a la base de datos
-    mongoose.connect(process.env.MONGO_URI)
-        .then(() => {
-            console.log("✅ ¡Base de datos conectada con éxito!");
-        })
-        .catch((err: any) => { // Añadimos un tipo al error capturado
-            console.error("❌ Error de conexión a la base de datos:", err);
-            process.exit(1);
-        });
-};
+  console.log('🔍 Intentando conectar a MongoDB...');
+
+  try {
+    await connectWithRetry();
+    console.log("✅ ¡Base de datos conectada con éxito!");
+  } catch (err) {
+    // No hacemos process.exit aquí: Cloud Run / entorno orquestador se encargará de reinicios.
+    console.error("❌ Error inicializando la base de datos (seguir arrancando en modo degradado):", err);
+    // Opcional: lanzar telemetry / alert here
+  }
+}

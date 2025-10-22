@@ -17,7 +17,6 @@ interface SlashCommand {
     execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void>;
 }
 
-// Configuración de categorías con emojis y descripciones
 const CATEGORY_CONFIG: Record<string, { emoji: string; description: string; color: number }> = {
     'Fun': {
         emoji: '🎮',
@@ -71,7 +70,6 @@ const CATEGORY_CONFIG: Record<string, { emoji: string; description: string; colo
     }
 };
 
-// Crear embed principal
 function createMainEmbed(client: HoshikoClient, totalCommands: number): EmbedBuilder {
     return new EmbedBuilder()
         .setColor(0xFFC0CB)
@@ -91,7 +89,7 @@ function createMainEmbed(client: HoshikoClient, totalCommands: number): EmbedBui
             '╰ IA con prefijo: `hoshi ask tu pregunta`'
         )
         .setThumbnail(client.user?.displayAvatarURL() ?? null)
-        .setImage('https://i.imgur.com/your-banner-image.png') // Opcional: banner personalizado
+        .setImage('https://i.imgur.com/your-banner-image.png') 
         .setFooter({
             text: `Desarrollado con 💖 por v.sxn | Hoshiko Bot v2.0`,
             iconURL: client.user?.displayAvatarURL()
@@ -99,7 +97,6 @@ function createMainEmbed(client: HoshikoClient, totalCommands: number): EmbedBui
         .setTimestamp();
 }
 
-// Crear embed de categoría específica
 function createCategoryEmbed(
     client: HoshikoClient,
     category: string,
@@ -126,7 +123,6 @@ function createCategoryEmbed(
         })
         .setTimestamp();
 
-    // Dividir comandos en chunks de 10 para múltiples campos si es necesario
     const chunkedCommands = [];
     for (let i = 0; i < commands.length; i += 10) {
         chunkedCommands.push(commands.slice(i, i + 10));
@@ -147,7 +143,6 @@ function createCategoryEmbed(
     return embed;
 }
 
-// Crear embed de IA
 function createAIEmbed(client: HoshikoClient): EmbedBuilder {
     return new EmbedBuilder()
         .setColor(0x00D9FF)
@@ -230,7 +225,6 @@ const command: SlashCommand = {
         const commands = client.slashCommands;
         const selectedCategory = interaction.options.getString('categoria');
 
-        // Agrupar comandos por categoría
         const categorizedCommands: Record<string, string[]> = {};
         
         commands.forEach((cmd: SlashCommand) => {
@@ -245,7 +239,6 @@ const command: SlashCommand = {
 
         const totalCommands = commands.size;
 
-        // Si se especificó una categoría, mostrar directamente
         if (selectedCategory) {
             const categoryEmbed = selectedCategory === 'AI'
                 ? createAIEmbed(client)
@@ -270,7 +263,6 @@ const command: SlashCommand = {
                 ephemeral: true
             });
 
-            // Collector para el botón de volver
             const backCollector = response.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 300000
@@ -296,7 +288,6 @@ const command: SlashCommand = {
             return;
         }
 
-        // Crear menú de selección
         const selectMenu = createSelectMenu(categorizedCommands);
         const mainEmbed = createMainEmbed(client, totalCommands);
 
@@ -306,7 +297,6 @@ const command: SlashCommand = {
             ephemeral: true
         });
 
-        // Collector para el menú de selección
         const collector = response.createMessageComponentCollector({
             componentType: ComponentType.StringSelect,
             time: 300000 // 5 minutos
@@ -353,7 +343,6 @@ const command: SlashCommand = {
     },
 };
 
-// Función auxiliar para crear el menú de selección
 function createSelectMenu(categorizedCommands: Record<string, string[]>): ActionRowBuilder<StringSelectMenuBuilder> {
     const options: StringSelectMenuOptionBuilder[] = [
         new StringSelectMenuOptionBuilder()
@@ -363,7 +352,7 @@ function createSelectMenu(categorizedCommands: Record<string, string[]>): Action
             .setEmoji('🏠')
     ];
 
-    // Agregar categorías disponibles
+
     for (const category in categorizedCommands) {
         const config = CATEGORY_CONFIG[category] || { emoji: '✨', description: 'Comandos varios' };
         const commandCount = categorizedCommands[category].length;
@@ -377,7 +366,7 @@ function createSelectMenu(categorizedCommands: Record<string, string[]>): Action
         );
     }
 
-    // Agregar opción de IA
+
     options.push(
         new StringSelectMenuOptionBuilder()
             .setLabel('Inteligencia Artificial')

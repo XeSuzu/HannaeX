@@ -58,7 +58,6 @@ const command: SlashCommand = {
                 .setFooter({ text: '💙 Hoshiko Status System — Precisión neko™' })
                 .setTimestamp();
 
-            // --- Animación visual: mensaje intermedio ---
             await interaction.editReply({
                 content: `✅ Latencia estable detectada, nya~`,
                 embeds: [embed],

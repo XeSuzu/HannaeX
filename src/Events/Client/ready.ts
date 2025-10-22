@@ -1,13 +1,11 @@
 import { ActivityType, Events } from 'discord.js';
-import { HoshikoClient } from '../../index'; // Importamos nuestra interfaz de cliente personalizada
+import { HoshikoClient } from '../../index'; 
 
 /**
  * Esta función inicia el rotador de estados dinámicos para el bot.
  * @param client El cliente de Hoshiko.
  */
 function startActivityRotator(client: HoshikoClient) {
-    // ✨ MEJORA: En lugar de un array de objetos, creamos un array de FUNCIONES.
-    // Cada función generará el estado con datos actualizados al momento de ser llamada.
     const activityGenerators = [
         () => ({ name: `en ${client.guilds.cache.size} servidores`, type: ActivityType.Watching }),
         () => ({ name: 'mis comandos con /', type: ActivityType.Playing }),
@@ -40,16 +38,14 @@ function startActivityRotator(client: HoshikoClient) {
 
 
 export = {
-    // Usamos el enum 'Events' de discord.js para evitar errores de tipeo.
+
     name: Events.ClientReady,
     once: true,
     execute(client: HoshikoClient) {
-        // Verificamos que client.user no sea nulo antes de usarlo.
         if (!client.user) return;
 
         console.log(`🌸 Nyaa~ ${client.user.tag} está lista 💖`);
 
-        // Inicia el rotador de estados dinámicos
         startActivityRotator(client);
     }
 };

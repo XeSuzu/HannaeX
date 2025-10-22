@@ -6,9 +6,7 @@ import {
     GuildMember,
     ActivityType,
 } from 'discord.js';
-import { HoshikoClient } from '../../../index'; // Ajusta la ruta a tu index.ts principal
-
-// Interfaz para el comando de prefijo
+import { HoshikoClient } from '../../../index'; 
 interface PrefixCommand {
     name: string;
     description: string;
@@ -22,7 +20,6 @@ const command: PrefixCommand = {
     usage: '!userinfo [@usuario]',
 
     async execute(message, args, client) {
-        // Verificamos que el comando se use en un servidor.
         if (!message.guild) return;
 
         try {
@@ -98,8 +95,6 @@ const command: PrefixCommand = {
                 });
             }
 
-            // ✅ CORRECCIÓN DEFINITIVA:
-            // Enviamos la respuesta directamente al canal usando message.reply()
             return await message.reply({ embeds: [embed] });
 
         } catch (error: any) {

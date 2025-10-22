@@ -4,9 +4,12 @@
   "description": "Bot de Discord",
   "main": "dist/index.js",
   "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "copy:assets": "copyfiles -u 1 \"src/**/*.{json,sql,env,txt,md,png,jpg,jpeg,webp,svg,ico}\" dist",
+    "postbuild": "npm run copy:assets",
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
-    "build": "tsc",
     "deploy": "ts-node --transpile-only src/scripts/deploy-commands.ts"
   },
   "dependencies": {
@@ -31,7 +34,9 @@
   "devDependencies": {
     "@types/express": "^4.17.23",
     "@types/node": "^24.7.2",
+    "copyfiles": "^2.4.1",
     "nodemon": "^3.1.10",
+    "rimraf": "^5.0.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

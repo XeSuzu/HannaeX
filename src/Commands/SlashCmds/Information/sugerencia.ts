@@ -1,8 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, Message } from 'discord.js';
-import Suggestion from '../../../Models/suggestion'; // Importamos el modelo ya migrado
+import Suggestion from '../../../Models/suggestion'; 
 import { HoshikoClient } from '../../../index';
 
-// Interfaz estándar para tus slash commands
 interface SlashCommand {
     data: SlashCommandBuilder | any;
     category: string;
@@ -10,7 +9,7 @@ interface SlashCommand {
 }
 
 const command: SlashCommand = {
-    category: 'Information', // O la categoría que prefieras
+    category: 'Information', 
     data: new SlashCommandBuilder()
         .setName('sugerencia')
         .setDescription('Envía una sugerencia para mejorar el bot, nyaa!')
@@ -20,19 +19,19 @@ const command: SlashCommand = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        // Hacemos que la respuesta sea efímera (solo visible para el usuario)
+
         await interaction.deferReply({ ephemeral: true });
         
-        // Usamos 'true' para que TS sepa que la opción siempre existirá
+
         const suggestionText = interaction.options.getString('idea', true);
         
-        // Verificamos que la interacción ocurra en un servidor
+
         if (!interaction.guild) {
             return interaction.editReply({ content: 'Este comando solo se puede usar en un servidor.' });
         }
         
         try {
-            // Creamos un nuevo documento con la sugerencia y lo guardamos
+
             const newSuggestion = new Suggestion({
                 userId: interaction.user.id,
                 guildId: interaction.guild.id,
