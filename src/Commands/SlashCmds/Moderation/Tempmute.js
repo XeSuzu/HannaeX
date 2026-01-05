@@ -18,8 +18,6 @@ function convertirTiempo(tiempo) {
 }
 
 module.exports = {
-    // Definimos los permisos directamente en los datos del comando.
-    // Esto hace que Discord no muestre el comando a quienes no tienen este permiso.
     data: new SlashCommandBuilder()
         .setName('tempmute')
         .setDescription('🔇 Mutea temporalmente a un usuario usando un rol')

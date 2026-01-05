@@ -1,0 +1,2 @@
+{"timestamp":"2026-01-04T23:30:23.641Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-04T23:30:24.630Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 151.75 MB | CPU: 4.79]","guildId":null,"userId":null,"metadata":null}

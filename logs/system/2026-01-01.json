@@ -1,0 +1,11 @@
+{"level":"SUCCESS","context":"System/Startup","message":"¡El sistema de logs Sentinel ha sido activado correctamente! 🐾","userId":"TU_ID_DE_DISCORD","timestamp":"2026-01-01T22:07:48.037Z"}
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-01T22:13:29.296Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko#3326 está en línea y vigilando 16 servidores.","timestamp":"2026-01-01T22:13:30.569Z"}
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-01T22:31:59.930Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 está en línea y vigilando 2 servidores.","timestamp":"2026-01-01T22:32:00.932Z"}
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-01T22:40:33.513Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 está en línea y vigilando 2 servidores.","timestamp":"2026-01-01T22:40:34.456Z"}
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-01T22:46:54.316Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 está en línea y vigilando 2 servidores.","timestamp":"2026-01-01T22:46:55.416Z"}
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-01T22:52:58.527Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 35.26 MB | CPU: 1.99%]","timestamp":"2026-01-01T22:52:59.726Z"}

@@ -1,17 +1,11 @@
 import path from 'path';
 import fs from 'fs';
-import { REST, Routes, Client } from 'discord.js';
 import { HoshikoClient } from '../index';
 
 interface CommandFile {
-  name?: string;   
-  data?: any;      
+  name?: string;
+  data?: any;
   execute: (...args: any[]) => void;
-}
-
-interface RegistrationSummary {
-  registered: { [guildId: string]: string[] };
-  failed: { guildId: string; error: string }[];
 }
 
 // Detecta entorno: dev (ts-node) vs prod (node dist)
@@ -26,93 +20,63 @@ function allowedExts(): string[] {
   return runningTs() ? ['.ts'] : ['.js'];
 }
 
-// Lee comandos de un directorio (carpetas 1 nivel)
+// --- FUNCIÓN RECURSIVA: Busca archivos en todos los niveles 🌸 ---
+function getFilesRecursively(directory: string, extensions: string[]): string[] {
+    let files: string[] = [];
+    if (!fs.existsSync(directory)) return files;
+
+    const items = fs.readdirSync(directory, { withFileTypes: true });
+
+    for (const item of items) {
+        const fullPath = path.join(directory, item.name);
+        if (item.isDirectory()) {
+            files = files.concat(getFilesRecursively(fullPath, extensions));
+        } else if (item.isFile()) {
+            const ext = path.extname(item.name);
+            if (extensions.includes(ext) && !item.name.endsWith('.js.map') && !item.name.endsWith('.d.ts')) {
+                files.push(fullPath);
+            }
+        }
+    }
+    return files;
+}
+
 function loadCommands(directoryPath: string): CommandFile[] {
   const commands: CommandFile[] = [];
   if (!fs.existsSync(directoryPath)) {
-    console.warn(`⚠️ El directorio de comandos no existe: ${directoryPath}`);
+    console.warn(`⚠️ Directorio de comandos no existe: ${directoryPath}`);
     return commands;
   }
-
-  const folders = fs.readdirSync(directoryPath);
+  
   const exts = allowedExts();
-
-  for (const folder of folders) {
-    const folderPath = path.join(directoryPath, folder);
-    if (!fs.statSync(folderPath).isDirectory()) continue;
-
-    const files = fs
-      .readdirSync(folderPath)
-      .filter(file => exts.includes(path.extname(file)) && !file.endsWith('.d.ts'));
-
-    console.log(`[CMD HANDLER] Carpeta ${folder}: ${files.length} archivo(s) válidos (${exts.join(', ')})`);
-
-    for (const file of files) {
-      const filePath = path.join(folderPath, file);
+  const allFiles = getFilesRecursively(directoryPath, exts);
+ 
+  console.log(`[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos encontrados con extensiones ${exts.join(', ')})`);
+ 
+    for (const filePath of allFiles) {
       try {
-        // require CJS funciona en dev (ts-node register) y prod (dist)
-        const mod = require(filePath);
+        // Limpiamos cache por si quieres hacer "reload" después
+        delete require.cache[require.resolve(filePath)];
+        const mod = require(path.resolve(filePath));
         const command: CommandFile = mod.default || mod;
-
+ 
         if (command && typeof command.execute === 'function') {
           commands.push(command);
         } else {
-          console.warn(`⚠️ ${file} no exporta 'execute'. Omitido.`);
+          console.warn(`⚠️ El archivo ${path.basename(filePath)} no exporta una función 'execute'. Omitido.`);
         }
       } catch (err: any) {
-        console.error(`❌ Error al cargar ${filePath}:`, err?.message ?? err);
+        console.error(`❌ Error al cargar ${filePath}:`, err?.stack ?? err?.message ?? err);
       }
     }
+ 
+  if (commands.length === 0) {
+    console.warn('⚠️ No se detectaron comandos al cargar. Verifica que los ficheros existan en la carpeta de salida (ej: dist/Commands) y que tengan la extensión correcta.');
   }
-
+  
   return commands;
 }
-
-async function registerSlashCommands(client: HoshikoClient, slashCommandsData: any[]) {
-  const { config } = client;
-  if (!Array.isArray(config.guildIds) || config.guildIds.length === 0) {
-    console.warn('⚠️ No hay guildIds en la config. Se omite el registro de slash commands.');
-    return;
-  }
-
-  const rest = new REST({ version: '10' }).setToken(config.token!);
-  const summary: RegistrationSummary = { registered: {}, failed: [] };
-
-  for (const guildId of config.guildIds) {
-    try {
-      await rest.put(
-        Routes.applicationGuildCommands(config.BotId!, guildId),
-        { body: slashCommandsData }
-      );
-      summary.registered[guildId] = slashCommandsData.map(c => c.name);
-    } catch (error: any) {
-      summary.failed.push({ guildId, error: error?.message ?? String(error) });
-      console.error(`❌ Falló el registro en ${guildId}:`, error?.message ?? error);
-    }
-  }
-
-  logRegistrationSummary(client, summary, slashCommandsData.length);
-}
-
-function logRegistrationSummary(client: Client, summary: RegistrationSummary, totalCommands: number) {
-  const out: string[] = ['🌸✨ ¡Registro de comandos completado!'];
-
-  for (const gid in summary.registered) {
-    const g = client.guilds.cache.get(gid);
-    out.push(`\n💮 "${g?.name ?? 'Servidor desconocido'}" (${gid}):`);
-    summary.registered[gid].forEach(n => out.push(`   - /${n}`));
-  }
-
-  if (summary.failed.length > 0) {
-    out.push('\n⚠️ Registros fallidos:');
-    summary.failed.forEach(f => out.push(`   - ${f.guildId}: ${f.error}`));
-  }
-
-  out.push(`\nTotal enviados: ${totalCommands}`);
-  out.push(`Servidores OK: ${Object.keys(summary.registered).length} | Fallidos: ${summary.failed.length}`);
-  console.log(out.join('\n'));
-}
-
+ 
 // ===== Export principal =====
 export default (client: HoshikoClient) => {
   // --- Prefijo ---
@@ -126,7 +90,6 @@ export default (client: HoshikoClient) => {
   // --- Slash ---
   const slashPath = path.join(__dirname, '../Commands/SlashCmds');
   const slashCommands = loadCommands(slashPath);
-  const slashToRegister: any[] = [];
 
   // Evita duplicados por nombre de comando
   const seen = new Set<string>();
@@ -139,10 +102,10 @@ export default (client: HoshikoClient) => {
     const items = Array.isArray(data) ? data : [data];
 
     for (const item of items) {
-      if (!item || typeof item.toJSON !== 'function') continue;
-
-      const json = item.toJSON();
+      // MEJORA: Aceptar builders (.toJSON) y objetos JSON ya serializados.
+      const json = (typeof item.toJSON === 'function') ? item.toJSON() : item;
       const name: string = json.name;
+
       if (!name) continue;
 
       if (seen.has(name)) {
@@ -152,15 +115,8 @@ export default (client: HoshikoClient) => {
 
       seen.add(name);
       client.slashCommands.set(name, command);
-      slashToRegister.push(json);
     }
   }
 
   console.log(`✨ Slash cargados (únicos): ${client.slashCommands.size}`);
-
-  client.once('ready', () => {
-    console.log('[COMMAND HANDLER] ready → registrando slash commands…');
-    if (slashToRegister.length > 0) registerSlashCommands(client, slashToRegister);
-    else console.warn('⚠️ No hay slash commands para registrar');
-  });
 };

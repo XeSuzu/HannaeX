@@ -48,13 +48,15 @@ Desarrollado en Node.js, Hoshiko combina moderación, interacción social, utili
 ## 🌟 Características Destacadas
 
 ### 🎮 Comandos Slash y Prefijo
-- **Slash**: Modernos, organizados y fáciles de usar (`/help`, `/ping`, `/avatar`, `/userinfo`, `/hug`, `/tempmute`, `/mute`, `/unmute`, `/setup-memes`, `/meme-top`, `/memes-top`, `/mi-reputacion`, etc).
+- **Slash**: Modernos, organizados y fáciles de usar (`/help`, `/ping`, `/avatar`, `/userinfo`, `/hug`, `/tempmute`, `/mute`, `/unmute`, `/strike`, `/strikes`, `/config-strikes`, `/setup-memes`, `/meme-top`, `/memes-top`, `/mi-reputacion`, etc).
 - **Prefijo**: Compatibilidad con comandos clásicos (`!userinfo`, `!ping`...).
 
 ### 🛡️ Moderación Inteligente
 - **/mute** y **/unmute**: Silencia y reactiva usuarios usando el rol Muted (mute permanente).
 - **/tempmute**: Silencia usuarios temporalmente con rol y desmuteo automático.
 - **AFK**: Marca y detecta estados AFK persistentes.
+- **/strike** y **/strikes**: Sistema de advertencias por puntos. Añade, consulta y limpia el historial de strikes de un usuario.
+- **Acciones Automáticas**: Configura acciones automáticas (timeout, kick, ban) que se activan cuando un usuario alcanza un número de puntos de strike.
 
 ### 💞 Interacciones Sociales
 - **/hug**, **/kiss**: Abrazos y besos interactivos, con botones y respuestas kawaii.
@@ -121,6 +123,38 @@ MONGO_URI=         # URI de conexión a MongoDB
   - `/memes-top`: Muestra el top 10 de usuarios por reputación de memes.
   - `/mi-reputacion`: Muestra tu meme más votado y tu reputación total.
 - **Migración:** Incluye script para migrar memes antiguos sin campo `channelId`.
+
+---
+
+## 🐾 Sistema de Strikes
+
+Hoshiko incluye un sistema de moderación basado en puntos para gestionar el comportamiento de los usuarios de forma gradual y transparente.
+
+- **Añadir Strikes**: Usa `/strike` para añadir una advertencia a un usuario.
+    - Puedes especificar la cantidad de **puntos** (por defecto 1).
+    - Puedes añadir una **razón** para documentar la infracción.
+    - El moderador que aplica el strike queda registrado.
+- **Consultar Historial**: Usa `/strikes` para ver el historial completo de un usuario.
+    - Muestra un resumen con los puntos totales y cada strike individual (razón, moderador, fecha).
+    - Si un usuario está limpio, ¡el bot lo celebra!
+- **Limpiar Strikes**: Con el comando `/strikes` y la opción `clear:True`, los moderadores pueden borrar todo el historial de strikes de un usuario, dándole un nuevo comienzo.
+- **Notificación al Usuario**: Al recibir un strike, Hoshiko intenta enviar un mensaje directo al usuario afectado, informándole de la sanción, la razón y sus puntos totales.
+
+### ⚙️ Configuración de Acciones Automáticas
+
+Hoshiko permite a los administradores de cada servidor definir sus propias reglas de moderación automática basadas en los puntos de strike. ¡Totalmente personalizable!
+
+Usa el comando `/config-strikes` (requiere permiso de `Gestionar Servidor`):
+
+- **/config-strikes view**: Muestra la configuración actual, incluyendo el canal de logs y todas las reglas automáticas.
+- **/config-strikes add**: Añade una nueva regla.
+    - `points`: El número de puntos que activará la acción.
+    - `action`: Elige entre `timeout` (silencio), `kick` (expulsión) o `ban` (baneo).
+    - `duration`: Si la acción es `timeout`, especifica la duración (ej: `10m`, `1h`, `7d`).
+- **/config-strikes remove**: Elimina una regla existente especificando sus puntos.
+- **/config-strikes set-log-channel**: Define un canal de texto donde Hoshiko anunciará las acciones automáticas que realice.
+
+**Ejemplo de uso:** `/config-strikes add points:10 action:timeout duration:1h`
 
 ---
 

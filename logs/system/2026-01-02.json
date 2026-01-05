@@ -1,0 +1,2 @@
+{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-02T19:21:45.230Z"}
+{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 36.46 MB | CPU: 2.37%]","timestamp":"2026-01-02T19:21:46.324Z"}

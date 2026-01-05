@@ -11,4 +11,6 @@ COPY . .
 
 RUN npm run build
 
+RUN find dist -name "*.map" -delete
+
 CMD ["npm", "start"]

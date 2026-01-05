@@ -1,37 +1,33 @@
-// index.ts
 import 'dotenv/config';
 import { Client, Collection, GatewayIntentBits } from "discord.js";
-import { Player } from 'discord-player';
 import fs from 'fs';
 import path from 'path';
 import express, { Request, Response } from 'express';
-const initDatabase = require('./Handlers/databaseHandler').default || require('./Handlers/databaseHandler');
-const { disconnect } = require('./Services/mongo');
+// ✨ Importamos PerformanceMonitor desde el puente de Security
+import { HoshikoLogger, LogLevel, PerformanceMonitor } from './Security'; 
 
-// Express 
+// --- Configuración de Express (Health Check) ---
 const app = express();
+const PORT = process.env.PORT || 8080;
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Bot is running');
+  res.send('Hoshiko Bot está funcionando perfectamente 🌸');
 });
 
 app.get('/healthz', (req: Request, res: Response) => {
   res.send('ok');
 });
 
-const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  HoshikoLogger.log({
+    level: LogLevel.INFO,
+    context: 'System/Web',
+    message: `Servidor de salud activo en puerto ${PORT}`
+  });
 });
 
-// Cargar extractores
-(async () => {
-    await import('@discord-player/extractor');
-})();
-
-console.log('🚀 Iniciando Hoshiko Bot...');
-
-export interface HoshikoClient extends Client {
+// --- Interfaz del Cliente ---
+export interface HoshikoClient extends Client<true> {
     commands: Collection<string, any>;
     slashCommands: Collection<string, any>;
     config: {
@@ -40,6 +36,7 @@ export interface HoshikoClient extends Client {
         prefix?: string;
         guildIds: string[]; 
     };
+    cooldowns: Map<string, number>;
 }
 
 const client = new Client({
@@ -50,14 +47,13 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildVoiceStates,
     ],
 }) as HoshikoClient;
 
-console.log('✅ Cliente de Discord creado');
-
 client.commands = new Collection();
 client.slashCommands = new Collection();
+client.cooldowns = new Map();
+
 client.config = {
     token: process.env.TOKEN || '',
     BotId: process.env.BOT_ID || '',
@@ -65,98 +61,89 @@ client.config = {
     guildIds: process.env.GUILD_ID ? process.env.GUILD_ID.split(',').map(id => id.trim()) : [],
 };
 
-console.log('✅ Configuración cargada');
-console.log(`   Prefix: ${client.config.prefix}`);
-console.log(`   Guild IDs: ${client.config.guildIds.length > 0 ? client.config.guildIds.join(', ') : 'Ninguno'}`);
+// --- Carga de Handlers ---
+const handlersDir = path.join(__dirname, 'Handlers');
 
-// ---- INICIALIZAR DISCORD-PLAYER ----
-const player = new Player(client);
+if (fs.existsSync(handlersDir)) {
+    const handlerFiles = fs.readdirSync(handlersDir)
+      .filter(file => file.endsWith('.js') && !file.endsWith('.map.js'));
 
-console.log('✅ Discord-Player inicializado');
-
-if (!client.config.token) {
-    console.error('❌ ERROR CRÍTICO: No se encontró TOKEN en el archivo .env');
-    process.exit(1);
-}
-
-console.log('📂 Cargando handlers...');
-const handlersDir = path.join(__dirname, "Handlers");
-
-try {
-    const handlerFiles = fs.readdirSync(handlersDir);
-    console.log(`   Encontrados ${handlerFiles.length} handlers: ${handlerFiles.join(', ')}`);
-    
     handlerFiles.forEach(file => {
         try {
-            console.log(`   Cargando handler: ${file}`);
             const handlerModule = require(path.join(handlersDir, file));
             const handler = handlerModule.default || handlerModule;
             
-            if (handler && typeof handler === 'function') {
+            if (typeof handler === 'function') {
                 handler(client);
-                console.log(`   ✅ Handler ${file} cargado`);
-            } else {
-                console.warn(`   ⚠️ Handler ${file} no es una función válida`);
             }
         } catch (error) {
-            console.error(`   ❌ Error cargando handler ${file}:`, error);
+            HoshikoLogger.log({
+                level: LogLevel.ERROR,
+                context: 'System/Handlers',
+                message: `Error cargando handler ${file}`,
+                metadata: error
+            });
         }
     });
-} catch (error) {
-    console.error('❌ Error leyendo el directorio de handlers:', error);
-    process.exit(1);
 }
 
+// --- Eventos del Sistema (READY CON MONITOR DE RENDIMIENTO) ---
 client.once('ready', () => {
-    console.log('');
-    console.log('═══════════════════════════════════════');
-    console.log(`✨ ${client.user?.tag} está en línea!`);
-    console.log(`🆔 ID: ${client.user?.id}`);
-    console.log(`🌐 Servidores: ${client.guilds.cache.size}`);
-    console.log(`👥 Usuarios: ${client.users.cache.size}`);
-    console.log('═══════════════════════════════════════');
-    console.log('');
+    // 📊 Obtenemos las estadísticas de salud del sistema
+    const stats = PerformanceMonitor.getSystemStats();
+
+    // ✨ Log de éxito que ahora incluye RAM y Uptime
+    HoshikoLogger.log({
+        level: LogLevel.SUCCESS,
+        context: 'System/Ready',
+        message: `✨ ${client.user?.tag} en línea. Vigilando ${client.guilds.cache.size} servidores. [RAM: ${stats.ramUsage} | CPU: ${stats.cpuLoad}]`
+    });
 });
 
-client.on('error', (error) => {
-    console.error('❌ Error del cliente de Discord:', error);
-});
-
+// Captura de errores no manejados
 process.on('unhandledRejection', (error) => {
-    console.error('❌ Promesa rechazada no manejada:', error);
+    HoshikoLogger.log({
+        level: LogLevel.FATAL,
+        context: 'System/Fatal',
+        message: 'Promesa rechazada no manejada detectada',
+        metadata: error
+    });
 });
 
-process.on('uncaughtException', (error) => {
-    console.error('❌ Excepción no capturada:', error);
-    process.exit(1);
-});
-
-// Arranque principal
+// --- Arranque Principal ---
 (async () => {
   try {
-    console.log('🔍 Iniciando conexión a base de datos...');
-    await initDatabase();
-    console.log('✅ Base de datos lista, iniciando Discord...');
+    const initDatabase = require('./Handlers/databaseHandler').default || require('./Handlers/databaseHandler');
     
-    // Ahora SÍ iniciamos Discord
     if (!client.config.token) {
-      throw new Error('TOKEN no definido en la configuración del cliente.');
+        throw new Error('No se encontró el TOKEN en el archivo .env');
     }
-    console.log('🔐 Intentando iniciar sesión en Discord...');
+
+    await initDatabase();
     await client.login(client.config.token);
-    console.log('✅ Login exitoso, bot conectado!');
     
   } catch (err) {
-    console.error('❌ Error crítico:', err);
+    HoshikoLogger.log({
+        level: LogLevel.FATAL,
+        context: 'System/Startup',
+        message: 'Error crítico durante el inicio',
+        metadata: err
+    });
     process.exit(1);
   }
 })();
 
-// Graceful shutdown
+// --- Apagado Seguro ---
 async function shutdown(signal: string) {
-  console.log(`Recibido ${signal} — cerrando servicios...`);
-  try { await disconnect(); } catch (e) { console.error(e); }
-  try { await client?.destroy(); } catch (e) { console.error(e); }
+  HoshikoLogger.log({
+    level: LogLevel.WARN,
+    context: 'System/Shutdown',
+    message: `Recibida señal ${signal}. Cerrando servicios...`
+  });
+  
+  const { disconnect } = require('./Services/mongo');
+  try { await disconnect(); } catch (e) {}
+  try { client.destroy(); } catch (e) {}
   process.exit(0);
 }
 

@@ -1,16 +1,15 @@
 import {
-    SlashCommandBuilder,
-    EmbedBuilder,
-    ChatInputCommandInteraction,
-    GuildMember,
-    ActivityType,
-    Message,
-    InteractionResponse,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ComponentType,
-    PermissionsBitField
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ChatInputCommandInteraction,
+  GuildMember,
+  ActivityType,
+  Message,
+  InteractionResponse,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ComponentType
 } from 'discord.js';
 import { HoshikoClient } from '../../../index';
 
@@ -180,324 +179,297 @@ function createPermissionsEmbed(member: GuildMember, targetUser: any): EmbedBuil
 }
 
 const command: SlashCommand = {
-    category: 'Profiles',
-    data: new SlashCommandBuilder()
-        .setName('userinfo')
-        .setDescription('Revela un perfil detallado de un usuario, nyaa~!')
-        .addUserOption(option =>
-            option
-                .setName('usuario')
-                .setDescription('Usuario del que deseas ver la información')
-                .setRequired(false)
-        ),
+  category: 'Profiles',
+  data: new SlashCommandBuilder()
+    .setName('userinfo')
+    .setDescription('Revela un perfil detallado de un usuario, nyaa~!')
+    .addUserOption(option =>
+      option
+        .setName('usuario')
+        .setDescription('Usuario del que deseas ver la información')
+        .setRequired(false)
+    ),
 
-    async execute(interaction, client) {
-        if (!interaction.guild) {
-            return interaction.reply({ 
-                content: '❌ Este comando solo puede usarse en un servidor.', 
-                ephemeral: true 
-            });
-        }
-
-        try {
-            await interaction.deferReply();
-
-            const targetUser = interaction.options.getUser('usuario') ?? interaction.user;
-            const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
-            const fetchedUser = await targetUser.fetch();
-
-            // Determinar estado
-            const status = member?.presence?.status ?? 'offline';
-            const statusInfo = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.offline;
-
-            // Crear embed principal con diseño mejorado
-            const embed = new EmbedBuilder()
-                .setColor(member?.displayHexColor || statusInfo.color)
-                .setAuthor({
-                    name: `${statusInfo.gradient} ${statusInfo.name.toUpperCase()}`,
-                    iconURL: targetUser.displayAvatarURL()
-                })
-                .setTitle(`━━━━━━ ✦ ${targetUser.username} ✦ ━━━━━━`)
-                .setThumbnail(targetUser.displayAvatarURL({ size: 512 }))
-                .setTimestamp()
-                .setFooter({
-                    text: `Consultado por ${interaction.user.tag}`,
-                    iconURL: interaction.user.displayAvatarURL()
-                });
-
-            // Estado personalizado prominente
-            const customStatus = getCustomStatus(member);
-            if (customStatus) {
-                embed.setDescription(`\`\`\`fix\n${customStatus}\n\`\`\``);
-            }
-
-            // Banner si existe
-            if (fetchedUser.banner) {
-                const bannerURL = fetchedUser.bannerURL({ size: 1024 });
-                if (bannerURL) {
-                    embed.setImage(bannerURL);
-                }
-            }
-
-            // Información general - Diseño compacto y elegante
-            const userType = targetUser.bot ? '🤖 Bot' : '👤 Usuario';
-            const accountAge = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:D>`;
-            
-            embed.addFields({
-                name: '┌─ 📋 INFORMACIÓN GENERAL',
-                value: [
-                    `│ **Nombre:** ${targetUser.username}`,
-                    `│ **Tag:** ${targetUser.tag}`,
-                    `│ **ID:** \`${targetUser.id}\``,
-                    `│ **Tipo:** ${userType}`,
-                    `└─ **Creado:** ${accountAge} (<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`
-                ].join('\n'),
-                inline: false
-            });
-
-            // Actividades
-            const activities = getActivities(member);
-            if (activities) {
-                embed.addFields({
-                    name: '┌─ 🎯 ACTIVIDAD ACTUAL',
-                    value: `│\n${activities}\n└─`,
-                    inline: false
-                });
-            }
-
-            // Información del servidor
-            if (member) {
-                const membershipDuration = getMembershipInfo(member);
-                const joinedDate = member.joinedTimestamp 
-                    ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` 
-                    : 'Desconocido';
-                
-                const boostInfo = member.premiumSince 
-                    ? `\n│ **Boosting:** Desde <t:${Math.floor(member.premiumSinceTimestamp! / 1000)}:R>` 
-                    : '';
-
-                embed.addFields({
-                    name: '┌─ 🏰 INFORMACIÓN DEL SERVIDOR',
-                    value: [
-                        `│ **Apodo:** ${member.nickname || '*Sin apodo*'}`,
-                        `│ **Unido:** ${joinedDate} (Hace ${membershipDuration})`,
-                        `│ **Rol más alto:** ${member.roles.highest}${boostInfo}`,
-                        `└─`
-                    ].join('\n'),
-                    inline: false
-                });
-
-                // Badges especiales
-                const badges = getUserBadges(member);
-                if (badges.length > 0) {
-                    embed.addFields({
-                        name: '┌─ 🏅 INSIGNIAS Y RECONOCIMIENTOS',
-                        value: `│ ${badges.join('\n│ ')}\n└─`,
-                        inline: false
-                    });
-                }
-
-                // Roles
-                const roles = member.roles.cache
-                    .filter(role => role.id !== interaction.guild!.id)
-                    .sort((a, b) => b.position - a.position)
-                    .map(role => role.toString());
-
-                if (roles.length > 0) {
-                    const displayRoles = roles.slice(0, 20);
-                    const remaining = roles.length - displayRoles.length;
-                    const roleText = displayRoles.join(' ');
-                    
-                    embed.addFields({
-                        name: `┌─ 🎨 ROLES DEL SERVIDOR [${roles.length}]`,
-                        value: `│ ${roleText}${remaining > 0 ? ` **+${remaining} más**` : ''}\n└─`,
-                        inline: false
-                    });
-                }
-            } else {
-                embed.addFields({
-                    name: '⚠️ ESTADO DEL MIEMBRO',
-                    value: '```diff\n- Este usuario no está en el servidor\n```',
-                    inline: false
-                });
-            }
-
-            // Crear botones interactivos
-            const buttons = new ActionRowBuilder<ButtonBuilder>();
-
-            // Botón de Avatar
-            buttons.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`avatar_${targetUser.id}`)
-                    .setLabel('Ver Avatar')
-                    .setEmoji('🖼️')
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            // Botón de Banner (solo si existe)
-            if (fetchedUser.banner) {
-                buttons.addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`banner_${targetUser.id}`)
-                        .setLabel('Ver Banner')
-                        .setEmoji('🎨')
-                        .setStyle(ButtonStyle.Primary)
-                );
-            }
-
-            // Botón de Permisos (solo si es miembro)
-            if (member) {
-                buttons.addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`perms_${targetUser.id}`)
-                        .setLabel('Ver Permisos')
-                        .setEmoji('🔐')
-                        .setStyle(ButtonStyle.Success)
-                );
-            }
-
-            // Botón de perfil de Discord
-            buttons.addComponents(
-                new ButtonBuilder()
-                    .setURL(`discord://-/users/${targetUser.id}`)
-                    .setLabel('Abrir Perfil')
-                    .setEmoji('👤')
-                    .setStyle(ButtonStyle.Link)
-            );
-
-            const response = await interaction.editReply({ 
-                embeds: [embed], 
-                components: [buttons] 
-            });
-
-            // Collector para los botones
-            const collector = response.createMessageComponentCollector({
-                componentType: ComponentType.Button,
-                time: 300000 // 5 minutos
-            });
-
-            collector.on('collect', async (buttonInteraction) => {
-                if (buttonInteraction.user.id !== interaction.user.id) {
-                    return buttonInteraction.reply({
-                        content: '❌ Solo quien ejecutó el comando puede usar estos botones.',
-                        ephemeral: true
-                    });
-                }
-
-                const [action, userId] = buttonInteraction.customId.split('_');
-
-                if (action === 'avatar') {
-                    const avatarEmbed = new EmbedBuilder()
-                        .setColor(member?.displayHexColor || statusInfo.color)
-                        .setAuthor({
-                            name: `Avatar de ${targetUser.username}`,
-                            iconURL: targetUser.displayAvatarURL()
-                        })
-                        .setImage(targetUser.displayAvatarURL({ size: 4096 }))
-                        .setDescription(`[Descargar Avatar](${targetUser.displayAvatarURL({ size: 4096 })})`)
-                        .setFooter({ text: 'Presiona el botón "Volver" para regresar' });
-
-                    const backButton = new ActionRowBuilder<ButtonBuilder>()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('back')
-                                .setLabel('← Volver')
-                                .setStyle(ButtonStyle.Secondary)
-                        );
-
-                    await buttonInteraction.update({ 
-                        embeds: [avatarEmbed], 
-                        components: [backButton] 
-                    });
-
-                } else if (action === 'banner') {
-                    const bannerURL = fetchedUser.bannerURL({ size: 4096 });
-                    
-                    if (!bannerURL) {
-                        return buttonInteraction.reply({
-                            content: '❌ Este usuario no tiene un banner configurado.',
-                            ephemeral: true
-                        });
-                    }
-                    
-                    const bannerEmbed = new EmbedBuilder()
-                        .setColor(member?.displayHexColor || statusInfo.color)
-                        .setAuthor({
-                            name: `Banner de ${targetUser.username}`,
-                            iconURL: targetUser.displayAvatarURL()
-                        })
-                        .setImage(bannerURL)
-                        .setDescription(`[Descargar Banner](${bannerURL})`)
-                        .setFooter({ text: 'Presiona el botón "Volver" para regresar' });
-
-                    const backButton = new ActionRowBuilder<ButtonBuilder>()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('back')
-                                .setLabel('← Volver')
-                                .setStyle(ButtonStyle.Secondary)
-                        );
-
-                    await buttonInteraction.update({ 
-                        embeds: [bannerEmbed], 
-                        components: [backButton] 
-                    });
-
-                } else if (action === 'perms' && member) {
-                    const permsEmbed = createPermissionsEmbed(member, targetUser);
-
-                    const backButton = new ActionRowBuilder<ButtonBuilder>()
-                        .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('back')
-                                .setLabel('← Volver')
-                                .setStyle(ButtonStyle.Secondary)
-                        );
-
-                    await buttonInteraction.update({ 
-                        embeds: [permsEmbed], 
-                        components: [backButton] 
-                    });
-
-                } else if (action === 'back') {
-                    await buttonInteraction.update({ 
-                        embeds: [embed], 
-                        components: [buttons] 
-                    });
-                }
-            });
-
-            collector.on('end', () => {
-                const disabledButtons = new ActionRowBuilder<ButtonBuilder>();
-                buttons.components.forEach(button => {
-                    if (button.data.style !== ButtonStyle.Link) {
-                        disabledButtons.addComponents(
-                            ButtonBuilder.from(button).setDisabled(true)
-                        );
-                    } else {
-                        disabledButtons.addComponents(button);
-                    }
-                });
-
-                interaction.editReply({ components: [disabledButtons] }).catch(() => {});
-            });
-
-        } catch (error: any) {
-            console.error('❌ Error en /userinfo:', error);
-            
-            const errorMessage = {
-                content: '❌ Ocurrió un error al obtener la información del usuario.',
-                embeds: [],
-                components: []
-            };
-
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply(errorMessage).catch(console.error);
-            } else {
-                await interaction.reply({ ...errorMessage, ephemeral: true }).catch(console.error);
-            }
-        }
+  async execute(interaction, client) {
+    if (!interaction.guild) {
+      await interaction.reply({
+        content: '❌ Este comando solo puede usarse en un servidor.'
+      });
+      return;
     }
+
+    try {
+      await interaction.deferReply(); // Público
+
+      const targetUser = interaction.options.getUser('usuario') ?? interaction.user;
+      const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      const fetchedUser = await targetUser.fetch();
+
+      // Determinar estado
+      const status = member?.presence?.status ?? 'offline';
+      const statusInfo = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.offline;
+
+      // Crear embed principal
+      const embed = new EmbedBuilder()
+        .setColor(member?.displayHexColor || statusInfo.color)
+        .setAuthor({
+          name: `${statusInfo.gradient} ${statusInfo.name.toUpperCase()}`,
+          iconURL: targetUser.displayAvatarURL()
+        })
+        .setTitle(`━━━━━━ ✦ ${targetUser.username} ✦ ━━━━━━`)
+        .setThumbnail(targetUser.displayAvatarURL({ size: 512 }))
+        .setTimestamp()
+        .setFooter({
+          text: `Consultado por ${interaction.user.tag}`,
+          iconURL: interaction.user.displayAvatarURL()
+        });
+
+      // Estado personalizado
+      const customStatus = getCustomStatus(member);
+      if (customStatus) {
+        embed.setDescription(`\`\`\`fix\n${customStatus}\n\`\`\``);
+      }
+
+      // Banner
+      if (fetchedUser.banner) {
+        const bannerURL = fetchedUser.bannerURL({ size: 1024 });
+        if (bannerURL) {
+          embed.setImage(bannerURL);
+        }
+      }
+
+      // Info general
+      const userType = targetUser.bot ? '🤖 Bot' : '👤 Usuario';
+      const accountAge = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:D>`;
+      embed.addFields({
+        name: '┌─ 📋 INFORMACIÓN GENERAL',
+        value: [
+          `│ **Nombre:** ${targetUser.username}`,
+          `│ **Tag:** ${targetUser.tag}`,
+          `│ **ID:** \`${targetUser.id}\``,
+          `│ **Tipo:** ${userType}`,
+          `└─ **Creado:** ${accountAge} (<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`
+        ].join('\n'),
+        inline: false
+      });
+
+      // Actividad
+      const activities = getActivities(member);
+      if (activities) {
+        embed.addFields({
+          name: '┌─ 🎯 ACTIVIDAD ACTUAL',
+          value: `│\n${activities}\n└─`,
+          inline: false
+        });
+      }
+
+      // Info servidor
+      if (member) {
+        const membershipDuration = getMembershipInfo(member);
+        const joinedDate = member.joinedTimestamp
+          ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>`
+          : 'Desconocido';
+        const boostInfo = member.premiumSince
+          ? `\n│ **Boosting:** Desde <t:${Math.floor(member.premiumSinceTimestamp! / 1000)}:R>`
+          : '';
+
+        embed.addFields({
+          name: '┌─ 🏰 INFORMACIÓN DEL SERVIDOR',
+          value: [
+            `│ **Apodo:** ${member.nickname || '*Sin apodo*'}`,
+            `│ **Unido:** ${joinedDate} (Hace ${membershipDuration})`,
+            `│ **Rol más alto:** ${member.roles.highest}${boostInfo}`,
+            `└─`
+          ].join('\n'),
+          inline: false
+        });
+
+        // Badges
+        const badges = getUserBadges(member);
+        if (badges.length > 0) {
+          embed.addFields({
+            name: '┌─ 🏅 INSIGNIAS Y RECONOCIMIENTOS',
+            value: `│ ${badges.join('\n│ ')}\n└─`,
+            inline: false
+          });
+        }
+
+        // Roles
+        const roles = member.roles.cache
+          .filter(role => role.id !== interaction.guild!.id)
+          .sort((a, b) => b.position - a.position)
+          .map(role => role.toString());
+        if (roles.length > 0) {
+          const displayRoles = roles.slice(0, 20);
+          const remaining = roles.length - displayRoles.length;
+          const roleText = displayRoles.join(' ');
+          embed.addFields({
+            name: `┌─ 🎨 ROLES DEL SERVIDOR [${roles.length}]`,
+            value: `│ ${roleText}${remaining > 0 ? ` **+${remaining} más**` : ''}\n└─`,
+            inline: false
+          });
+        }
+      } else {
+        embed.addFields({
+          name: '⚠️ ESTADO DEL MIEMBRO',
+          value: '``````',
+          inline: false
+        });
+      }
+
+      // Botones
+      const buttons = new ActionRowBuilder<ButtonBuilder>();
+      buttons.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`avatar_${targetUser.id}`)
+          .setLabel('Ver Avatar')
+          .setEmoji('🖼️')
+          .setStyle(ButtonStyle.Primary)
+      );
+      if (fetchedUser.banner) {
+        buttons.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`banner_${targetUser.id}`)
+            .setLabel('Ver Banner')
+            .setEmoji('🎨')
+            .setStyle(ButtonStyle.Primary)
+        );
+      }
+      if (member) {
+        buttons.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`perms_${targetUser.id}`)
+            .setLabel('Ver Permisos')
+            .setEmoji('🔐')
+            .setStyle(ButtonStyle.Success)
+        );
+      }
+      buttons.addComponents(
+        new ButtonBuilder()
+          .setURL(`discord://-/users/${targetUser.id}`)
+          .setLabel('Abrir Perfil')
+          .setEmoji('👤')
+          .setStyle(ButtonStyle.Link)
+      );
+
+      const response = await interaction.editReply({
+        embeds: [embed],
+        components: [buttons]
+      });
+
+      // Collector
+      const collector = response.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 300000 // 5 minutos
+      });
+
+      collector.on('collect', async (buttonInteraction) => {
+        if (buttonInteraction.user.id !== interaction.user.id) {
+          return buttonInteraction.reply({
+            content: '❌ Solo quien ejecutó el comando puede usar estos botones.',
+            ephemeral: true
+          });
+        }
+        const [action, userId] = buttonInteraction.customId.split('_');
+
+        if (action === 'avatar') {
+          const avatarEmbed = new EmbedBuilder()
+            .setColor(member?.displayHexColor || statusInfo.color)
+            .setAuthor({
+              name: `Avatar de ${targetUser.username}`,
+              iconURL: targetUser.displayAvatarURL()
+            })
+            .setImage(targetUser.displayAvatarURL({ size: 4096 }))
+            .setDescription(`[Descargar Avatar](${targetUser.displayAvatarURL({ size: 4096 })})`)
+            .setFooter({ text: 'Presiona el botón "Volver" para regresar' });
+          const backButton = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('back')
+                .setLabel('← Volver')
+                .setStyle(ButtonStyle.Secondary)
+            );
+          await buttonInteraction.update({
+            embeds: [avatarEmbed],
+            components: [backButton]
+          });
+        } else if (action === 'banner') {
+          const bannerURL = fetchedUser.bannerURL({ size: 4096 });
+          if (!bannerURL) {
+            return buttonInteraction.reply({
+              content: '❌ Este usuario no tiene un banner configurado.',
+              ephemeral: true
+            });
+          }
+          const bannerEmbed = new EmbedBuilder()
+            .setColor(member?.displayHexColor || statusInfo.color)
+            .setAuthor({
+              name: `Banner de ${targetUser.username}`,
+              iconURL: targetUser.displayAvatarURL()
+            })
+            .setImage(bannerURL)
+            .setDescription(`[Descargar Banner](${bannerURL})`)
+            .setFooter({ text: 'Presiona el botón "Volver" para regresar' });
+          const backButton = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('back')
+                .setLabel('← Volver')
+                .setStyle(ButtonStyle.Secondary)
+            );
+          await buttonInteraction.update({
+            embeds: [bannerEmbed],
+            components: [backButton]
+          });
+        } else if (action === 'perms' && member) {
+          const permsEmbed = createPermissionsEmbed(member, targetUser);
+          const backButton = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('back')
+                .setLabel('← Volver')
+                .setStyle(ButtonStyle.Secondary)
+            );
+          await buttonInteraction.update({
+            embeds: [permsEmbed],
+            components: [backButton]
+          });
+        } else if (action === 'back') {
+          await buttonInteraction.update({
+            embeds: [embed],
+            components: [buttons]
+          });
+        }
+      });
+
+      collector.on('end', () => {
+        const disabledButtons = new ActionRowBuilder<ButtonBuilder>();
+        buttons.components.forEach(button => {
+          if (button.data.style !== ButtonStyle.Link) {
+            disabledButtons.addComponents(
+              ButtonBuilder.from(button).setDisabled(true)
+            );
+          } else {
+            disabledButtons.addComponents(button);
+          }
+        });
+        interaction.editReply({ components: [disabledButtons] }).catch(() => {});
+      });
+
+    } catch (error: any) {
+      console.error('❌ Error en /userinfo:', error);
+      const errorMessage = {
+        content: '❌ Ocurrió un error al obtener la información del usuario.',
+        embeds: [],
+        components: []
+      };
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(errorMessage).catch(console.error);
+      } else {
+        await interaction.reply(errorMessage).catch(console.error);
+      }
+    }
+  }
 };
 
 export = command;

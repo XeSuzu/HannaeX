@@ -1,25 +1,43 @@
 import { Schema, model, models, Document } from 'mongoose';
 
-// 1. Creamos una "interfaz" que define la estructura de un documento AFK.
-//    Esto le enseña a TypeScript cómo son tus datos.
+/**
+ * Interfaz que define los datos puros del AFK ✨
+ */
 export interface IAfk extends Document {
   userId: string;
   guildId: string;
   reason: string;
+  originalNickname?: string; // ¡Añadimos esto para el cambio de nombre! 🏷️
   timestamp: Date;
 }
 
-// 2. Creamos el Schema usando la interfaz para asegurar que todo coincida.
+/**
+ * Esquema de Mongoose para la base de datos 🗃️
+ */
 const afkSchema = new Schema<IAfk>({
-  userId: { type: String, required: true },
-  guildId: { type: String, required: true },
-  reason: { type: String, default: "AFK 🐾" },
-  timestamp: { type: Date, default: Date.now },
+  userId: { 
+    type: String, 
+    required: [true, "El ID de usuario es obligatorio"] 
+  },
+  guildId: { 
+    type: String, 
+    required: [true, "El ID del servidor es obligatorio"] 
+  },
+  reason: { 
+    type: String, 
+    default: "AFK 🐾",
+    maxlength: [100, "La razón es muy larga, nya~"] 
+  },
+  originalNickname: { 
+    type: String 
+  },
+  timestamp: { 
+    type: Date, 
+    default: Date.now 
+  },
 });
 
-// El índice se mantiene igual, es una configuración de la base de datos.
+// Índice único: Un usuario solo puede tener un estado AFK por servidor 🏠
 afkSchema.index({ userId: 1, guildId: 1 }, { unique: true });
 
-// 3. Exportamos el modelo usando la sintaxis de TypeScript.
-//    Esta lógica previene que Mongoose compile el mismo modelo varias veces.
 export default models.AFK || model<IAfk>("AFK", afkSchema);

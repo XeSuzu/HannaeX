@@ -2,50 +2,49 @@ import { ActivityType, Events } from 'discord.js';
 import { HoshikoClient } from '../../index'; 
 
 /**
- * Esta función inicia el rotador de estados dinámicos para el bot.
- * @param client El cliente de Hoshiko.
+ * Inicia el rotador de estados dinámicos para Hoshiko 🌸
  */
 function startActivityRotator(client: HoshikoClient) {
     const activityGenerators = [
-        () => ({ name: `en ${client.guilds.cache.size} servidores`, type: ActivityType.Watching }),
-        () => ({ name: 'mis comandos con /', type: ActivityType.Playing }),
+        () => ({ name: `en ${client.guilds.cache.size} servidores 🏠`, type: ActivityType.Watching }),
+        () => ({ name: 'mis comandos con / ✨', type: ActivityType.Playing }),
         () => {
-            // Calculamos el total de miembros reales en lugar de los usuarios en caché.
             const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
-            return { name: `a ${totalMembers} usuarios`, type: ActivityType.Listening };
+            return { name: `a ${totalMembers} personitas 👥`, type: ActivityType.Listening };
         },
-        () => ({ name: 'que todo funcione bien', type: ActivityType.Competing })
+        () => ({ name: 'que todo brille 🌟', type: ActivityType.Competing })
     ];
     
     let currentIndex = 0;
 
-    // Cambiar la actividad cada 15 segundos
     setInterval(() => {
-        // Obtenemos la siguiente función generadora
         const generator = activityGenerators[currentIndex];
-        // Ejecutamos la función para obtener el estado CON DATOS FRESCOS
         const newActivity = generator();
 
-        // Actualizamos la presencia del bot
-        client.user?.setActivity(newActivity.name, { type: newActivity.type });
+        // Usamos setPresence para que sea más robusto ✨
+        client.user?.setPresence({
+            activities: [newActivity],
+            status: 'online'
+        });
 
-        // Pasamos al siguiente índice
         currentIndex = (currentIndex + 1) % activityGenerators.length;
-    }, 15000); // 15 segundos
+    }, 15000);
 
-    console.log("🌟 ¡Estados dinámicos cargados!");
+    console.log("🌟 ¡Estados dinámicos iniciados con éxito!");
 }
 
+// Cambiamos a export default para mayor compatibilidad con tu Handler
+export default {
+  name: Events.ClientReady,
+  once: true,
+  execute(client: HoshikoClient) {
+    if (!client.user) return;
 
-export = {
+    console.log('\n═══════════════════════════════════════');
+    console.log(`🌸 ✨ ¡Hoshiko ha despertado!`);
+    console.log(`💖 Conectada como: ${client.user.tag}`);
+    console.log('═══════════════════════════════════════\n');
 
-    name: Events.ClientReady,
-    once: true,
-    execute(client: HoshikoClient) {
-        if (!client.user) return;
-
-        console.log(`🌸 Nyaa~ ${client.user.tag} está lista 💖`);
-
-        startActivityRotator(client);
-    }
+    startActivityRotator(client);
+  }
 };
