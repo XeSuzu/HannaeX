@@ -1,35 +1,75 @@
-import { Message, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { 
+    ChatInputCommandInteraction, 
+    PermissionFlagsBits, 
+    SlashCommandBuilder, 
+    EmbedBuilder,
+    GuildMember
+} from 'discord.js';
 import { InfractionManager } from '../../../Features/InfractionManager';
 
 export default {
-    // ✨ Agregamos 'data' para compatibilidad con tu Handler
+    category: 'Moderation',
     data: new SlashCommandBuilder()
         .setName('warn')
-        .setDescription('Añade una advertencia a un usuario (suma 10 puntos).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDescription('Añade una advertencia a un usuario y suma puntos de infracción.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(option => 
+            option.setName('usuario')
+                .setDescription('El usuario al que deseas advertir.')
+                .setRequired(true)
+        )
+        .addStringOption(option => 
+            option.setName('motivo')
+                .setDescription('Razón de la advertencia.')
+                .setRequired(true)
+        ),
 
-    name: 'warn',
-    description: 'Añade una advertencia a un usuario (suma 10 puntos).',
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+        if (!interaction.guild) return;
 
-    async execute(message: Message, args: string[]) {
-        // Solo staff con permisos de moderación 🛡️
-        if (!message.member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-            return message.reply("🌸 Nyaa... no tienes permiso para dar advertencias.");
+        const target = interaction.options.getMember('usuario') as GuildMember;
+        const reason = interaction.options.getString('motivo') || "Sin motivo especificado.";
+
+        // 1. Validaciones de seguridad 🌸
+        if (!target) {
+            await interaction.reply({ content: "❌ No pude encontrar a ese usuario.", ephemeral: true });
+            return;
         }
 
-        const target = message.mentions.members?.first() || message.guild?.members.cache.get(args[0]);
-        if (!target) return message.reply("❌ Debes mencionar a un usuario o dar su ID.");
-
-        // Evitar advertir a otros moderadores
-        if (target.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-            return message.reply("❌ No puedes advertir a otro miembro del staff.");
+        if (target.id === interaction.user.id) {
+            await interaction.reply({ content: "🌸 No puedes advertirte a ti mismo, tontito.", ephemeral: true });
+            return;
         }
 
-        const reason = args.slice(1).join(' ') || "No se especificó un motivo.";
+        // Evitar advertir a otros moderadores o al mismo bot
+        if (target.permissions.has(PermissionFlagsBits.ModerateMembers) || target.user.bot) {
+            await interaction.reply({ content: "❌ No puedo advertir a miembros del staff o a otros bots.", ephemeral: true });
+            return;
+        }
 
-        // Sumamos 10 puntos por cada warn (Fase 3)
-        await InfractionManager.addPoints(target, 10, reason, message);
-        
-        message.reply(`✅ Se ha advertido a **${target.user.tag}**. Motivo: ${reason}`);
+        try {
+            // 2. Ejecutar la lógica de infracción ⚡
+            // Ya no pasamos el "10", el Manager usa el valor de la DB.
+            await InfractionManager.addPoints(target, reason, interaction as any);
+
+            // 3. Respuesta visual
+            const embed = new EmbedBuilder()
+                .setTitle('⚠️ Advertencia Registrada')
+                .setDescription(`Se ha aplicado una infracción a **${target.user.tag}**.`)
+                .addFields(
+                    { name: '👤 Usuario', value: `<@${target.id}>`, inline: true },
+                    { name: '👮 Moderador', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: '📝 Motivo', value: reason }
+                )
+                .setColor(0xffcc00) // Amarillo/Naranja de advertencia
+                .setThumbnail(target.displayAvatarURL())
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('❌ Error en comando warn:', error);
+            await interaction.reply({ content: '😿 Hubo un error al procesar la advertencia.', ephemeral: true });
+        }
     },
 };

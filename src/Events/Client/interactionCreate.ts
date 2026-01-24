@@ -6,6 +6,7 @@ import {
   UserContextMenuCommandInteraction 
 } from 'discord.js';
 import { HoshikoClient } from '../../index';
+import { HoshikoLogger, LogLevel } from '../../Security/Logger/HoshikoLogger';
 
 type AnyCtx =
   | ChatInputCommandInteraction
@@ -15,29 +16,30 @@ type AnyCtx =
 export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction, client: HoshikoClient) {
-    // 1. Validar que estemos en un servidor 🏠
-    if (!interaction.guild || !client.guilds.cache.has(interaction.guild.id)) return;
-
-    // 2. Logging de la interacción (¡Súper útil!) ✨
+    // 1. Logging básico para saber qué está pasando
     const tag = `[PID:${process.pid}] id=${interaction.id}`;
     if (interaction.isRepliable()) {
-      console.log(`${tag} kind=${interaction.type} guild="${interaction.guild.name}"`);
+      const location = interaction.guild ? `guild="${interaction.guild.name}"` : 'DM';
+      console.log(`${tag} kind=${interaction.type} ${location}`);
     }
 
     // --- Función para responder de forma segura ---
-    const safeRespond = async (ix: AnyCtx, payload: any) => {
+    const safeRespond = async (ix: any, payload: any) => {
       try {
         if (ix.deferred && !ix.replied) return await ix.editReply(payload);
         if (!ix.replied) return await ix.reply(payload);
         return await ix.followUp(payload);
       } catch {
-        try { return await ix.followUp(payload); } catch { /* Silencio total 🌸 */ }
+        try { return await ix.followUp(payload); } catch { /* Silencio 🌸 */ }
       }
     };
 
-    // 3. Procesar Slash Commands y Context Menus 🧠
+    // 🧠 2. Procesar SLASH COMMANDS y CONTEXT MENUS
     if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
-      const cmd = client.slashCommands.get(interaction.commandName);
+      // 🔒 Validación: Los comandos solo funcionan en servidores
+      if (!interaction.guild) return;
+
+      const cmd = client.slashCommands.get(interaction.commandName) || client.commands.get(interaction.commandName);
 
       if (!cmd) {
         return safeRespond(interaction as AnyCtx, {
@@ -47,27 +49,75 @@ export default {
       }
 
       try {
-        // --- Aquí podrías añadir lógica de Cooldowns en el futuro ---
         await cmd.execute(interaction as any, client);
       } catch (error: any) {
         console.error(`💥 Error en "${interaction.commandName}":`, error);
         await handleCommandError(interaction as AnyCtx, error, safeRespond);
       }
+      return; 
+    }
+
+    // 👤 3. Lógica Especial: ANTI-ALT (Verificación por Botón)
+    if (interaction.isButton() && interaction.customId.startsWith('verify_alt_')) {
+        const userId = interaction.customId.split('_')[2];
+        
+        if (interaction.user.id !== userId) {
+            return await interaction.reply({ 
+                content: '🌸 Nyaa... este botón no es para ti, corazón.', 
+                ephemeral: true 
+            });
+        }
+
+        try {
+            await interaction.deferUpdate();
+            const guilds = client.guilds.cache;
+
+            for (const [guildId, guild] of guilds) {
+                const member = await guild.members.fetch(userId).catch(() => null);
+                if (member) {
+                    await HoshikoLogger.sendLog(
+                        guild,
+                        "✅ Verificación Exitosa",
+                        `El usuario **${member.user.tag}** ha pasado la prueba del Anti-Alt.`,
+                        0x00ff00,
+                        member.user
+                    );
+                }
+            }
+
+            await interaction.editReply({
+                content: '✨ ¡Gracias por verificar que eres humano! Ya puedes disfrutar del servidor. 🌸',
+                embeds: [],
+                components: []
+            });
+
+            HoshikoLogger.log({
+                level: LogLevel.INFO,
+                context: 'Security/AntiAlt',
+                message: `Usuario ${interaction.user.tag} verificado correctamente.`,
+            });
+        } catch (err) {
+            console.error("❌ Error en verificación Anti-Alt:", err);
+        }
+        return;
+    }
+
+    // ⚙️ 4. Procesar otros componentes (Modales, Menús de Setup, etc.)
+    if (interaction.isMessageComponent() || interaction.isModalSubmit()) {
+        console.log(`[DEBUG] Componente recibido: ${interaction.customId}`);
+        // Los collectors de /setup se encargarán de esto si el comando está vivo.
     }
   }
 };
 
 /**
- * Manejador de errores tierno pero informativo 🐾
+ * Manejador de errores
  */
 async function handleCommandError(interaction: AnyCtx, error: any, safeRespond: (ix: AnyCtx, p: any) => Promise<any>) {
-  let errorMessage = "❌ Nyaa… hubo un error al ejecutar este comando. Inténtalo más tarde.";
-
-  // Errores comunes de Discord (Permisos)
+  let errorMessage = "❌ Nyaa… hubo un error al ejecutar este comando.";
   if (error?.code === 50013 || error?.code === 50001) {
-    errorMessage = "❌ Me faltan permisos para hacer eso. Revisa mis roles en este canal, nyaa~ 🐾";
+    errorMessage = "❌ Me faltan permisos para hacer eso. Revisa mis roles, nyaa~ 🐾";
   }
-
   try {
     await safeRespond(interaction, { content: errorMessage, ephemeral: true });
   } catch (replyError) {

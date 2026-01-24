@@ -1,8 +1,8 @@
-import { REST, Routes, Guild, Events } from "discord.js";
+import { Events, Guild, REST, Routes } from "discord.js";
 import path from 'path';
 import fs from 'fs';
-// ✅ CORRECCIÓN 1: La ruta ahora tiene tres niveles (../../../)
 import { HoshikoClient } from '../../../index'; 
+import 'dotenv/config'; // Aseguramos variables de entorno
 
 export = {
     name: Events.GuildCreate,
@@ -10,43 +10,72 @@ export = {
     async execute(guild: Guild, client: HoshikoClient) {
         console.log(`🌸 Bot unido al servidor: ${guild.name} (${guild.id})`);
 
-        const slashPath = path.join(__dirname, "../../../Commands/SlashCmds"); // Ajustamos la ruta también aquí
+        // Ajustamos la ruta para que funcione tanto en 'src' como en 'dist'
+        const slashPath = path.join(__dirname, "../../../Commands/SlashCmds"); 
+
         if (!fs.existsSync(slashPath)) {
-            return console.warn("⚠️ No existe la carpeta de comandos SlashCmds");
+            return console.warn(`⚠️ No se encontró la carpeta de comandos en: ${slashPath}`);
         }
 
-        const slashCommandsArray: object[] = [];
-        const slashFolders = fs.readdirSync(slashPath);
+        const publicCommands: any[] = [];
+        const ownerCommands: any[] = [];
 
-        for (const folder of slashFolders) {
+        const folders = fs.readdirSync(slashPath);
+
+        for (const folder of folders) {
             const folderPath = path.join(slashPath, folder);
-            const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith(".ts"));
+            
+            // ✅ CORRECCIÓN: Buscamos .js (producción) O .ts (desarrollo), ignorando definiciones .d.ts
+            const commandFiles = fs.readdirSync(folderPath).filter(f => 
+                (f.endsWith(".ts") || f.endsWith(".js")) && !f.endsWith(".d.ts")
+            );
             
             for (const file of commandFiles) {
                 try {
-                    const command = require(path.join(folderPath, file));
-                    if (command.data) {
-                        if (Array.isArray(command.data)) {
-                            // ✅ CORRECCIÓN 2: Añadimos el tipo 'any' a cmdData
-                            command.data.forEach((cmdData: any) => slashCommandsArray.push(cmdData.toJSON()));
+                    const filePath = path.join(folderPath, file);
+                    // Limpiar caché para asegurar carga fresca
+                    delete require.cache[require.resolve(filePath)];
+                    
+                    const commandModule = require(filePath);
+                    const command = commandModule.default || commandModule;
+
+                    if (command && command.data) {
+                        const cmdJson = command.data.toJSON();
+
+                        // 🔍 FILTRO DE SEGURIDAD
+                        if (command.category === 'Owner' || folder === 'Owner') {
+                            ownerCommands.push(cmdJson);
                         } else {
-                            slashCommandsArray.push(command.data.toJSON());
+                            publicCommands.push(cmdJson);
                         }
                     }
                 } catch (err: any) {
-                    console.error(`❌ Error cargando el comando ${file}:`, err.message);
+                    console.error(`❌ Error cargando ${file}:`, err.message);
                 }
             }
         }
 
         const rest = new REST({ version: "10" }).setToken(client.config.token!);
+        const ownerGuildId = process.env.GUILD_ID;
+
+        // 🧠 LÓGICA DE INSTALACIÓN
+        let payload = publicCommands;
+        let typeLog = "PÚBLICOS";
+
+        // Si es TU servidor privado, incluimos los comandos de dueño
+        if (ownerGuildId && guild.id === ownerGuildId) {
+            payload = [...publicCommands, ...ownerCommands];
+            typeLog = "TOTALES (Incluye Admin)";
+        }
 
         try {
+            console.log(`   📤 Instalando ${payload.length} comandos ${typeLog}...`);
+            
             await rest.put(
                 Routes.applicationGuildCommands(client.config.BotId!, guild.id), 
-                { body: slashCommandsArray }
+                { body: payload }
             );
-            console.log(`✅ ${slashCommandsArray.length} comandos registrados correctamente en ${guild.name}`);
+            console.log(`✅ Registro exitoso en ${guild.name}`);
         } catch (err: any) {
             console.error(`❌ Error registrando comandos en ${guild.name}:`, err.message);
         }

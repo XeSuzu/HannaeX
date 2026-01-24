@@ -1,27 +1,67 @@
-import { Message, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
-import { InfractionManager } from '../../../Features/InfractionManager';
+import { 
+    ChatInputCommandInteraction, 
+    PermissionFlagsBits, 
+    SlashCommandBuilder, 
+    EmbedBuilder,
+    GuildMember 
+} from 'discord.js';
+import { InfractionManager, userPoints } from '../../../Features/InfractionManager';
 
 export default {
+    category: 'Moderation',
     data: new SlashCommandBuilder()
         .setName('unwarn')
-        .setDescription('Resta puntos de infracción a un usuario.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDescription('Limpia el historial o resta puntos de infracción a un usuario.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(option => 
+            option.setName('usuario')
+                .setDescription('El usuario al que quieres perdonar.')
+                .setRequired(true)
+        ),
 
-    name: 'unwarn',
-    description: 'Resta puntos de infracción a un usuario.',
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+        if (!interaction.guild) return;
 
-    async execute(message: Message, args: string[]) {
-        if (!message.member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-            return message.reply("🌸 Nyaa... no tienes permiso para quitar advertencias.");
+        const target = interaction.options.getMember('usuario') as GuildMember;
+
+        if (!target) {
+            await interaction.reply({ content: "❌ No pude encontrar a ese usuario.", ephemeral: true });
+            return;
         }
 
-        const target = message.mentions.members?.first() || message.guild?.members.cache.get(args[0]);
-        if (!target) return message.reply("❌ Menciona a alguien o da su ID.");
+        try {
+            // 1. Lógica de limpieza 🌸
+            const key = `${interaction.guild.id}-${target.id}`;
+            
+            // Si quieres restar puntos específicos en lugar de borrar todo:
+            const currentPoints = userPoints.get(key) || 0;
+            const newPoints = Math.max(0, currentPoints - 10); // Restamos 10 pero no bajamos de 0
+            
+            if (newPoints === 0) {
+                userPoints.delete(key);
+            } else {
+                userPoints.set(key, newPoints);
+            }
 
-        // Restamos 10 puntos (puedes hacerlo dinámico con args[1] si prefieres)
-        const pointsToRemove = -10; 
-        await InfractionManager.addPoints(target, pointsToRemove, "Puntos removidos por Staff", message);
-        
-        message.reply(`✅ Se han removido puntos a **${target.user.tag}**. ¡Hoshiko está feliz de ver buen comportamiento! 🐾`);
+            // 2. Notificar al sistema de logs
+            await InfractionManager.addPoints(target, "Perdón parcial: Puntos removidos por Staff", interaction as any);
+
+            const embed = new EmbedBuilder()
+                .setTitle('✨ Hoshiko Perdona')
+                .setDescription(`Se han reducido las infracciones de **${target.user.tag}**.`)
+                .addFields(
+                    { name: '📊 Estado actual', value: `\`${newPoints} puntos\`` }
+                )
+                .setColor(0x00ff7f)
+                .setThumbnail(target.displayAvatarURL())
+                .setTimestamp()
+                .setFooter({ text: 'Hoshiko Sentinel 📡' });
+
+            await interaction.reply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error("💥 Error en comando unwarn:", error);
+            await interaction.reply({ content: "🌸 Hubo un error al intentar quitar los puntos.", ephemeral: true });
+        }
     },
 };

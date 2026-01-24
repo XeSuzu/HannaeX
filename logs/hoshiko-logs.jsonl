@@ -1,2 +1,410 @@
 {"timestamp":"2026-01-04T23:30:23.641Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
 {"timestamp":"2026-01-04T23:30:24.630Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 151.75 MB | CPU: 4.79]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-05T11:39:45.417Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-05T11:39:46.639Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.09 MB | CPU: 5.48]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-06T10:58:05.992Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-06T10:58:07.703Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.16 MB | CPU: 10.81]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:51:08.712Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:51:10.107Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 127.82 MB | CPU: 9.19]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:55:30.283Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:55:42.155Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:55:43.179Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.41 MB | CPU: 2.2]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:58:55.261Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:59:07.240Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T06:59:08.615Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.57 MB | CPU: 1.79]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:01:27.147Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:01:28.128Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.07 MB | CPU: 3.65]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:01:47.407Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:02:26.393Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:02:27.397Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 128.8 MB | CPU: 2.64]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:03:42.964Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:04:03.117Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:04:04.046Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 128.21 MB | CPU: 4.56]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:05:55.179Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:06:06.933Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:06:07.929Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 128.95 MB | CPU: 3.08]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:16:27.363Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:17:04.679Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:17:05.755Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.78 MB | CPU: 4.59]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:17:48.662Z","level":"FATAL","context":"System/Fatal","message":"Promesa rechazada no manejada detectada","guildId":null,"userId":null,"metadata":{"requestBody":{"files":[],"json":{"type":4,"data":{"content":"✅ Logs configurados en <#1457508601806717139>","tts":false,"enforce_nonce":false,"flags":64}}},"rawError":{"message":"Unknown interaction","code":10062},"code":10062,"status":404,"method":"POST","url":"https://discord.com/api/v10/interactions/1458358940680065086/aW50ZXJhY3Rpb246MTQ1ODM1ODk0MDY4MDA2NTA4Njp6eFpjWktPV2lXdXF5dVpqUWRsclltSURoQVF0dWczdE9hTGswZDlTVnB4WkFKWVlaNlg3RDZVRkVkc1lwZ0o5dlRDZk1MZ1VCQXpTcjlQZEgxWVFGYmFtTDMzRU5ReG16aFVmUlFrc092UFdCWENZQTFRU3MzMjlDdlZ0ZWxEWA/callback?with_response=false"}}
+{"timestamp":"2026-01-07T07:20:31.955Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:22:50.606Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:22:51.550Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.79 MB | CPU: 3.73]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:23:26.486Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:25:59.211Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:26:00.148Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.96 MB | CPU: 2.27]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:40:54.462Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:53:07.792Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T07:53:08.785Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.01 MB | CPU: 4.5]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:17:34.880Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:18:12.528Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:18:13.605Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.96 MB | CPU: 4.49]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:23:04.655Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:23:18.014Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:23:19.101Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.11 MB | CPU: 3.39]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:23:39.670Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:25:50.015Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:25:51.161Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.4 MB | CPU: 3.16]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:28:33.462Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:28:51.631Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:28:52.668Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.23 MB | CPU: 4.69]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:30:56.231Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:31:09.986Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:31:11.139Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.59 MB | CPU: 3.74]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:36:21.886Z","level":"WARN","context":"System/Shutdown","message":"Recibida señal SIGINT. Cerrando servicios...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:36:37.102Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:36:38.262Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.64 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:37:28.383Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:38:11.519Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:38:12.650Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.63 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:39:52.235Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:40:05.255Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:40:06.451Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.54 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:44:15.734Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:44:28.068Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:44:29.117Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.87 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:49:34.434Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:49:46.474Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T08:49:47.558Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.66 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:00:52.363Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:01:04.456Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:01:05.441Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.07 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:23:08.261Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:23:20.712Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:23:22.040Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.71 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:25:30.800Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:25:42.124Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:25:43.227Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.23 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:30:10.288Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:30:22.715Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:30:24.264Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.95 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:33:37.563Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:33:48.810Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:33:49.873Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.93 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:36:53.383Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:37:04.561Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:37:05.633Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.52 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:38:51.329Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:39:08.378Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T09:39:09.498Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.38 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-07T19:26:17.869Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-08T12:03:38.839Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-08T12:03:40.371Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 130.52 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-08T12:05:31.297Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-08T12:05:34.610Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 132.76 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-09T23:13:09.835Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-09T23:13:10.998Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 151.56 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-10T03:53:22.890Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-11T14:10:22.895Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-11T14:10:24.053Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.29 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-11T15:16:18.660Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-11T15:16:19.636Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 152.2 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-14T12:54:15.929Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-14T12:54:17.061Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 129.58 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T05:35:12.615Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T13:45:37.438Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T13:45:38.471Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 128.15 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T17:51:17.022Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T17:51:18.074Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 150.39 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T17:58:51.751Z","level":"INFO","context":"Security/Infractions","message":"+2 pts para rapro54a por Enlace no autorizado. Total: 2","guildId":"1456410842236194925","userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:11:23.972Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:14:33.897Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:14:35.207Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 159.54 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:16:38.918Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:19:48.618Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:19:49.939Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 159.44 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T18:38:15.666Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para aguss2912_ por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:06:16.207Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:07:20.784Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:07:22.375Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 132.37 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:23:04.648Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:33:30.843Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:33:32.185Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 137.94 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:43:20.175Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:44:16.696Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:44:18.196Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 135.87 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:47:23.605Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:47:39.376Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T19:47:40.817Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 135.63 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:14:36.605Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:15:11.029Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:15:12.383Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 136.02 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:18:48.842Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:19:01.138Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:19:02.459Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 136.26 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:24:41.011Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:25:38.014Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:25:39.544Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 135.86 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:39:15.539Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:41:50.490Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:42:09.009Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 135.77 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:52:02.543Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para franrm. por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:55:44.431Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:55:57.991Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:56:09.645Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 137.84 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T21:58:07.811Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:00:52.891Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:00:55.367Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 130.21 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:10:20.722Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:10:35.481Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:10:38.275Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 145.41 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:13:20.301Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:13:46.487Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:13:48.323Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 145.52 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:17:12.029Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:17:24.909Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:17:26.452Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 147.54 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:20:06.071Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:20:18.982Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:20:22.191Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 145.77 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:21:25.585Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:21:40.470Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:21:43.102Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 148.66 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:24:49.719Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:25:04.444Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:25:06.068Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 147.72 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:40:56.875Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:47:55.317Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:47:56.793Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 148.26 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:52:46.448Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:53:11.735Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T22:53:13.554Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 145.91 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T23:06:31.875Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T23:07:52.308Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-17T23:07:53.916Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 143.38 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T02:51:17.484Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para ben_qu3 por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:11:37.316Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:13:14.735Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:13:17.253Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 143.75 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:23:30.201Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:23:43.534Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:23:45.155Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 144.32 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:24:19.578Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:25:37.955Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T04:25:39.283Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 144.61 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T05:08:28.181Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-18T15:28:08.744Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo detectado por RateLimiter. Total: 20","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-18T19:03:05.017Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T21:47:54.941Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T21:47:58.215Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 144.94 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T22:16:14.986Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T22:16:16.818Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 138.82 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T22:16:26.128Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T22:58:08.610Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T22:58:09.947Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 147.15 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T23:00:02.458Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T23:00:37.205Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-18T23:00:38.427Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 154.25 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T01:46:06.923Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-19T03:57:17.909Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T04:03:01.130Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T04:03:02.734Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 144.06 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T04:03:22.126Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T04:03:23.240Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 144.43 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T04:09:14.692Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para vanilledollz por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-19T06:13:36.147Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T06:13:37.759Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T06:13:39.359Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.6 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:09:16.758Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:09:18.401Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:09:19.715Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.9 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:16:21.320Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:16:22.925Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:16:24.431Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.77 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:29:32.294Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:29:34.139Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:29:35.548Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 169.15 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:56:29.514Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:56:31.260Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:56:32.899Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.98 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:58:29.420Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:58:30.964Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T08:58:32.396Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.68 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:03:37.413Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:03:38.792Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:03:40.212Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.51 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:08:35.592Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:08:37.038Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:08:38.463Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.93 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:17:09.582Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:17:11.003Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:17:12.781Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.29 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:17:35.741Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para franrm. por Spam excesivo detectado por RateLimiter. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:23:41.031Z","level":"FATAL","context":"System/Fatal","message":"Promesa rechazada no manejada","guildId":null,"userId":null,"metadata":{}}
+{"timestamp":"2026-01-19T09:23:52.555Z","level":"FATAL","context":"System/Fatal","message":"Promesa rechazada no manejada","guildId":null,"userId":null,"metadata":{}}
+{"timestamp":"2026-01-19T09:24:11.404Z","level":"FATAL","context":"System/Fatal","message":"Promesa rechazada no manejada","guildId":null,"userId":null,"metadata":{}}
+{"timestamp":"2026-01-19T09:26:41.883Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:26:43.228Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:26:44.438Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.02 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:30:00.714Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:30:02.176Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:30:03.724Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.76 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:33:38.062Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:34:37.368Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:34:38.858Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.04 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:39:06.882Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:39:09.073Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:39:10.743Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:45:46.998Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:45:48.465Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:45:50.608Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 172.15 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:50:14.678Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:50:16.016Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:50:17.448Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.91 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:51:01.890Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:51:03.453Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T09:51:04.912Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.08 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T10:02:00.449Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T10:02:02.046Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T10:02:03.364Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 169.94 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T13:32:03.836Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a v.xsn","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T13:41:03.928Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a lieeeerr.","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T15:24:03.983Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a pajarinho","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T15:34:03.954Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a xkatochi_sanx","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T17:41:50.524Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para franrm. por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-19T17:44:03.891Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a wwithered","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T18:46:04.001Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a kur0inezz_","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-19T21:59:18.493Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para winnie0933_45201 por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-19T23:09:20.021Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para ben_qu3 por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-20T02:12:04.025Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a bbxella","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T02:56:33.981Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para ben_qu3 por Spam excesivo. Total: 20","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-20T03:06:42.738Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:21:24.376Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:21:25.796Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 169.14 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:23:34.915Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:23:36.640Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:23:38.001Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 168.89 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:24:38.919Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a v.xsn","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:24:39.270Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a wwithered","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:24:39.681Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a wwithered","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T07:45:38.762Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a gamyigoo4822","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T16:06:10.303Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para ayeexstar por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-20T18:57:19.795Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T19:56:41.186Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T19:56:42.668Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 168.56 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:07:54.145Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:07:56.129Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 168.59 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:09:01.034Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:09:02.380Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 168.95 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:09:37.000Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-20T20:09:38.348Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 170.4 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T00:56:30.484Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para ayeexstar por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:26:39.217Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a wwithered","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:26:39.586Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a wwithered","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:27:43.352Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a v.xsn","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:28:39.219Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a drainmysorrow","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:28:39.549Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a deadgrl_p","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:33:39.067Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a kwwuh","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:33:39.434Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a kwwuh","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:34:38.834Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a pajarinho","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:35:38.852Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a nnrlliqal","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:37:39.069Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a winnie0933_45201","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:40:39.153Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a gamyigoo4822","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:44:38.805Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a rapro54a","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T01:54:38.777Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a radio_shark","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T02:08:39.201Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a iwwishhh","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T02:29:38.806Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a franrm.","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T03:54:38.855Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a ayeexstar","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T03:59:38.883Z","level":"INFO","context":"RoleSystem","message":"⏳ Rol temporal retirado a ben_qu3","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:02:00.996Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:02:02.698Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:02:04.286Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 162.02 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:36.973Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:38.475Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:40.241Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 161.71 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:50.587Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:52.056Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:03:53.468Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 165.81 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:05:53.109Z","level":"FATAL","context":"System/Fatal","message":"Promesa rechazada no manejada","guildId":null,"userId":null,"metadata":{}}
+{"timestamp":"2026-01-21T06:53:19.774Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:53:21.410Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:53:22.704Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.69 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:56:19.023Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:56:20.460Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:56:21.925Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 172.02 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:59:53.263Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:59:54.787Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T06:59:56.217Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.55 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:01:17.157Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:01:18.753Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:01:19.986Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 172.17 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:08:37.392Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:08:39.065Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:08:40.540Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.91 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:14:32.686Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:14:34.156Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:14:35.605Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 169.29 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:29:38.325Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:29:39.938Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T07:29:41.411Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 3 servidores. [RAM: 171.79 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:02:14.839Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:02:16.291Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:02:17.641Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 4 servidores. [RAM: 171.79 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:15:10.534Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:15:11.988Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:15:13.230Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 4 servidores. [RAM: 170.02 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:27:08.905Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:27:10.769Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T08:27:12.462Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 4 servidores. [RAM: 173 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-21T12:07:20.735Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para aguss2912_ por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-21T20:19:14.182Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para franrm. por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-21T20:22:30.658Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo. Total: 10","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-21T23:25:49.148Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo. Total: 20","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-22T01:23:01.948Z","level":"INFO","context":"Security/Infractions","message":"+10 pts para drainmysorrow por Spam excesivo. Total: 30","guildId":"1299943363088355428","userId":null,"metadata":null}
+{"timestamp":"2026-01-22T04:18:47.528Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-22T11:26:56.833Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-22T11:26:58.174Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 168.54 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-22T11:28:13.495Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-22T11:28:15.305Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-22T11:28:16.663Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 171.71 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:40:12.507Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:40:14.114Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 147.8 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:42:04.087Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:42:05.559Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 148.34 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:49:39.448Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:49:40.740Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 149.01 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:54:09.615Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:54:10.816Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 160.43 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:58:35.529Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T04:58:37.030Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 156.99 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T05:25:33.155Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T05:25:34.844Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 161.16 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:13:24.939Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:13:33.274Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:13:34.762Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 148.98 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:22:42.002Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:22:50.754Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:22:52.377Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 148.58 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:28:19.030Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:28:27.309Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T08:28:28.985Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 148.38 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T09:26:26.307Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T17:50:32.836Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T17:50:35.673Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 148.75 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T18:31:30.696Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T18:31:39.040Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T18:31:39.114Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T18:31:40.231Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T18:31:40.268Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T18:31:41.361Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T18:31:42.693Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 146.87 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:29:04.269Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:29:12.628Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:29:14.193Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 149.14 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:40:45.044Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:40:53.364Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T19:40:56.009Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 146.44 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:11:26.646Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:11:35.041Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:11:35.110Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T20:11:36.261Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:11:36.324Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T20:11:37.432Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:11:39.407Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 149.24 MB]","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:23:55.841Z","level":"WARN","context":"System/Shutdown","message":"Señal SIGINT recibida. Apagando...","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:24:04.231Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:24:04.305Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T20:24:05.500Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:24:05.539Z","level":"FATAL","context":"System/Startup","message":"Error crítico durante el inicio","guildId":null,"userId":null,"metadata":{"errno":-3007,"code":"ENOTFOUND","syscall":"getaddrinfo","hostname":"discord.com"}}
+{"timestamp":"2026-01-24T20:24:06.650Z","level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","guildId":null,"userId":null,"metadata":null}
+{"timestamp":"2026-01-24T20:24:12.833Z","level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 5 servidores. [RAM: 149.07 MB]","guildId":null,"userId":null,"metadata":null}

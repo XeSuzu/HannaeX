@@ -7,137 +7,154 @@ import {
     ComponentType,
     ChatInputCommandInteraction,
     Message,
-    InteractionResponse,
-    ButtonInteraction
+    ButtonInteraction,
+    GuildMember,
+    User,
+    InteractionResponse // Asegúrate de importar esto si no lo usas en otro lado
 } from 'discord.js';
 import { HoshikoClient } from '../../../index';
 
-// Interfaz estándar para tus slash commands
-interface SlashCommand {
-    data: SlashCommandBuilder | any;
-    category: string;
-    execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void | Message | InteractionResponse>;
+// ⚙️ FUNCIÓN AUXILIAR API
+async function getAnimeGif(category: string): Promise<string> {
+    try {
+        const response = await fetch(`https://nekos.best/api/v2/${category}`);
+        const json = await response.json();
+        return json.results[0].url;
+    } catch (e) {
+        return 'https://media.tenor.com/7X7HPs4.gif';
+    }
 }
 
-const command: SlashCommand = {
-    category: 'Interactions',
-    data: new SlashCommandBuilder()
-        .setName('hug')
-        .setDescription('🤗 Envía un abrazo cálido a alguien especial')
-        .addUserOption(option =>
-            option
-                .setName('usuario')
-                .setDescription('El usuario que recibirá el abrazo')
-                .setRequired(true)
-        ),
+// ⚙️ LÓGICA CENTRAL (Compartida por Slash y Texto)
+async function startHug(
+    targetUser: User,
+    authorUser: User,
+    color: string,
+    // Función para responder (abstraemos la diferencia entre interaction y message)
+    replyCallback: (payload: any) => Promise<Message>
+) {
+    // 1. Auto-Abrazo
+    if (targetUser.id === authorUser.id) {
+        const gifUrl = await getAnimeGif('hug');
+        const embedAuto = new EmbedBuilder()
+            .setColor(color as any)
+            .setDescription(`💖 **${authorUser.username}**, abrazarte a ti mism@ es el primer paso. ¡Amor propio! ✨`)
+            .setImage(gifUrl)
+            .setFooter({ text: 'Tú puedes con todo 🐻', iconURL: authorUser.displayAvatarURL() });
+            
+        return replyCallback({ embeds: [embedAuto] });
+    }
 
-    async execute(interaction, client) {
-        // Obtenemos los usuarios de forma segura
-        const targetUser = interaction.options.getUser('usuario', true);
-        const authorUser = interaction.user;
+    // 2. Propuesta de Abrazo
+    const gifUrl = await getAnimeGif('hug');
+    const flavorText = [
+        `quiere darte un abrazo lleno de cariño. 💖`,
+        `te envía un abrazo estelar. 💫`,
+        `te ofrece un abrazo reconfortante. ☕️`,
+        `corre hacia ti con los brazos abiertos. 🏃‍♀️`
+    ][Math.floor(Math.random() * 4)];
 
-        const hugGifs: string[] = [
-            'https://i.imgur.com/MCvMErV.gif', 'https://i.imgur.com/7X7HPs4.gif',
-            'https://i.redd.it/mesqxxfffeva1.gif', 'https://c.tenor.com/IpGw3LOZi2wAAAAC/tenor.gif',
-            'https://c.tenor.com/rTKIBe2qtxsAAAAC/tenor.gif',
-        ];
+    const embed = new EmbedBuilder()
+        .setColor(color as any)
+        .setDescription(`**${targetUser}**, ${authorUser} ${flavorText}\n\n*¿Aceptas este abrazo?* 🤔`)
+        .setImage(gifUrl)
+        .setTimestamp()
+        .setFooter({ text: `Esperando a ${targetUser.username}...`, iconURL: targetUser.displayAvatarURL() });
 
-        const mensajes: string[] = [
-            `✨ ${authorUser} te envuelve en un abrazo que es pura magia y cariño, ${targetUser}. 💖`,
-            `🌟 ${authorUser} te da un abrazo estelar que ilumina tu noche, ${targetUser}. 💫`,
-            `💖 ${authorUser} te abraza con una energía tan fuerte que te hace brillar, ${targetUser}. ✨`,
-            `🍥 ${authorUser} te ofrece un abrazo cálido, dulce y muy reconfortante, ${targetUser}. ☕️`,
-            `🌷 ${authorUser} te da un abrazo hecho con todos los buenos deseos del mundo, ${targetUser}. 🥰`,
-            `🐻 ${authorUser} te da un abrazo de oso, pero con toda la ternura del mundo, ${targetUser}. 🤗`,
-        ];
+    // Botones
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('hug_accept').setLabel('🤗 Aceptar').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('hug_reject').setLabel('✋ Rechazar').setStyle(ButtonStyle.Danger)
+    );
 
-        const autoMensajes: string[] = [
-            `🌸 ${authorUser}, abrazarte a ti mism@ es el mejor acto de amor propio. ¡Sigue brillando! ✨💖`,
-            `💖 ¡Un abrazo gigante para ti, ${authorUser}! Nunca olvides que mereces todo el cariño del mundo. 🌈🤗`,
-            `🌟 ¡Ey, ${authorUser}! Este autoabrazo es un recordatorio de que eres fuerte y única. 🌷💫`,
-        ];
-        
-        // ✨ MEJORA: Función auxiliar más simple y segura
-        const getRandomItem = (arr: string[]): string => arr[Math.floor(Math.random() * arr.length)];
+    // Enviamos mensaje y guardamos la referencia
+    const responseMessage = await replyCallback({ 
+        content: `✨ ¡**${authorUser.username}** quiere abrazar a ${targetUser}!`, 
+        embeds: [embed], 
+        components: [row] 
+    });
 
-        // --- Lógica de Auto-Abrazo ---
-        if (targetUser.id === authorUser.id) {
-            const embedAuto = new EmbedBuilder()
-                .setColor('#f48fb1')
-                .setTitle('💖 ¡Un Abrazo de Amor Propio!')
-                .setDescription(getRandomItem(autoMensajes))
-                .setImage(getRandomItem(hugGifs))
-                .setTimestamp()
-                .setFooter({ text: `Eres increíble, ${authorUser.username} 💕`, iconURL: authorUser.displayAvatarURL() });
+    // 3. Colector
+    const collector = responseMessage.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 60000
+    });
 
-            return interaction.reply({ embeds: [embedAuto] });
+    collector.on('collect', async (i: ButtonInteraction) => {
+        if (i.user.id !== targetUser.id) {
+            return i.reply({ content: '❌ Nyaa~ Este abrazo no es para ti.', ephemeral: true });
         }
 
-        // --- Lógica de Abrazo a Otro Usuario ---
-        const embed = new EmbedBuilder()
-            .setColor('#f48fb1')
-            .setDescription(getRandomItem(mensajes)) // ✨ MEJORA: El mensaje principal ahora es la descripción.
-            .setImage(getRandomItem(hugGifs))
-            .setTimestamp()
-            .setFooter({ text: `De parte de ${authorUser.username} 💖`, iconURL: authorUser.displayAvatarURL() });
+        // Desactivar botones
+        const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId('yes').setLabel('Procesado').setStyle(ButtonStyle.Secondary).setDisabled(true)
+        );
+        await i.update({ components: [disabledRow] });
 
-        const devolverAbrazoId = `devolver_abrazo_${interaction.id}`;
+        if (i.customId === 'hug_accept') {
+            const returnGif = await getAnimeGif('hug');
+            const embedOk = new EmbedBuilder()
+                .setColor('#4caf50')
+                .setDescription(`💖 **${targetUser.username}** aceptó el abrazo de **${authorUser.username}**. ¡Qué bonito! 🥰`)
+                .setImage(returnGif);
+            await i.followUp({ embeds: [embedOk] });
+        } else {
+            const sadGif = await getAnimeGif('cry');
+            const embedNo = new EmbedBuilder()
+                .setColor('#f44336')
+                .setDescription(`💔 **${targetUser.username}** rechazó el abrazo... Auch.`)
+                .setImage(sadGif);
+            await i.followUp({ content: `||💔 <@${authorUser.id}> ||`, embeds: [embedNo] });
+        }
+        collector.stop();
+    });
+}
 
-        const devolverBtn = new ButtonBuilder()
-            .setCustomId(`devolver_abrazo_${interaction.id}`) // ✨ MEJORA: ID único para el botón
-            .setLabel('🤗 Devolver abrazo')
-            .setStyle(ButtonStyle.Success);
+// 📦 EXPORTACIÓN DEL COMANDO
+export default {
+    name: 'hug', // Nombre para texto
+    aliases: ['abrazar', 'abrazo', 'cariño'], // Alias para texto
+    category: 'Interactions',
 
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(devolverBtn);
+    // 🟢 DATA SLASH
+    data: new SlashCommandBuilder()
+        .setName('hug')
+        .setDescription('🤗 Envía un abrazo (Slash)')
+        .addUserOption(opt => opt.setName('usuario').setDescription('A quien abrazar').setRequired(true)),
 
-        // ✨ MEJORA: Mencionamos al usuario en el contenido para que reciba la notificación.
-        await interaction.reply({ content: `**${authorUser.username}** le ha dado un abrazo a ${targetUser}!`, embeds: [embed], components: [row] });
-
-        // Colector de componentes tipado y mejorado
-        const collector = interaction.channel?.createMessageComponentCollector({
-            componentType: ComponentType.Button,
-            time: 60000, // 1 minuto
-        });
-
-        collector?.on('collect', async (i: ButtonInteraction) => {
-            if (i.customId === devolverAbrazoId) {
-                if (i.user.id !== targetUser.id) {
-                    return i.reply({
-                        content: '❌ Solo la persona que recibió el abrazo puede devolverlo, nyaa~',
-                        ephemeral: true,
-                    });
-                }
-                
-                // Desactivamos el botón en el mensaje original
-                devolverBtn.setDisabled(true);
-                await interaction.editReply({ components: [row] });
-
-                const gifsDevolucion: string[] = [
-                    'https://i.pinimg.com/originals/85/dc/ef/85dcef131af84b515106955e142df54e.gif',
-                    'https://usagif.com/wp-content/uploads/gif/anime-hug-12.gif',
-                    'https://c.tenor.com/FgLRE4gi5VoAAAAC/tenor.gif',
-                ];
-                
-                const embedDevolucion = new EmbedBuilder()
-                    .setColor('#f06292')
-                    .setDescription(`**${targetUser.username}** le ha devuelto el abrazo a **${authorUser.username}**! 💖`)
-                    .setImage(getRandomItem(gifsDevolucion))
-                    .setTimestamp()
-                    .setFooter({ text: `El cariño es mutuo 💕`, iconURL: targetUser.displayAvatarURL() });
-                
-                // Respondemos a la interacción del botón con un nuevo mensaje público
-                await i.reply({ embeds: [embedDevolucion] });
-                collector.stop();
+    // 🟢 EJECUCIÓN SLASH (/hug)
+    async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+        const target = interaction.options.getUser('usuario', true);
+        const member = interaction.member as GuildMember;
+        
+        await startHug(
+            target, 
+            interaction.user, 
+            member?.displayHexColor || '#f48fb1',
+            // Adaptador: Interaction -> Message
+            async (payload) => {
+                const res = await interaction.reply({ ...payload, fetchReply: true });
+                // 👇 AQUÍ ESTÁ EL ARREGLO: Forzamos el tipo a Message
+                return res as unknown as Message; 
             }
-        });
-
-        collector?.on('end', collected => {
-            if (collected.size === 0) {
-                devolverBtn.setDisabled(true).setLabel('Tiempo agotado');
-                interaction.editReply({ components: [row] }).catch(() => {});
-            }
-        });
+        );
     },
-};
 
-export = command;
+    // 🔵 EJECUCIÓN TEXTO (hoshi hug @usuario)
+    async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
+        const target = message.mentions.users.first();
+        if (!target) {
+            return message.reply('🌸 Nyaa~ Tienes que mencionar a alguien. Ejemplo: `hoshi hug @Suki`');
+        }
+
+        const member = message.member;
+        
+        await startHug(
+            target,
+            message.author,
+            member?.displayHexColor || '#f48fb1',
+            // Adaptador: Message -> Message (Este no necesitaba cambios)
+            async (payload) => message.reply(payload)
+        );
+    }
+};

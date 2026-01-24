@@ -172,5 +172,178 @@ Este proyecto es privado y no debe ser distribuido sin autorización del autor.
 
 ---
 
-> *"Nyaa~ Gracias por confiar en mí. ¡Estoy lista para ronronear y ayudarte en tu servidor!"*  
-> — **Hoshiko**
+# Hoshiko — Documentación Técnica (Resumen del codebase)
+
+Resumen rápido
+- Proyecto: Hoshiko (alias HannaeX) — Bot de Discord en TypeScript/Node.js.
+- Propósito: moderación, social, IA (Gemini), multimedia, utilities.
+- Estructura principal: código en `src/`, build a `dist/`, despliegue con `npm run build` y `node dist/index.js` o Docker.
+
+Árbol de archivos (resumen, solo .ts/.js relevantes)
+- package.json
+- tsconfig.json
+- Dockerfile
+- README.md
+- src/
+  - index.ts
+  - Handlers/
+    - cmdHandler.ts
+    - eventHandler.ts
+    - databaseHandler.ts
+  - Events/
+    - Client/
+      - interactionCreate.ts
+      - messageCreate.ts
+      - ready.ts
+      - Guilds/
+        - guildCreate.ts
+  - Commands/
+    - SlashCmds/
+      - Afk/
+        - afk.ts
+      - Fun/
+        - ping.ts
+        - say.ts
+        - help.ts
+      - Interactions/
+        - hug.ts
+        - kiss.ts
+      - Information/
+        - avatar.ts
+        - info-creator.ts
+        - report.ts
+        - serverinfo.ts
+        - sugerencia.ts
+      - Moderation/
+        - strike.ts
+        - strikes.ts
+        - modconfig.ts
+        - setup.ts
+        - tempmute.js
+      - Profiles/
+        - listar-servers.ts
+        - mi-reputacion (meme-profile.js)
+      - Performance/
+        - stats.ts
+      - Privado/
+        - ver-sugerencias.js
+    - PrefixCmds/
+      - (cmds legacy, cargadas por cmdHandler)
+  - Database/
+    - conversation.ts
+    - strike.ts
+    - serverSettings.ts
+    - (otros modelos: meme, suggestion, GuildConfig, AFK, etc.)
+    - Services for DB access: SettingsManager, IAConfigManager, PremiumManager
+  - Services/
+    - gemini.ts
+    - strikeActions.ts
+    - search.ts
+    - mongo.ts
+    - gemini integration / stream helpers
+  - Features/
+    - aiHandler.ts
+    - memeHandler.ts
+    - afkHandler.ts
+    - (otros features)
+  - Security/
+    - index.ts
+    - Logger/
+      - HoshikoLogger.ts
+      - LocalStorage.ts
+    - Defense/
+      - Blacklist.ts
+      - RateLimiter.ts
+      - Sanitizer.ts
+    - Performance/
+      - PerformanceMonitor.ts
+  - Models/
+    - (Mongoose models: meme, suggestion, guild config, afk, etc.)
+  - Scripts/
+    - deploy-commands.ts
+  - Tests/
+    - test-gemini.js
+
+Dependencias (package.json)
+- runtime:
+  - discord.js ^14.23.2
+  - discord-player ^7.1.0
+  - @discord-player/extractor, @discord-player/opus, @discordjs/opus
+  - @google/generative-ai ^0.24.1
+  - axios, express, mongoose, mongodb, genius-lyrics, play-dl, ytdl-core, ffmpeg-static
+  - dotenv
+- dev:
+  - typescript, ts-node, nodemon, @types/express, @types/node, rimraf, copyfiles
+
+Scripts principales (package.json)
+- dev: nodemon --exec ts-node src/index.ts
+- build: rimraf dist && tsc
+- start: node dist/index.js
+- deploy: ts-node --transpile-only src/scripts/deploy-commands.ts
+- copy:assets postbuild para mover recursos a dist
+
+TypeScript & build
+- tsconfig.json: rootDir: src, outDir: dist, strict: true, forceConsistentCasingInFileNames: true
+- Produce .js en dist/ para despliegue; handlers cargan desde src en dev (ts-node) o desde dist en prod.
+
+Variables de entorno relevantes
+- TOKEN: Discord bot token
+- BOT_ID: Application ID
+- GUILD_ID / GUILD_IDS: Guild(s) para deploy o testing
+- PREFIX: prefijo de comandos (legacy)
+- MONGO_URI: conexión MongoDB
+- GEMINI_API_KEY: API Key para Gemini
+- GOOGLE_SEARCH_API_KEY / SEARCH_ENGINE_ID: para búsqueda (search service)
+- STRIKE_* (opcional): STRIKE_MUTE_THRESHOLD, STRIKE_BAN_THRESHOLD, STRIKE_MUTE_DURATION_MS, STRIKE_MODLOG_CHANNEL_ID
+- BOT_OWNER_ID: owner-only commands
+- LOGS_WEBHOOK_URL: webhook para logs del HoshikoLogger
+
+Despliegue
+- Local / staging:
+  1. npm ci
+  2. npm run build
+  3. node dist/index.js
+- Docker:
+  - Dockerfile presente (node:20-alpine). Build copia código y ejecuta npm run build y npm start.
+- Slash commands: usar `src/scripts/deploy-commands.ts` (deploy) para sincronizar comandos por guild o global.
+
+Puntos técnicos y consideraciones
+- Carga dinámica de comandos/ eventos:
+  - cmdHandler y eventHandler hacen require() dinámico; en dev usan .ts, en prod .js.
+  - Asegurarse de ejecutar `npm run build` antes de deploy para tener `dist/Commands/SlashCmds/...`.
+- Seguridad:
+  - Sistema Blacklist y RateLimiter implementados (en memoria por defecto; se recomienda Redis para producción).
+  - HoshikoLogger guarda localmente y puede enviar a webhook (LOGS_WEBHOOK_URL).
+- IA:
+  - Integración con Gemini en Services/gemini.ts. Usa streaming; manejo de safety y timeout.
+  - Historia de conversación almacenada en Mongo (conversation.ts) con TTL index.
+- Moderation:
+  - Sistema de strikes (Database/strike.ts), comandos /strike y /strikes, actions automáticas (Services/strikeActions.ts) y settings por servidor (Database/serverSettings.ts).
+  - Comando /modconfig y /setup permiten configurar thresholds y modlog channel por servidor.
+- Tests:
+  - Tests de integración simples (src/Tests/test-gemini.js) — manual.
+- Logs & monitoring:
+  - PerformanceMonitor (Security/Performance) devuelve ram/cpu/uptime info; usar para /stats.
+  - LocalStorage guarda logs en `logs/hoshiko-logs.jsonl`.
+
+Recomendaciones operativas
+- Antes de desplegar:
+  - Establecer MONGO_URI y GEMINI_API_KEY en env.
+  - Ejecutar `npm run build` y revisar `dist/Commands` para confirmar compilación.
+  - Ejecutar script deploy para sincronizar slash commands en guilds.
+- Producción:
+  - Usar PM2 / systemd / container para restart y logs.
+  - Configurar backups DB y rotación de logs.
+  - Considerar Redis para RateLimiter y blacklist persistente.
+- Seguridad:
+  - Revisar permisos del bot (ManageRoles, ModerateMembers) en servidores para funciones de moderación.
+  - Mantener `forceConsistentCasingInFileNames` activo para evitar errores por casing.
+
+Contacto / Mantenimiento
+- Para cambios en comandos o modelo de datos: añadir pruebas y desplegar en servidor de staging antes de producción.
+- Para funciones premium (IA frecuencia, features): controlar acceso vía `PremiumManager`.
+
+Fin del resumen técnico — si quieres, genero:
+- un README más corto para usuarios finales;
+- un documento técnico separado con diagramas (archivos/DB/flows);
+- o actualizo automáticamente README.md en repo con este contenido.

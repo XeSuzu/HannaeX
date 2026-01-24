@@ -5,14 +5,14 @@ import {
   ButtonStyle,
   ActionRowBuilder,
   ChatInputCommandInteraction,
-  Message
 } from 'discord.js';
 import { HoshikoClient } from '../../../index';
 
 interface SlashCommand {
   data: SlashCommandBuilder;
   category: string;
-  execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void | Message>;
+  // Ajustamos el tipo de retorno a Promise<void> para evitar conflictos con interaction.reply
+  execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void>;
 }
 
 const command: SlashCommand = {
@@ -21,18 +21,30 @@ const command: SlashCommand = {
     .setName('infocreator')
     .setDescription('🌸 Conoce a quien está detrás de Hoshiko'),
 
-  async execute(interaction, client) {
+  async execute(interaction, client): Promise<void> {
     try {
+      // 🔒 VALIDACIÓN DE DUEÑO
+      const creatorId = process.env.BOT_OWNER_ID || client.application?.owner?.id;
+      
+      if (interaction.user.id !== creatorId) {
+        await interaction.reply({ 
+          content: '🌸 Nyaa... por ahora este secreto solo lo puede revelar mi creadora. ¡Vuelve más adelante! ✨', 
+          ephemeral: true 
+        });
+        return; // Retornamos vacío para cumplir con Promise<void>
+      }
+
       await interaction.deferReply();
 
-      const creatorId = process.env.BOT_OWNER_ID || client.application?.owner?.id;
       if (!creatorId) {
-        return interaction.editReply({ content: '😿 No encontré la información de mi creadora...' });
+        await interaction.editReply({ content: '😿 No encontré la información de mi creadora...' });
+        return;
       }
 
       const creator = await client.users.fetch(creatorId).catch(() => null);
       if (!creator) {
-        return interaction.editReply({ content: '😿 Nyaa~ No pude cargar los datos...' });
+        await interaction.editReply({ content: '😿 Nyaa~ No pude cargar los datos...' });
+        return;
       }
 
       await creator.fetch(true);
@@ -92,7 +104,7 @@ const command: SlashCommand = {
           iconURL: client.user?.displayAvatarURL() ?? undefined
         })
         .setTimestamp()
-        .setImage('https://i.pinimg.com/1200x/eb/a3/43/eba34334f0141ac5ef1ab5c3819b300d.jpg'); // 🔧 banner final “By Hoshiko”
+        .setImage('https://i.pinimg.com/1200x/eb/a3/43/eba34334f0141ac5ef1ab5c3819b300d.jpg');
 
       const buttons = new ActionRowBuilder<ButtonBuilder>();
 
@@ -104,27 +116,7 @@ const command: SlashCommand = {
           .setEmoji('🌸')
       );
 
-      /*
-      // 💬 Botón de servidor de soporte (bloqueado hasta tener link)
-      buttons.addComponents(
-        new ButtonBuilder()
-          .setLabel('Servidor de Soporte')
-          .setStyle(ButtonStyle.Link)
-          .setURL('https://discord.gg/TU-SERVIDOR') 
-          .setEmoji('💬')
-      );
-
-      // ☕ Botón de donación (bloqueado hasta tener enlace)
-      buttons.addComponents(
-        new ButtonBuilder()
-          .setLabel('Donar ☕')
-          .setStyle(ButtonStyle.Link)
-          .setURL('https://ko-fi.com/TU-LINK') 
-          .setEmoji('💝')
-      );
-      */
-
-      const components = buttons.components.length > 0 ? [buttons] : [];
+      const components = [buttons];
 
       await interaction.editReply({
         embeds: [embed],
@@ -133,11 +125,13 @@ const command: SlashCommand = {
 
     } catch (error) {
       console.error('❌ Error en /infocreator:', error);
-      await interaction.editReply({
-        content: '😿 Algo salió mal... inténtalo de nuevo en un momentito.'
-      }).catch(() => {});
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: '😿 Algo salió mal... inténtalo de nuevo.' }).catch(() => {});
+      } else {
+        await interaction.reply({ content: '😿 Algo salió mal...', ephemeral: true }).catch(() => {});
+      }
     }
   }
 };
 
-export = command;
+export default command;

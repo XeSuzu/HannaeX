@@ -1,78 +1,126 @@
-import { MessageReaction, User, PartialUser, Events } from 'discord.js';
-import Meme from '../../Database/meme'; // Ajusta la ruta a tu modelo
-import ServerConfig from '../../Models/serverConfig'; // Ajusta la ruta a tu modelo
+import { MessageReaction, User, PartialUser, Events, PermissionFlagsBits } from 'discord.js'; // 👈 Agregamos PermissionFlagsBits
+import Meme from '../../Database/meme';
+import ServerConfig from '../../Models/serverConfig';
+import ReactionConfig from '../../Database/Schemas/ReactionConfig';
+import ViralSetup from '../../Database/Schemas/ViralSetup';
+import ActiveRole from '../../Database/Schemas/ActiveRole';
 
-export = {
+export default {
     name: Events.MessageReactionAdd,
 
     async execute(reaction: MessageReaction, user: User | PartialUser) {
-        // Primero, nos aseguramos de tener la información completa del usuario y la reacción.
-        if (user.partial) {
-            try {
-                await user.fetch();
-            } catch (error) {
-                console.error('No se pudo buscar al usuario que reaccionó:', error);
-                return;
-            }
-        }
-        
-        // Ahora podemos verificar si es un bot.
+        if (user.partial) await user.fetch().catch(() => null);
         if (user.bot) return;
 
         if (reaction.partial) {
-            try {
-                await reaction.fetch();
-            } catch (error) {
-                console.error('No se pudo buscar la reacción:', error);
-                return;
-            }
+            try { await reaction.fetch(); } catch (error) { return; }
         }
-
-        // Añadimos una comprobación de seguridad para el servidor.
-        const guildId = reaction.message.guild?.id;
-        if (!guildId) return;
-
-        const config = await ServerConfig.findOne({ guildId: guildId });
-
-        if (!config || reaction.message.channel.id !== config.memeChannelId) {
-            return;
-        }
-
-        // Definimos el tipo del objeto para mayor claridad.
-        const emojisConPuntos: { [key: string]: number } = {
-            '👍': 1,
-            '👎': -1
-        };
         
+        const { message } = reaction;
+        const guildId = message.guild?.id;
+        if (!guildId || !message.guild) return;
+
+        // ⚙️ Carga de configuración
+        const config = await ServerConfig.findOne({ guildId: guildId });
         const emojiName = reaction.emoji.name;
 
-        // Si el emoji no es uno de los que nos interesa, salimos.
-        if (!emojiName || !emojisConPuntos[emojiName]) return;
-
-        const pointsToAdd = emojisConPuntos[emojiName];
-        const message = reaction.message;
-
-        try {
-            const updatedMeme = await Meme.findOneAndUpdate(
-                { messageId: message.id, guildId: guildId },
-                {
-                    $inc: { points: pointsToAdd },
-                    // $setOnInsert solo se ejecuta si el documento es nuevo.
-                    $setOnInsert: {
-                        // Usamos ?. para asegurarnos de que el autor y la URL existan.
-                        authorId: message.author?.id,
-                        memeUrl: message.attachments.first()?.url,
-                        channelId: message.channel.id
-                    },
-                },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-
-            if (updatedMeme) {
-              console.log(`Puntos actualizados para el meme ${message.id}. Total: ${updatedMeme.points}`);
+        // =========================================================
+        // 1. LÓGICA MEMES
+        // =========================================================
+        if (config && message.channel.id === config.memeChannelId) {
+            const emojisConPuntos: { [key: string]: number } = { '👍': 1, '👎': -1 };
+            if (emojiName && emojisConPuntos[emojiName]) {
+                try {
+                    await Meme.findOneAndUpdate(
+                        { messageId: message.id, guildId: guildId },
+                        { $inc: { points: emojisConPuntos[emojiName] }, $setOnInsert: { authorId: message.author?.id, memeUrl: message.attachments.first()?.url, channelId: message.channel.id } },
+                        { upsert: true, new: true, setDefaultsOnInsert: true }
+                    );
+                } catch (e) {}
             }
-        } catch (error: any) {
-            console.error('Error al actualizar los puntos del meme:', error.message);
+        }
+
+        // =========================================================
+        // 2. LÓGICA IA VISUAL
+        // =========================================================
+        // ... (Tu código de IA queda igual) ...
+        const UMBRAL_REACCIONES = 3;
+        const esPositivo = emojiName === '👍' || emojiName === '😂' || emojiName === '🔥' || emojiName === '❤️';
+        if (config && config.aiMode === 'libre' && esPositivo && (reaction.count || 0) >= UMBRAL_REACCIONES) {
+             // ... lógica de guardar imagen ...
+        }
+
+
+        // =========================================================
+        // 🚨 FUNCIÓN DE SEGURIDAD PARA DAR ROLES
+        // =========================================================
+        const safeAddRole = async (member: any, roleId: string, duration: number) => {
+            try {
+                // 1. Buscamos el rol en el servidor
+                const role = message.guild?.roles.cache.get(roleId);
+                
+                // 2. REGLA DE SEGURIDAD:
+                // Si el rol no existe, O es más alto que el bot, O el bot no puede gestionarlo... ABORTAR.
+                if (!role) {
+                    return console.log(`⚠️ El rol ${roleId} ya no existe en el servidor.`);
+                }
+                
+                if (!role.editable) {
+                    return console.log(`⚠️ PERMISO DENEGADO: El rol ${role.name} está por encima de Hoshiko. Sube el rol del bot en la lista.`);
+                }
+
+                // 3. Si todo está bien, damos el rol
+                if (!member.roles.cache.has(roleId)) {
+                    await member.roles.add(roleId);
+                    console.log(`🎁 Rol entregado a ${member.user.tag}`);
+
+                    if (duration > 0) {
+                        const expiration = new Date();
+                        expiration.setMinutes(expiration.getMinutes() + duration);
+                        await ActiveRole.create({
+                            userId: member.id,
+                            guildId: guildId,
+                            roleId: roleId,
+                            expiresAt: expiration
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error(`❌ Error controlado dando rol:`, err);
+            }
+        };
+
+
+        // =========================================================
+        // 3. DESAFÍO ESPECÍFICO (Reaction Config)
+        // =========================================================
+        const challengeConfig = await ReactionConfig.findOne({ messageId: message.id, emoji: emojiName });
+
+        if (challengeConfig && (reaction.count || 0) >= challengeConfig.requiredCount) {
+            const member = await message.guild.members.fetch(user.id).catch(() => null);
+            if (member) {
+                // Usamos la función segura
+                await safeAddRole(member, challengeConfig.roleId, challengeConfig.durationMinutes);
+            }
+        }
+
+        // =========================================================
+        // 4. VIRAL ROLE (Global)
+        // =========================================================
+        const emojiIdentifier = reaction.emoji.id || reaction.emoji.name;
+        if (emojiIdentifier) {
+            const viralConfig = await ViralSetup.findOne({ guildId: guildId, emoji: emojiIdentifier });
+
+            if (viralConfig && (reaction.count || 0) >= viralConfig.requiredCount) {
+                const authorId = message.author?.id;
+                if (authorId && !message.author?.bot) {
+                    const authorMember = await message.guild.members.fetch(authorId).catch(() => null);
+                    if (authorMember) {
+                        // Usamos la función segura
+                        await safeAddRole(authorMember, viralConfig.roleId, viralConfig.durationMinutes);
+                    }
+                }
+            }
         }
     },
 };

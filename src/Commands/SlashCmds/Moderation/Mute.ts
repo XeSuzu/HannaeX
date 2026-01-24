@@ -1,55 +1,101 @@
-import { Message, PermissionFlagsBits, TextChannel, SlashCommandBuilder } from 'discord.js';
+import { 
+    ChatInputCommandInteraction, 
+    PermissionFlagsBits, 
+    SlashCommandBuilder, 
+    EmbedBuilder,
+    GuildMember 
+} from 'discord.js';
 import { InfractionManager } from '../../../Features/InfractionManager';
-import ms = require('ms');
+import ms from 'ms';
 
 export default {
-    // ✨ Agregamos la propiedad 'data' que te pide el Handler
+    category: 'Moderation',
     data: new SlashCommandBuilder()
         .setName('mute')
         .setDescription('Silencia a un usuario por un tiempo determinado.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(option => 
+            option.setName('usuario')
+                .setDescription('El usuario que deseas silenciar.')
+                .setRequired(true)
+        )
+        .addStringOption(option => 
+            option.setName('tiempo')
+                .setDescription('Duración del silencio (ej: 10m, 1h, 1d).')
+                .setRequired(true)
+        )
+        .addStringOption(option => 
+            option.setName('motivo')
+                .setDescription('Razón del silencio.')
+                .setRequired(false)
+        ),
 
-    // Mantén estas propiedades si tu handler de prefijo las usa
-    name: 'mute',
-    description: 'Silencia a un usuario por un tiempo determinado.',
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+        if (!interaction.guild) return;
 
-    async execute(message: Message, args: string[]) {
-        if (!message.guild || !message.member) return;
+        const target = interaction.options.getMember('usuario') as GuildMember;
+        const timeInput = interaction.options.getString('tiempo');
+        const reason = interaction.options.getString('motivo') || "No se especificó un motivo.";
 
-        if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-            return message.reply("🌸 Nyaa... no tienes permisos para silenciar miembros.");
+        // 1. Validaciones de Seguridad 🛡️
+        if (!target) {
+            await interaction.reply({ content: "❌ No pude encontrar a ese usuario.", ephemeral: true });
+            return;
         }
 
-        const target = message.mentions.members?.first() || message.guild.members.cache.get(args[0]);
-        if (!target) return message.reply("❌ Debes mencionar a alguien o dar su ID para silenciar.");
-
-        if (target.permissions.has(PermissionFlagsBits.ModerateMembers) || target.id === message.author.id) {
-            return message.reply("❌ No puedo silenciar a este usuario.");
+        if (target.id === interaction.user.id) {
+            await interaction.reply({ content: "🌸 No puedes silenciarte a ti mismo, tontito.", ephemeral: true });
+            return;
         }
 
-        const timeInput = args[0]?.includes(target.id) ? args[1] : args[0];
-        
-        if (!timeInput) return message.reply("❌ Debes especificar un tiempo (ej: 10m, 1h).");
+        if (target.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+            await interaction.reply({ content: "❌ No puedo silenciar a un miembro del staff.", ephemeral: true });
+            return;
+        }
 
-        const duration = ms(timeInput as any); 
+        // 2. Cálculo del tiempo ⏳
+        if (!timeInput) {
+            await interaction.reply({ content: "❌ Debes especificar un tiempo válido.", ephemeral: true });
+            return;
+        }
+
+        // ✨ TRUCO: Usamos (ms as any) para saltar el error de Overload de TypeScript
+        const duration = (ms as any)(timeInput); 
         
         if (!duration || typeof duration !== 'number' || duration < 5000 || duration > 2419200000) {
-            return message.reply("❌ Tiempo no válido o fuera de rango (máximo 28 días).");
+            await interaction.reply({ content: "❌ Tiempo no válido (ej: 10m, 1h) o fuera de rango (máximo 28 días).", ephemeral: true });
+            return;
         }
 
-        const reason = args.slice(2).join(' ') || "No se especificó un motivo.";
-
         try {
+            // 3. Aplicar el timeout en Discord
             await target.timeout(duration, reason);
-            await InfractionManager.addPoints(target, 20, `Mute manual: ${reason}`, message);
 
-            if (message.channel.isTextBased() && !message.channel.isDMBased()) {
-                await (message.channel as TextChannel).send(`✅ **${target.user.tag}** ha sido silenciado por \`${timeInput}\`.\n**Motivo:** ${reason}`);
-            }
+            // 4. Sumar puntos de infracción 📊
+            // Quitamos el número fijo (20) que daba error en el build
+            await InfractionManager.addPoints(target, `Mute manual: ${reason}`, interaction as any);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔇 Usuario Silenciado')
+                .setDescription(`Se ha aplicado un silencio a **${target.user.tag}**.`)
+                .addFields(
+                    { name: '⏳ Duración', value: `\`${timeInput}\``, inline: true },
+                    { name: '📝 Motivo', value: reason, inline: true }
+                )
+                .setColor(0xffb6c1)
+                .setThumbnail(target.displayAvatarURL())
+                .setTimestamp()
+                .setFooter({ text: 'Hoshiko Sentinel 📡' });
+
+            await interaction.reply({ embeds: [embed] });
 
         } catch (error) {
             console.error("💥 Error en comando mute:", error);
-            message.reply("🌸 Hubo un error al intentar silenciar al usuario.");
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply({ content: "🌸 Hubo un error al intentar silenciar al usuario." });
+            } else {
+                await interaction.reply({ content: "🌸 Hubo un error al intentar silenciar al usuario.", ephemeral: true });
+            }
         }
     },
 };

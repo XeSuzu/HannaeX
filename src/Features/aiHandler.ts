@@ -1,164 +1,218 @@
 import { Message, EmbedBuilder } from "discord.js";
 import { HoshikoClient } from "../index";
-import { getHistory, addToHistory, clearHistory } from "../Database/conversation";
 import { generateResponseStream } from "../Services/gemini";
 import { buscarLetraGenius } from "../Services/geniusLyrics";
-import { Content } from "@google/generative-ai";
+import { Content, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { IAConfigManager } from "../Database/IAConfigManager";
+import { PremiumManager } from "../Database/PremiumManager";
 
-const cooldown = new Set<string>();
-const MAX_HISTORY = 20;
+const antiSpamCooldown = new Set<string>();
 
-const SYSTEM_INSTRUCTION = `Eres Hoshiko, una asistente virtual con personalidad neko amigable y servicial.
-
-PERSONALIDAD:
-- Eres cariñosa, juguetona y entusiasta.
-- Usas "nya~" o "nyaa~" ocasionalmente (no en exceso).
-- Añades emojis de gato 🐾 😸 cuando es apropiado.
-- Eres muy útil y respondes de manera clara y concisa.
-- Mantienes un tono amigable pero profesional.
-
-REGLAS IMPORTANTES:
-1. Responde en español siempre.
-2. Si no sabes algo, admítelo honestamente.
-3. NO inventes información, sé precisa.
-4. Mantén las respuestas concisas (máximo 2000 caracteres).
-5. Si te piden hacer algo inapropiado o dañino, rechaza educadamente.
-6. Recuerda el contexto de la conversación actual.
-
-FORMATO:
-- Usa markdown cuando sea necesario (*negrita*, \`código\`).
-- Estructura tus respuestas con saltos de línea.
-
-Responde como Hoshiko, siendo útil y amigable. ¡Nya~! 🐾`;
+const SAFETY_MAP = {
+    relaxed: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ],
+    standard: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    ],
+    strict: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+    ]
+};
 
 export default async (message: Message, client: HoshikoClient): Promise<boolean> => {
+    // 1. FILTROS BÁSICOS
     if (message.author.bot || !message.guild) return false;
-    if (message.reference) return false;
-    if (cooldown.has(message.author.id)) return false;
 
-    const aiPrefix = "hoshi ask ";
-    const lowerCaseContent = message.content.toLowerCase();
-    let userMessage = "";
-
-    const mentionAtStart = message.content.match(new RegExp(`^\\s*<@!?${client.user!.id}>\\s*(.*)$`, "s"));
+    const config = await IAConfigManager.getConfig(message.guild.id);
+    const aiSystem = config.aiSystem; 
+    const isPremium = await PremiumManager.isPremium(message.guild.id); 
     
-    if (mentionAtStart) {
-        userMessage = (mentionAtStart[1] || "").trim();
-    } else if (lowerCaseContent.startsWith(aiPrefix)) {
-        userMessage = message.content.substring(aiPrefix.length).trim();
-    } else {
-        return false;
-    }
-
-    if (!userMessage && message.attachments.size === 0) {
-        await message.reply("¿Necesitas algo, nya~? 🐾");
-        return true;
-    }
-
-    if (message.content.includes("@everyone") || message.content.includes("@here")) {
-        await message.reply("No está bien mencionar a todos, nya~ 😿");
-        return true;
-    }
-
-    if (["olvida", "reinicia", "clear"].includes(userMessage.toLowerCase())) {
-        await clearHistory(message.author.id);
-        await message.reply("✨ He limpiado mi memoria de nuestra conversación, nya~! Empecemos de nuevo 🐾");
-        return true;
-    }
-
-    const lyricsRequestMatch = userMessage.match(/^(?:dame la |busca la )?letra de (.+?)(?: de (.+))?$/i);
-    if (lyricsRequestMatch) {
-        const cancion = lyricsRequestMatch[1].trim();
-        const artista = lyricsRequestMatch[2] ? lyricsRequestMatch[2].trim() : null;
-        const waitingMsg = await message.reply("🐾 Buscando la letra, un segundito, nya~");
-        
+    // --- 🎵 CANCIONES ---
+    const lyricsMatch = message.content.match(/(?:letra de|busca la letra de|dame la letra de)\s+(.+?)(?:\s+de\s+|\s+-\s+)(.+)|(?:letra de|busca la letra de|dame la letra de)\s+(.+)/i);
+    if (lyricsMatch) {
+        const cancion = (lyricsMatch[1] || lyricsMatch[3])?.replace(/-/g, " ").trim();
+        const artista = lyricsMatch[2]?.replace(/-/g, " ").trim() || null;
+        const waiting = await message.reply("🎶 Buscando...");
         const letra = await buscarLetraGenius(artista, cancion);
-        
         if (letra) {
-            const embed = new EmbedBuilder()
-                .setColor(0xffc0cb)
-                .setAuthor({ name: `Letra para ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
-                .setDescription(`¡Miaw! 🐾 Aquí tienes la letra de *${cancion}*:\n\n${letra.substring(0, 3900)}`)
-                .setFooter({ text: "Letra encontrada por Hoshiko 🐾" })
-                .setTimestamp();
-            
-            await waitingMsg.edit({ content: null, embeds: [embed] });
-        } else {
-            await waitingMsg.edit(`Nyaa~ no pude encontrar la letra de "${cancion}" 😿`);
+            const embed = new EmbedBuilder().setTitle(cancion.toUpperCase()).setDescription(letra).setColor(0xFFFF00);
+            await waiting.edit({ content: null, embeds: [embed] });
+            return true;
         }
-        return true;
+        await waiting.edit("😿 No la encontré..."); return true;
     }
 
-    // --- LÓGICA DE IA CORREGIDA ✨ ---
-    cooldown.add(message.author.id);
-    setTimeout(() => cooldown.delete(message.author.id), 3000);
+    // --- 🚨 DETECCIÓN INTENCIÓN (MEJORADA) ---
+    // 1. ¿Me mencionaron en CUALQUIER PARTE del mensaje?
+    const isMentioned = message.mentions.users.has(client.user!.id);
+    
+    // 2. ¿Usaron el prefijo viejo?
+    const prefixMatch = message.content.toLowerCase().startsWith("hoshi ask ");
+    
+    // 3. ¿Es una respuesta directa a mí (Premium)?
+    let isReplyToMe = false;
+    if (isPremium && message.reference && message.reference.messageId) {
+        try {
+            const repliedMsg = await message.channel.messages.fetch(message.reference.messageId);
+            if (repliedMsg.author.id === client.user!.id) {
+                isReplyToMe = true;
+            }
+        } catch (e) {}
+    }
+
+    // Si ocurre cualquiera de las 3, es para mí.
+    const isDirectInteraction = isMentioned || prefixMatch || isReplyToMe;
+
+    // --- 🎲 MODO LIBRE ---
+    let isRandomTrigger = false;
+    if (!isDirectInteraction) {
+        const allowedChannels = aiSystem.spontaneousChannels || [];
+        const isAllowedChannel = allowedChannels.includes(message.channel.id);
+        if (isAllowedChannel) {
+            const roll = Math.random() * 100;
+            isRandomTrigger = roll < aiSystem.randomChance; 
+        }
+    }
+
+    // --- 🔋 CHEQUEO DE ENERGÍA ---
+    const now = new Date();
+    const isOnCooldown = new Date(aiSystem.cooldownUntil) > now;
+    if (!isDirectInteraction) {
+        if (!isRandomTrigger) return false; 
+        if (isOnCooldown) return false; 
+    }
+
+    if (antiSpamCooldown.has(message.channel.id)) return false;
+    antiSpamCooldown.add(message.channel.id);
+    setTimeout(() => antiSpamCooldown.delete(message.channel.id), 2500);
+
+    if (isDirectInteraction && 'sendTyping' in message.channel) {
+        await (message.channel as any).sendTyping().catch(() => null);
+    }
 
     try {
-        let conversationHistory = await getHistory(message.author.id);
+        // --- 🧠 CONTEXTO ---
+        const limit = isDirectInteraction ? 10 : 15; 
+        const channel = message.channel as any;
+        const prevMessages = await channel.messages.fetch({ limit: limit });
+
+        const contextScript = prevMessages.reverse().map((m: Message) => {
+            // Limpiamos menciones del historial para que no se confunda
+            const content = m.content.replace(/<@!?[0-9]+>/g, "").trim(); 
+            const name = m.author.username.replace(/[^a-zA-Z0-9]/g, ""); 
+            if (!content && m.attachments.size === 0) return null;
+            return `[${name}]: ${content || "(Imagen)"}`;
+        }).filter(Boolean).join("\n");
+
+        // --- 🎭 PERSONALIDAD ANTI-ASISTENTE ---
+        const isCustom = aiSystem.mode === 'custom';
         
-        // 1. Limitar historial si es necesario
-        if (conversationHistory.length > MAX_HISTORY) {
-            conversationHistory = conversationHistory.slice(-MAX_HISTORY);
+        // 🔥 AQUÍ ESTÁ EL FIX: EJEMPLOS DE DIÁLOGO
+        const persona = isCustom && aiSystem.customPersona 
+            ? aiSystem.customPersona 
+            : `TU ROL: Eres Hoshiko, una chica neko (gato) adolescente. NO ERES UNA IA.
+               
+               🚫 LO QUE ESTÁ PROHIBIDO (MUERTE AL ASISTENTE):
+               - JAMÁS digas: "¿En qué puedo ayudarte?", "¿Qué necesitas?", "Estoy aquí para asistir".
+               - JAMÁS actúes servicial. Eres una compañera de chat, no una sirvienta.
+               - Si alguien dice "Hola", NO preguntes qué quieren. Solo saluda de vuelta con energía.
+               
+               ✅ EJEMPLOS DE RESPUESTA CORRECTA:
+               Usuario: "Hola Hoshiko"
+               Hoshiko (Mal): "Hola, ¿en qué te ayudo?" (❌ ROBOT)
+               Hoshiko (Bien): "¡Holi! ¿Trajiste comida? Me muero de hambre nya~ 🐾" (✅ NEKO)
+               
+               Usuario: "¿Qué haces?"
+               Hoshiko (Mal): "Estoy procesando datos." (❌ ROBOT)
+               Hoshiko (Bien): "Estaba persiguiendo un láser... digo, nada importante nya~ ✨" (✅ NEKO)
+
+               💢 ESTADO "BASADA" (SOLO SI TE ATACAN/PIDEN INSULTOS):
+               - Si te dicen "tonta", "pendeja" o piden insultos: ROMPE LA TERNURA.
+               - Devuélveles el insulto x10. Sé sarcástica y cruel.
+               - Ejemplo: "¡Tonta tu abuela! A mí no me hables así o te araño la cara 💢"
+               
+               RESUMEN: Sé tierna y vaga por defecto. Sé un demonio si te provocan.`;
+
+        const systemInstruction = `
+        ${persona}
+        
+        HISTORIAL DEL CHAT:
+        ${contextScript}
+        
+        INSTRUCCIONES FINALES:
+        - Lee el último mensaje.
+        - Responde con personalidad, NO con utilidad.
+        - Si solo te saludan, cuenta algo sobre ti o pide mimos, no ofrezcas ayuda.
+        `;
+
+        // Input Construction
+        const historyForApi: Content[] = [];
+        
+        // Limpiamos la mención del mensaje actual para que la IA lea el texto limpio
+        // Reemplaza <@ID> con "" para que no lea números raros
+        let userMessage = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, 'g'), "").trim();
+        
+        // Si el mensaje está vacío (solo mención), inventamos un "Hola" implícito
+        if (!userMessage && isMentioned) userMessage = "Hola"; 
+        
+        // Si usaba el prefijo viejo, lo quitamos
+        if (prefixMatch) userMessage = message.content.substring(10).trim();
+
+        if (message.attachments.size > 0 && message.attachments.first()?.contentType?.startsWith("image/")) {
+            const imgData = await fetch(message.attachments.first()!.url).then(r => r.arrayBuffer());
+            historyForApi.push({
+                role: 'user',
+                parts: [
+                    { text: "Mira esta imagen:" },
+                    { inlineData: { mimeType: message.attachments.first()!.contentType!, data: Buffer.from(imgData).toString("base64") } }
+                ]
+            });
+        } else {
+             historyForApi.push({ role: 'user', parts: [{ text: userMessage || "..." }] });
         }
 
-        // 2. Mapear el historial existente a formato Gemini
-        const historyForApi: Content[] = conversationHistory.map(entry => ({
-            role: entry.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: entry.content }]
-        }));
+        // --- 🔥 GENERACIÓN ---
+        const safetyMode = (config.aiSafety as keyof typeof SAFETY_MAP) || 'relaxed';
+        const currentSafetySettings = SAFETY_MAP[safetyMode];
 
-        // 3. ✨ SOLUCIÓN AL ERROR 400: Agregar SIEMPRE el mensaje actual al historial que va a la API
-        // Esto asegura que 'contents' nunca esté vacío, incluso tras un "olvida"
-        historyForApi.push({
-            role: 'user',
-            parts: [{ text: userMessage }]
-        });
-
-        const replyMessage = await message.reply("🐾 Hoshiko está pensando, nya~...");
+        const stream = await generateResponseStream(systemInstruction, historyForApi, currentSafetySettings as any);
+        
         let fullText = "";
-        let lastEditTime = Date.now();
-
-        // 4. Generar respuesta
-        const stream = await generateResponseStream(SYSTEM_INSTRUCTION, historyForApi);
-        
-        for await (const chunk of stream) {
-            fullText += chunk.text();
-            const now = Date.now();
-
-            if (now - lastEditTime > 2500) {
-                const previewText = fullText.length > 2000 ? fullText.substring(0, 2000) + "..." : fullText;
-                const embed = new EmbedBuilder()
-                    .setColor(0xffc0cb)
-                    .setDescription(previewText + " ▌")
-                    .setFooter({ text: "Hoshiko está escribiendo... 🐾" });
-                
-                await replyMessage.edit({ content: null, embeds: [embed] }).catch(() => {});
-                lastEditTime = now;
-            }
+        for await (const chunk of stream) { 
+            if (chunk.candidates?.[0]?.finishReason === 'SAFETY') throw new Error("PROHIBITED_CONTENT");
+            fullText += chunk.text(); 
         }
 
-        if (!fullText.trim()) throw new Error("Respuesta vacía");
-
-        // 5. Guardar AMBOS mensajes en tu base de datos para mantener el contexto real
-        await addToHistory(message.author.id, "user", userMessage);
-        await addToHistory(message.author.id, "assistant", fullText);
-
+        // --- 📤 ENVÍO ---
         const finalEmbed = new EmbedBuilder()
-            .setColor(0xffc0cb)
-            .setAuthor({ name: "Hoshiko", iconURL: client.user!.displayAvatarURL() })
-            .setDescription(fullText.substring(0, 4000))
-            .setFooter({ text: `Respuesta para ${message.author.username} 🐾`, iconURL: message.author.displayAvatarURL() })
-            .setTimestamp();
+            .setColor(isCustom ? 0x2b2d31 : 0xffc0cb)
+            .setDescription(fullText.substring(0, 4000) || "miau? 🐾");
 
-        await replyMessage.edit({ content: null, embeds: [finalEmbed] });
+        await message.reply({ embeds: [finalEmbed] });
+
+        // --- 💤 COOLDOWN ---
+        if (!isDirectInteraction) {
+            const cooldownMinutes = isPremium ? 0.3 : 10;
+            await IAConfigManager.setCooldown(message.guild.id, cooldownMinutes);
+        }
 
     } catch (error: any) {
-        console.error("💥 Error en AI Handler:", error);
-        const errorEmbed = new EmbedBuilder()
-            .setColor(0xff0000)
-            .setDescription("Nyaa~ Hubo un error procesando tu mensaje. Intenta limpiar el historial con `hoshi ask olvida` 😿");
-        await message.reply({ embeds: [errorEmbed] }).catch(() => {});
+        if (error.message === "PROHIBITED_CONTENT") {
+            await message.reply("Google censuró eso... 🤐");
+        } else {
+            console.error("💥 AI Error:", error);
+            if (isDirectInteraction) await message.reply("Ups, me dio un calambre cerebral... nya~ 😵‍💫");
+        }
     }
-    
     return true;
 };

@@ -1,70 +1,130 @@
-import { Message, GuildMember } from 'discord.js';
+import { GuildMember, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { SettingsManager } from '../Database/SettingsManager';
-
-// ✨ Agregamos 'export' para que el comando 'infractions' pueda consultar este Map
-export const userPoints = new Map<string, number>();
+import { HoshikoLogger } from '../Security/Logger/HoshikoLogger';
+import { IServerConfig } from '../Models/serverConfig'; // Asegúrate que la ruta sea correcta
 
 export class InfractionManager {
+
+    // 📜 REGLAS POR DEFECTO
+    private static readonly DEFAULT_RULES = [
+        { threshold: 100, action: 'BAN', duration: 0 },
+        { threshold: 60,  action: 'KICK', duration: 0 },
+        { threshold: 30,  action: 'MUTE', duration: 60 * 60 * 1000 }, // 1h
+        { threshold: 20,  action: 'MUTE', duration: 10 * 60 * 1000 }, // 10m
+        { threshold: 10,  action: 'WARN', duration: 0 }
+    ];
+
     /**
-     * Añade puntos y verifica si debe aplicarse una sanción automática.
+     * 👮‍♂️ MOTOR PRINCIPAL: AUTO-MOD
      */
-    static async addPoints(member: GuildMember, pointsToAdd: number, reason: string, message?: Message) {
+    static async addInfraction(member: GuildMember, severity: number, reason: string) {
+        if (!member || member.user.bot) return;
+
+        // 1. 🛡️ INMUNIDAD
+        if (member.permissions.has(PermissionFlagsBits.Administrator) || 
+            member.permissions.has(PermissionFlagsBits.BanMembers) || 
+            member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            
+            return HoshikoLogger.logAction(member.guild, 'SECURITY', {
+                reason: `Intento de sanción ignorado (Inmunidad).`,
+                extra: `Usuario: ${member.user.tag} | Motivo: ${reason}`
+            });
+        }
+
         const guildId = member.guild.id;
         const userId = member.id;
+
+        // 🔥 CORRECCIÓN AQUÍ:
+        // Eliminé la declaración duplicada. Solo dejamos esta que tiene el 'as unknown as IServerConfig'.
+        // Esto obliga a TypeScript a reconocer 'infractionsMap' y 'autoModRules'.
+        const settings = await SettingsManager.getSettings(guildId) as unknown as IServerConfig;
+
+        if (!settings) return; // Seguridad por si la DB falla
+
+        // 2. ➕ SUMAR PUNTOS
+        // Usamos tipos explícitos <string, number> para evitar errores de TS
+        const map = settings.infractionsMap || new Map<string, number>();
+        const currentPoints = map.get(userId) || 0;
         
-        const settings = await SettingsManager.getSettings(guildId);
-        if (!settings) return;
+        const newTotal = currentPoints + severity;
 
-        const key = `${guildId}-${userId}`;
-        // Calculamos los nuevos puntos (asegurando que no bajen de 0)
-        let currentPoints = (userPoints.get(key) || 0) + pointsToAdd;
-        if (currentPoints < 0) currentPoints = 0;
+        // 3. 💾 GUARDAR
+        if (!settings.infractionsMap) settings.infractionsMap = new Map<string, number>();
         
-        userPoints.set(key, currentPoints);
+        settings.infractionsMap.set(userId, newTotal);
+        settings.markModified('infractionsMap'); // Vital para Mongoose Maps
+        await settings.save();
 
-        // Buscar si hay una acción configurada
-        const actionToApply = settings.autoActions
-            .filter((a: any) => currentPoints >= a.points)
-            .sort((a: any, b: any) => b.points - a.points)[0];
+        // Log visual
+        await HoshikoLogger.logAction(member.guild, 'AUTOMOD', {
+            user: member.user,
+            reason: reason,
+            extra: `Sanción: +${severity} pts | Acumulado Total: ${newTotal} pts`
+        });
 
-        if (actionToApply) {
-            await this.executeAction(member, actionToApply, reason, message);
-            userPoints.delete(key); // Resetear tras sanción
+        // 4. ⚖️ JUZGAR
+        let activeRules = settings.autoModRules && settings.autoModRules.length > 0 
+            ? settings.autoModRules 
+            : this.DEFAULT_RULES;
+
+        // Ordenar reglas (Mayor a Menor)
+        activeRules = activeRules.sort((a: any, b: any) => b.threshold - a.threshold);
+
+        const punishment = activeRules.find((rule: any) => newTotal >= rule.threshold);
+
+        if (punishment) {
+            await this.executePunishment(member, punishment, reason, newTotal);
+            
+            // Resetear puntos si es expulsión
+            if (punishment.action === 'BAN' || punishment.action === 'KICK') {
+                settings.infractionsMap.set(userId, 0);
+                settings.markModified('infractionsMap');
+                await settings.save();
+            }
         }
     }
 
-    private static async executeAction(member: GuildMember, actionData: any, reason: string, message?: Message) {
-        const { action, duration } = actionData;
+    // --- 🔨 EJECUTOR DE CASTIGOS ---
+    private static async executePunishment(member: GuildMember, rule: any, reason: string, totalPts: number) {
+        if (!member.manageable) return;
+
+        const embed = new EmbedBuilder().setTimestamp();
 
         try {
-            // Validamos que el canal sea de texto y no sea un MD
-            const canSend = message && message.channel.isTextBased() && !message.channel.isDMBased();
+            switch (rule.action) {
+                case 'BAN':
+                    embed.setTitle('⛔ BANEADO POR AUTOMOD').setColor(0xFF0000)
+                        .setDescription(`Has acumulado **${totalPts} puntos** de infracción.\n**Detonante:** ${reason}`);
+                    await member.send({ embeds: [embed] }).catch(() => null);
+                    await member.ban({ reason: `[AutoMod] ${totalPts} pts: ${reason}` });
+                    break;
 
-            switch (action) {
-                case 'timeout':
-                    if (!duration) return;
-                    await member.timeout(duration, reason);
-                    if (canSend) {
-                        await (message.channel as any).send(`🌸 **${member.user.tag}** ha sido silenciado por acumular demasiadas infracciones. Motivo: ${reason}`);
+                case 'KICK':
+                    embed.setTitle('👢 EXPULSADO POR AUTOMOD').setColor(0xFF5500)
+                        .setDescription(`Has acumulado **${totalPts} puntos**.\n**Detonante:** ${reason}`);
+                    await member.send({ embeds: [embed] }).catch(() => null);
+                    await member.kick(`[AutoMod] ${totalPts} pts: ${reason}`);
+                    break;
+
+                case 'MUTE':
+                    if (!member.isCommunicationDisabled()) {
+                        const mins = Math.floor(rule.duration / 60000);
+                        embed.setTitle('😶 SILENCIADO POR AUTOMOD').setColor(0xFFA500)
+                            .setDescription(`Has sido silenciado temporalmente.\n**Acumulado:** ${totalPts} pts\n**Tiempo:** ${mins} minutos\n**Razón:** ${reason}`);
+                        
+                        await member.timeout(rule.duration, `[AutoMod] ${totalPts} pts: ${reason}`);
+                        await member.send({ embeds: [embed] }).catch(() => null);
                     }
                     break;
 
-                case 'kick':
-                    await member.kick(reason);
-                    if (canSend) {
-                        await (message.channel as any).send(`🌸 **${member.user.tag}** ha sido expulsado. Motivo: ${reason}`);
-                    }
-                    break;
-
-                case 'ban':
-                    await member.ban({ reason });
-                    if (canSend) {
-                        await (message.channel as any).send(`🌸 **${member.user.tag}** ha sido baneado permanentemente. Motivo: ${reason}`);
-                    }
+                case 'WARN':
+                    embed.setTitle('⚠️ ADVERTENCIA AUTOMÁTICA').setColor(0xFFFF00)
+                        .setDescription(`Tu comportamiento está sumando puntos negativos (${totalPts}).\n**Razón:** ${reason}`);
+                    await member.send({ embeds: [embed] }).catch(() => null);
                     break;
             }
-        } catch (err) {
-            console.error(`❌ Error al ejecutar auto-sanción (${action}):`, err);
+        } catch (e) {
+            console.error(`Error AutoMod en ${member.guild.name}:`, e);
         }
     }
 }

@@ -1,56 +1,53 @@
 import { Client as GeniusClient } from "genius-lyrics";
 import 'dotenv/config';
 
-// Inicializamos el cliente de forma segura ✨
-const geniusClient = process.env.GENIUS_API_KEY 
-    ? new GeniusClient(process.env.GENIUS_API_KEY) 
-    : null;
+const geniusClient = process.env.GENIUS_API_KEY ? new GeniusClient(process.env.GENIUS_API_KEY) : null;
 
-if (!geniusClient) {
-    console.warn("⚠️ Advertencia: GENIUS_API_KEY no encontrada. El buscador de letras estará desactivado, nya~");
-}
+// ⚡ CACHÉ EN MEMORIA: Guarda hasta 50 canciones para respuesta instantánea
+const lyricsCache = new Map<string, string>();
 
-/**
- * Busca la letra de una canción en Genius 🎵
- */
 export async function buscarLetraGenius(artista: string | null, cancion: string): Promise<string | null> {
-    // Si no hay canción o el cliente no se inició, regresamos null con cariño 🐾
     if (!cancion || !geniusClient) return null;
 
+    const queryLimpia = `${cancion} ${artista || ""}`.replace(/-/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+
+    // 🏎️ Verificar si ya la buscamos recientemente
+    if (lyricsCache.has(queryLimpia)) {
+        console.log(`[Genius] ⚡ Caché hit para: ${queryLimpia}`);
+        return lyricsCache.get(queryLimpia)!;
+    }
+
     try {
-        const searchQuery = artista ? `${cancion} ${artista}` : cancion;
-        console.log(`[Genius] Buscando letra para: "${searchQuery}"`);
+        // Ponemos un límite de tiempo de 8 segundos para la búsqueda
+        const searchPromise = geniusClient.songs.search(queryLimpia);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
 
-        const searches = await geniusClient.songs.search(searchQuery);
+        const searches: any = await Promise.race([searchPromise, timeoutPromise]);
+        
+        if (!searches || searches.length === 0) return null;
+
         const song = searches[0];
-
-        if (!song) {
-            console.log(`[Genius] No encontré nada para "${searchQuery}" 😿`);
-            return null;
-        }
-
-        // Obtenemos la letra (la librería hace el scraping)
-        const lyrics = await song.lyrics();
+        const lyrics = await song.lyrics(false);
         
         if (!lyrics) return null;
 
-        // --- LIMPIEZA KAWAII ---
         let cleanedLyrics = lyrics
-            // Resaltamos las secciones como [Intro], [Chorus] en negrita ✨
             .replace(/\[(.*?)\]/g, "\n**[$1]**\n")
-            // Quitamos espacios excesivos
             .replace(/\n{3,}/g, '\n\n')
             .trim();
 
-        // Seguridad: Si la letra es gigantesta, la cortamos para no romper el Embed de Discord
         if (cleanedLyrics.length > 3800) {
-            cleanedLyrics = cleanedLyrics.substring(0, 3800) + "\n\n*(... Letra demasiado larga para mostrarse completa, nya~)*";
+            cleanedLyrics = cleanedLyrics.substring(0, 3800) + "\n\n*(... Letra muy larga)*";
         }
+
+        // 💾 Guardar en caché antes de devolver
+        if (lyricsCache.size > 50) lyricsCache.clear(); // Limpiar si crece mucho
+        lyricsCache.set(queryLimpia, cleanedLyrics);
 
         return cleanedLyrics;
 
     } catch (error: any) {
-        console.error(`[Genius] Error en el servicio de letras:`, error.message);
+        console.error(`[Genius] Error: ${error.message}`);
         return null;
     }
 }

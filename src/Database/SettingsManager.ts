@@ -1,38 +1,88 @@
 import GuildConfig from '../Models/GuildConfig';
 
-// Usamos un Map para guardar las configuraciones en RAM temporalmente
-const settingsCache = new Map<string, any>();
+// Usamos una interfaz para asegurar que los datos siempre tengan la estructura correcta
+export interface IGuildSettings {
+    guildId: string;
+    prefix?: string; // 👈 Agregado
+    modLogChannel?: string;
+    honeypotChannel?: string; // 👈 Agregado
+    allowedLinks?: string[]; // 👈 Agregado
+    pointsPerStrike: number;
+    autoActions?: any[]; // 👈 Agregado (InfractionManager)
+    securityModules: {
+        antiRaid: boolean;
+        antiNuke: boolean;
+        antiAlt: boolean;
+        antiLinks: boolean;
+    };
+    // ... otros campos
+}
+
+const settingsCache = new Map<string, IGuildSettings>();
 
 export class SettingsManager {
     /**
-     * Obtiene la configuración de un servidor. 
-     * Si no existe en caché, la busca en la DB.
-     * Si no existe en la DB, crea una por defecto.
+     * Obtiene ajustes con persistencia de seguridad.
      */
-    static async getSettings(guildId: string) {
-        // 1. Intentar sacar de la memoria rápida (RAM)
+    static async getSettings(guildId: string): Promise<IGuildSettings> {
+        // 1. Prioridad: RAM (Velocidad instantánea)
         if (settingsCache.has(guildId)) {
-            return settingsCache.get(guildId);
+            return settingsCache.get(guildId)!;
         }
 
-        // 2. Si no está, buscar en MongoDB
-        let config = await GuildConfig.findOne({ guildId });
+        try {
+            // 2. Fallback: MongoDB con .lean() para rendimiento
+            let config = await GuildConfig.findOne({ guildId }).lean() as IGuildSettings | null;
 
-        // 3. Si es un servidor nuevo, crear su perfil inicial
-        if (!config) {
-            config = await GuildConfig.create({ guildId });
+            if (!config) {
+                // 3. Autocuración: Si no existe, lo crea inmediatamente
+                const newDoc = await GuildConfig.create({ guildId });
+                config = newDoc.toObject() as IGuildSettings;
+            }
+
+            // 4. Inyección en Caché
+            settingsCache.set(guildId, config);
+            return config;
+        } catch (error) {
+            console.error(`[CRITICAL] Error recuperando settings para ${guildId}:`, error);
+            
+            // 5. Robustez extrema: Si la DB cae, intentamos devolver un objeto mínimo viable
+            // para que el bot no crashee.
+            return {
+                guildId,
+                pointsPerStrike: 10,
+                securityModules: { antiRaid: false, antiNuke: false, antiAlt: false, antiLinks: false }
+            } as IGuildSettings;
         }
-
-        // 4. Guardar en caché para la próxima vez y devolver
-        settingsCache.set(guildId, config);
-        return config;
     }
 
     /**
-     * Limpia el caché de un servidor específico 
-     * (Útil cuando el dueño cambia una configuración)
+     * Actualización Atómica y Sincronización de Caché.
      */
-    static clearCache(guildId: string) {
+    static async updateSettings(guildId: string, data: Partial<IGuildSettings>): Promise<IGuildSettings> {
+        try {
+            // Usamos findOneAndUpdate con validación de esquema
+            const updated = await GuildConfig.findOneAndUpdate(
+                { guildId }, 
+                { $set: data }, 
+                { new: true, upsert: true, runValidators: true }
+            ).lean() as IGuildSettings;
+
+            // Sincronización inmediata con la memoria
+            settingsCache.set(guildId, updated);
+            
+            return updated;
+        } catch (error) {
+            console.error(`[ERROR] Fallo al actualizar settings de ${guildId}:`, error);
+            throw new Error("No se pudo persistir la configuración en la base de datos.");
+        }
+    }
+
+    /**
+     * Fuerza la sincronización total de un servidor (Re-hidratación)
+     */
+    static async refresh(guildId: string): Promise<void> {
         settingsCache.delete(guildId);
+        await this.getSettings(guildId);
     }
 }
