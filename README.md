@@ -152,4 +152,4 @@ Mencionando al bot en cualquier canal, Hoshiko responderá usando Google Gemini 
 
 Proyecto privado. No distribuir sin autorización del autor.
 
-**Creado por [Hoshiko Developer](https://discordapp.com/users/727583213253558373)**
+**Creado por [v.sxn]**
