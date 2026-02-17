@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 // --- INTERFACES DE SOPORTE ---
 
@@ -7,156 +7,269 @@ interface ICulture {
   slangs: Array<{ word: string; meaning: string; addedBy: string }>;
   internalJokes: Array<{ trigger: string; response: string; context: string }>;
   emojis: Map<string, number>;
-  visualLibrary: Array<{ url: string; context: string; type: string }>; 
+  visualLibrary: Array<{ url: string; context: string; type: string }>;
 }
 
-// NUEVO: Interfaz Auxiliar para roles
 interface ILevelRole {
   level: number;
   roleId: string;
 }
 
-// NUEVO: Mapa Social
 interface ISocialMap {
   targets: Array<{ userId: string; tag: string; reason: string }>;
   trustLevels: Map<string, number>;
 }
 
-//  NUEVO: Reglas de Castigo
 interface IAutoModRule {
-  threshold: number;      // Puntos necesarios (ej: 50)
-  action: 'WARN' | 'MUTE' | 'KICK' | 'BAN';
-  duration: number;       // En milisegundos (solo para Mute)
+  threshold: number;
+  action: "WARN" | "MUTE" | "KICK" | "BAN";
+  duration: number;
 }
 
-//  NUEVO: Interruptores de Seguridad
 interface ISecurityModules {
   antiSpam: boolean;
   antiLinks: boolean;
   antiRaid: boolean;
   antiNuke: boolean;
+  antiAlt: boolean;
+}
+
+interface IFeedConfig {
+  channelId: string;
+  title: string;
+  color: string;
+  emoji: string;
+  counter: number;
 }
 
 // --- INTERFAZ PRINCIPAL ---
 
 export interface IServerConfig extends Document {
   guildId: string;
+  prefix: string;
 
-  // Sistema de niveles
+  // 👇 SISTEMA DE ROLES AUTOMÁTICOS
+  autoJoin: {
+    enabled: boolean;
+    roles: string[];
+  };
+
+  // 👇 SISTEMA DE CONFESIONES & FEEDS
+  confessions: {
+    enabled: boolean;
+    channelId: string | null;
+    logsChannelId: string | null;
+    counter: number;
+    allowImages: boolean;
+    customTitle: string;
+    customColor: string;
+    blacklist: string[];
+    feeds: IFeedConfig[];
+  };
+
+  // 👇 SISTEMA DE NIVELES
   leveling: {
     enabled: boolean;
-    xpRate: number; 
+    xpRate: number;
     ignoredChannels: string[];
     ignoredRoles: string[];
-
     levelRoles: ILevelRole[];
-
-    // VENTANA PARA ECONOMIA
-    //DESCOMENTAR A FUTURO
-    // currencyRewards: [{ level: 10; amount: 500}]
-    // moneyMultiplierPerLevel: number
-
     announceChannel: string | null;
     announceMessage: string;
-  }
-  
-  // Canales
+  };
+
+  // 👇 CANALES Y CONFIGURACIÓN GENERAL
   memeChannelId: string;
-  modLogChannel?: string; // NUEVO: Canal de Logs de Seguridad
+  modLogChannel?: string;
 
-  // Configuración IA (Legacy + Modern)
-  aiMode: 'calmado' | 'libre'; 
-  aiSafety: 'relaxed' | 'standard' | 'strict';
-  premiumUntil: Date | null; 
+  // 🛡️ SEGURIDAD
+  honeypotChannel?: string;
+  allowedLinks?: string[];
+  pointsPerStrike: number;
 
-  // Sistema Hoshiko 2.0
+  // 👇 SOPORTE PARA MODCONFIG (STRIKES)
+  strikeMuteThreshold?: number | null;
+  strikeBanThreshold?: number | null;
+  strikeMuteDurationMs?: number | null;
+
+  // 👇 IA
+  aiMode: "calmado" | "libre";
+  aiSafety: "relaxed" | "standard" | "strict" | "high";
+  premiumUntil: Date | null;
+
   aiSystem: {
-    mode: 'neko' | 'custom';
+    mode:
+      | "neko"
+      | "maid"
+      | "gymbro"
+      | "yandere"
+      | "assistant"
+      | "custom"
+      | "tsundere"
+      | "borracha";
     customPersona: string;
+    behavior: "normal" | "pesado" | "agresivo";
     randomChance: number;
     cooldownUntil: Date;
     spontaneousChannels: string[];
   };
 
-  // SEGURIDAD Y AUTOMOD (NUEVO BLOQUE)
   securityModules: ISecurityModules;
   autoModRules: IAutoModRule[];
-  infractionsMap: Map<string, number>; // Mapa: ID Usuario -> Puntos Totales
+  infractionsMap: Map<string, number>;
 
-  // Cultura y Memoria
   culture: ICulture;
   socialMap: ISocialMap;
-  shortTermMemory: Array<{ content: string; timestamp: Date; participants: string[] }>;
+  shortTermMemory: Array<{
+    content: string;
+    timestamp: Date;
+    participants: string[];
+  }>;
 }
 
 // --- SCHEMA MONGOOSE ---
 
 const serverConfigSchema = new Schema<IServerConfig>({
   guildId: { type: String, required: true, unique: true },
-  
-  // Canales
-  memeChannelId: { type: String, default: "" }, 
-  modLogChannel: { type: String, default: null }, 
 
-  // IA y Premium
-  aiMode: { type: String, enum: ['calmado', 'libre'], default: 'calmado' },
-  aiSafety: { type: String, enum: ['relaxed', 'standard', 'strict'], default: 'relaxed' },
+  // 👇 CAMBIO IMPORTANTE: AHORA ES 'x' POR DEFECTO
+  prefix: { type: String, default: "x" },
+
+  autoJoin: {
+    enabled: { type: Boolean, default: false },
+    roles: { type: [String], default: [] },
+  },
+
+  confessions: {
+    enabled: { type: Boolean, default: false },
+    channelId: { type: String, default: null },
+    logsChannelId: { type: String, default: null },
+    counter: { type: Number, default: 0 },
+    allowImages: { type: Boolean, default: true },
+    customTitle: { type: String, default: "Confesión Anónima" },
+    customColor: { type: String, default: "#FFB6C1" },
+    blacklist: { type: [String], default: [] },
+    feeds: [
+      {
+        channelId: String,
+        title: String,
+        color: String,
+        emoji: String,
+        counter: { type: Number, default: 0 },
+      },
+    ],
+  },
+
+  leveling: {
+    enabled: { type: Boolean, default: true },
+    xpRate: { type: Number, default: 1 },
+    ignoredChannels: { type: [String], default: [] },
+    ignoredRoles: { type: [String], default: [] },
+    levelRoles: { type: [{ level: Number, roleId: String }], default: [] },
+    announceChannel: { type: String, default: null },
+    announceMessage: {
+      type: String,
+      default: "¡Felicidades {user}, has subido al nivel {level}!",
+    },
+  },
+
+  memeChannelId: { type: String, default: "" },
+  modLogChannel: { type: String, default: null },
+
+  // SEGURIDAD
+  honeypotChannel: { type: String, default: null },
+  allowedLinks: { type: [String], default: [] },
+  pointsPerStrike: { type: Number, default: 10 },
+
+  strikeMuteThreshold: { type: Number, default: null },
+  strikeBanThreshold: { type: Number, default: null },
+  strikeMuteDurationMs: { type: Number, default: null },
+
+  aiMode: { type: String, enum: ["calmado", "libre"], default: "calmado" },
+  aiSafety: {
+    type: String,
+    enum: ["relaxed", "standard", "strict", "high"],
+    default: "relaxed",
+  },
   premiumUntil: { type: Date, default: null },
 
   aiSystem: {
-    mode: { type: String, enum: ['neko', 'custom'], default: 'neko' },
-    customPersona: { type: String, default: "" }, 
-    randomChance: { type: Number, default: 3 }, 
+    mode: {
+      type: String,
+      enum: [
+        "neko",
+        "maid",
+        "gymbro",
+        "yandere",
+        "assistant",
+        "custom",
+        "tsundere",
+        "borracha",
+      ],
+      default: "neko",
+    },
+    customPersona: { type: String, default: "" },
+    behavior: {
+      type: String,
+      enum: ["normal", "pesado", "agresivo"],
+      default: "normal",
+    },
+    randomChance: { type: Number, default: 3 },
     cooldownUntil: { type: Date, default: Date.now },
-    spontaneousChannels: { type: [String], default: [] }
+    spontaneousChannels: { type: [String], default: [] },
   },
 
-  //  BLOQUE DE SEGURIDAD 
   securityModules: {
     antiSpam: { type: Boolean, default: false },
     antiLinks: { type: Boolean, default: false },
     antiRaid: { type: Boolean, default: false },
-    antiNuke: { type: Boolean, default: false }
+    antiNuke: { type: Boolean, default: false },
+    antiAlt: { type: Boolean, default: false },
   },
 
   autoModRules: {
-    type: [{
-      threshold: { type: Number, required: true },
-      action: { type: String, enum: ['WARN', 'MUTE', 'KICK', 'BAN'], required: true },
-      duration: { type: Number, default: 0 }
-    }],
-    default: [] // Si está vacío, InfractionManager usa las reglas por defecto
+    type: [
+      {
+        threshold: { type: Number, required: true },
+        action: {
+          type: String,
+          enum: ["WARN", "MUTE", "KICK", "BAN"],
+          required: true,
+        },
+        duration: { type: Number, default: 0 },
+      },
+    ],
+    default: [],
   },
 
-  infractionsMap: { 
-    type: Map, 
-    of: Number,    
-    default: new Map() 
-  },
+  infractionsMap: { type: Map, of: Number, default: new Map() },
 
-  // Cultura
   culture: {
     vocabulary: { type: Map, of: Number, default: new Map() },
     slangs: [{ word: String, meaning: String, addedBy: String }],
     internalJokes: [{ trigger: String, response: String, context: String }],
     emojis: { type: Map, of: Number, default: new Map() },
-    visualLibrary: [{ 
-        url: String, 
-        context: String, 
-        type: { type: String, enum: ['gif', 'image'] } 
-    }]
+    visualLibrary: [
+      {
+        url: String,
+        context: String,
+        type: { type: String, enum: ["gif", "image"] },
+      },
+    ],
   },
 
   socialMap: {
     targets: [{ userId: String, tag: String, reason: String }],
-    trustLevels: { type: Map, of: Number, default: new Map() }
+    trustLevels: { type: Map, of: Number, default: new Map() },
   },
 
-  shortTermMemory: [{
-    content: String,
-    timestamp: { type: Date, default: Date.now },
-    participants: [String]
-  }]
+  shortTermMemory: [
+    {
+      content: String,
+      timestamp: { type: Date, default: Date.now },
+      participants: [String],
+    },
+  ],
 });
 
-export default model<IServerConfig>('ServerConfig', serverConfigSchema);
+export default model<IServerConfig>("ServerConfig", serverConfigSchema);

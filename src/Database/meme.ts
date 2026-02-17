@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 // 1. Creamos una "interfaz". Es un contrato que define cómo se ve un documento de meme.
 export interface IMeme extends Document {
@@ -19,4 +19,4 @@ const memeSchema = new Schema<IMeme>({
 });
 
 // 3. Creamos y exportamos el Modelo, que también usará la interfaz.
-export default model<IMeme>('Meme', memeSchema);
+export default model<IMeme>("Meme", memeSchema);

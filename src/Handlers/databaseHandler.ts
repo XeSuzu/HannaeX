@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
-import { connectWithRetry } from '../Services/mongo';
+import mongoose from "mongoose";
+import { connectWithRetry } from "../Services/mongo";
 
 let isConnecting = false;
 
@@ -8,34 +8,36 @@ let isConnecting = false;
  */
 export default async function initDatabase() {
   if (isConnecting) return;
-  
+
   // Si ya estamos conectados, no hace falta intentarlo de nuevo ✨
   if (mongoose.connection.readyState === 1) return;
 
   isConnecting = true;
 
   if (!process.env.MONGO_URI) {
-    console.error("❌ ERROR CRÍTICO: Falta la variable MONGO_URI en el archivo .env");
+    console.error(
+      "❌ ERROR CRÍTICO: Falta la variable MONGO_URI en el archivo .env",
+    );
     return process.exit(1);
   }
 
   // --- Configuraciones de Mongoose ---
-  mongoose.set('strictQuery', true); // Para evitar advertencias de versiones futuras ✨
+  mongoose.set("strictQuery", true); // Para evitar advertencias de versiones futuras ✨
 
   // --- Eventos de Monitoreo ---
-  mongoose.connection.on('connected', () => {
+  mongoose.connection.on("connected", () => {
     console.log("🍃 MongoDB: Conexión establecida.");
   });
 
-  mongoose.connection.on('error', (err) => {
+  mongoose.connection.on("error", (err) => {
     console.error("🍂 MongoDB: Error de conexión:", err);
   });
 
-  mongoose.connection.on('disconnected', () => {
+  mongoose.connection.on("disconnected", () => {
     console.warn("⚠️ MongoDB: Conexión perdida. Intentando reconectar...");
   });
 
-  console.log('🔍 Iniciando proceso de conexión a MongoDB...');
+  console.log("🔍 Iniciando proceso de conexión a MongoDB...");
 
   try {
     await connectWithRetry();

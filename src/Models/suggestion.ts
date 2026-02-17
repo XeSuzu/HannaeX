@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 // 1. Creamos una interfaz para definir la estructura de una sugerencia.
 export interface ISuggestion extends Document {
@@ -17,4 +17,4 @@ const suggestionSchema = new Schema<ISuggestion>({
 });
 
 // 3. Creamos y exportamos el Modelo.
-export default model<ISuggestion>('Suggestion', suggestionSchema);
+export default model<ISuggestion>("Suggestion", suggestionSchema);

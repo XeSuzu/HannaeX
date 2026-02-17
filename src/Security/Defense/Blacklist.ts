@@ -1,7 +1,11 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-type BlockRecord = { reason?: string; type?: 'TEMPORAL' | 'PERMANENT'; expiresAt?: number | null };
+type BlockRecord = {
+  reason?: string;
+  type?: "TEMPORAL" | "PERMANENT";
+  expiresAt?: number | null;
+};
 
 const store = new Map<string, BlockRecord>();
 
@@ -16,8 +20,16 @@ export class Blacklist {
     return true;
   }
 
-  static add(userId: string, reason?: string, type: 'TEMPORAL' | 'PERMANENT' = 'PERMANENT', durationMinutes?: number) {
-    const expiresAt = type === 'TEMPORAL' && durationMinutes ? Date.now() + durationMinutes * 60 * 1000 : null;
+  static add(
+    userId: string,
+    reason?: string,
+    type: "TEMPORAL" | "PERMANENT" = "PERMANENT",
+    durationMinutes?: number,
+  ) {
+    const expiresAt =
+      type === "TEMPORAL" && durationMinutes
+        ? Date.now() + durationMinutes * 60 * 1000
+        : null;
     store.set(userId, { reason, type, expiresAt });
   }
 
