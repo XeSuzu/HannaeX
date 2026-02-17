@@ -1,389 +1,342 @@
 import {
-    SlashCommandBuilder,
-    EmbedBuilder,
-    ChatInputCommandInteraction,
-    ActionRowBuilder,
-    StringSelectMenuBuilder,
-    StringSelectMenuOptionBuilder,
-    ComponentType,
-    ButtonBuilder,
-    ButtonStyle
-} from 'discord.js';
-import { HoshikoClient } from '../../../index';
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ChatInputCommandInteraction,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuInteraction,
+  ButtonInteraction,
+  PermissionFlagsBits,
+  PermissionsBitField,
+} from "discord.js";
+import { HoshikoClient } from "../../../index";
 
-interface SlashCommand {
-    data: SlashCommandBuilder | any;
-    category: string;
-    execute: (interaction: ChatInputCommandInteraction, client: HoshikoClient) => Promise<void>;
-}
-
-const CATEGORY_CONFIG: Record<string, { emoji: string; description: string; color: number }> = {
-    'Fun': {
-        emoji: '🎮',
-        description: 'Comandos divertidos para entretenerte',
-        color: 0xFF69B4
-    },
-    'Information': {
-        emoji: '📚',
-        description: 'Obtén información útil del servidor y usuarios',
-        color: 0x5865F2
-    },
-    'Moderation': {
-        emoji: '🛡️',
-        description: 'Herramientas para moderadores',
-        color: 0xED4245
-    },
-    'Music': {
-        emoji: '🎵',
-        description: 'Reproduce música en los canales de voz',
-        color: 0x9B59B6
-    },
-    'Utility': {
-        emoji: '🔧',
-        description: 'Utilidades diversas para el servidor',
-        color: 0x3498DB
-    },
-    'Profiles': {
-        emoji: '👤',
-        description: 'Perfiles y estadísticas de usuarios',
-        color: 0x1ABC9C
-    },
-    'Economy': {
-        emoji: '💰',
-        description: 'Sistema de economía y monedas',
-        color: 0xF1C40F
-    },
-    'Games': {
-        emoji: '🎲',
-        description: 'Mini juegos y desafíos',
-        color: 0xE67E22
-    },
-    'Admin': {
-        emoji: '⚙️',
-        description: 'Comandos administrativos del bot',
-        color: 0x95A5A6
-    },
-    'AI': {
-        emoji: '🧠',
-        description: 'Inteligencia artificial y conversación',
-        color: 0x00D9FF
-    }
+// ==========================================================
+// 🎨 CONFIGURACIÓN
+// ==========================================================
+const LINKS = {
+  invite:
+    "https://discord.com/oauth2/authorize?client_id=TU_CLIENT_ID&permissions=8&scope=bot%20applications.commands",
+  support: "https://discord.gg/tuserver",
+  // He puesto un banner de ejemplo que sé que funciona.
+  // Asegúrate de que tu link de Pinterest sea el directo a la imagen (.gif/.png)
+  banner:
+    "https://i.pinimg.com/originals/0d/f5/59/0df559e264fa08b7fa204f7c67a33926.gif",
 };
 
-function createMainEmbed(client: HoshikoClient, totalCommands: number): EmbedBuilder {
-    return new EmbedBuilder()
-        .setColor(0xFFC0CB)
-        .setAuthor({
-            name: `${client.user?.username} - Centro de Ayuda`,
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTitle('✨ ¡Bienvenido al menú de ayuda, nyaa~! 🐾')
-        .setDescription(
-            '> Selecciona una categoría del menú desplegable para ver los comandos disponibles.\n\n' +
-            '**📊 Estadísticas:**\n' +
-            `╰ Total de comandos: **${totalCommands}**\n` +
-            `╰ Categorías disponibles: **${Object.keys(CATEGORY_CONFIG).length}**\n\n` +
-            '**🎯 Formas de usar comandos:**\n' +
-            '╰ Slash Commands: `/comando`\n' +
-            '╰ IA por mención: `@Hoshiko pregunta aquí`\n' +
-            '╰ IA con prefijo: `hoshi ask tu pregunta`'
-        )
-        .setThumbnail(client.user?.displayAvatarURL() ?? null)
-        .setImage('https://i.imgur.com/your-banner-image.png') 
-        .setFooter({
-            text: `Desarrollado con 💖 por v.sxn | Hoshiko Bot v2.0`,
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTimestamp();
+// Configuración de categorías y permisos requeridos para verlas
+const CATEGORIES: Record<
+  string,
+  { emoji: string; desc: string; color: number; visibleTo?: string }
+> = {
+  Fun: { emoji: "🎮", desc: "Minijuegos y diversión", color: 0xff69b4 },
+  Information: {
+    emoji: "📚",
+    desc: "Información del servidor",
+    color: 0x5865f2,
+  },
+  Music: { emoji: "🎵", desc: "Música y reproducción", color: 0x9b59b6 },
+  Economy: { emoji: "💰", desc: "Economía y tienda", color: 0xf1c40f },
+  Utility: { emoji: "🔧", desc: "Utilidades varias", color: 0x3498db },
+  AI: { emoji: "🧠", desc: "Inteligencia Artificial", color: 0x00d9ff },
+
+  // Categorías restringidas
+  Moderation: {
+    emoji: "🛡️",
+    desc: "Herramientas de Staff",
+    color: 0xed4245,
+    visibleTo: "Mod",
+  },
+  Admin: {
+    emoji: "⚙️",
+    desc: "Configuración del servidor",
+    color: 0x2c2f33,
+    visibleTo: "Admin",
+  },
+  Owner: {
+    emoji: "👑",
+    desc: "Developer Only",
+    color: 0x000000,
+    visibleTo: "Owner",
+  },
+};
+
+export default {
+  category: "Information",
+  data: new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("✨ Muestra el menú de ayuda personalizado."),
+
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ) {
+    await interaction.deferReply();
+
+    // 1. OBTENER PERMISOS DEL USUARIO
+    const memberPerms = interaction.member
+      ?.permissions as Readonly<PermissionsBitField>;
+    const isOwner = interaction.user.id === process.env.BOT_OWNER_ID;
+    const isAdmin = memberPerms.has(PermissionFlagsBits.Administrator);
+    const isMod =
+      memberPerms.has(PermissionFlagsBits.ManageMessages) || isAdmin;
+
+    // 2. FILTRAR COMANDOS
+    const commands = client.slashCommands;
+    const categorized: Record<string, string[]> = {};
+
+    commands.forEach((cmd: any) => {
+      const cat = cmd.category || "Otros";
+      const catConfig = CATEGORIES[cat];
+
+      // 🛑 LÓGICA DE FILTRADO (Aquí está la magia)
+      if (catConfig?.visibleTo === "Owner" && !isOwner) return;
+      if (catConfig?.visibleTo === "Admin" && !isAdmin) return;
+      if (catConfig?.visibleTo === "Mod" && !isMod) return;
+
+      if (!categorized[cat]) categorized[cat] = [];
+      categorized[cat].push(`\`/${cmd.data.name}\``);
+    });
+
+    // 3. Generar Componentes
+    // Pasamos 'categorized' filtrado para que el menú solo muestre lo permitido
+    const mainEmbed = createMainEmbed(
+      client,
+      commands.size,
+      Object.keys(categorized).length,
+      interaction.user.username,
+    );
+    const components = createComponents(categorized);
+
+    const msg = await interaction.editReply({
+      embeds: [mainEmbed],
+      components: components as any,
+    });
+
+    // 4. Collector
+    const collector = msg.createMessageComponentCollector({
+      filter: (i) => i.user.id === interaction.user.id,
+      time: 60000 * 5,
+    });
+
+    collector.on(
+      "collect",
+      async (i: StringSelectMenuInteraction | ButtonInteraction) => {
+        collector.resetTimer();
+        let embed: EmbedBuilder;
+
+        if (
+          i.customId === "help_home" ||
+          (i.isStringSelectMenu() && i.values[0] === "main")
+        ) {
+          embed = createMainEmbed(
+            client,
+            commands.size,
+            Object.keys(categorized).length,
+            interaction.user.username,
+          );
+        } else if (i.isStringSelectMenu()) {
+          const selected = i.values[0];
+          if (selected === "AI_SPECIAL") {
+            embed = createAIEmbed(client);
+          } else {
+            embed = createCategoryEmbed(
+              client,
+              selected,
+              categorized[selected] || [],
+            );
+          }
+        } else {
+          return;
+        }
+
+        await i.update({ embeds: [embed], components: components as any });
+      },
+    );
+
+    collector.on("end", () => {
+      const disabledMenuRow = ActionRowBuilder.from(components[0] as any);
+      disabledMenuRow.components.forEach((c: any) => c.setDisabled(true));
+      interaction
+        .editReply({ components: [disabledMenuRow, components[1]] as any })
+        .catch(() => {});
+    });
+  },
+};
+
+// ==========================================================
+// 🛠️ HELPERS
+// ==========================================================
+
+function createComponents(categorized: Record<string, string[]>) {
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("help_menu")
+    .setPlaceholder("🔍 Selecciona una categoría...")
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Menú Principal")
+        .setDescription("Volver al inicio")
+        .setValue("main")
+        .setEmoji("🏠"),
+    );
+
+  // Solo añadimos al menú las categorías que pasaron el filtro
+  for (const [cat, cmds] of Object.entries(categorized)) {
+    if (cat === "AI") continue;
+    const info = CATEGORIES[cat] || {
+      emoji: "📁",
+      desc: "Varios",
+      color: 0x99aab5,
+    };
+
+    menu.addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(cat)
+        .setDescription(info.desc.substring(0, 100))
+        .setValue(cat)
+        .setEmoji(info.emoji),
+    );
+  }
+
+  if (categorized["AI"]) {
+    menu.addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel("Hoshiko AI")
+        .setDescription("Asistente inteligente")
+        .setValue("AI_SPECIAL")
+        .setEmoji("🧠"),
+    );
+  }
+
+  const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("help_home")
+      .setLabel("Inicio")
+      .setStyle(ButtonStyle.Success)
+      .setEmoji("🏠"),
+    new ButtonBuilder()
+      .setLabel("Invitar")
+      .setStyle(ButtonStyle.Link)
+      .setURL(LINKS.invite),
+    new ButtonBuilder()
+      .setLabel("Soporte")
+      .setStyle(ButtonStyle.Link)
+      .setURL(LINKS.support),
+  );
+
+  return [
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu),
+    buttonRow,
+  ];
+}
+
+function createMainEmbed(
+  client: HoshikoClient,
+  totalCmds: number,
+  totalCats: number,
+  username: string,
+): EmbedBuilder {
+  return (
+    new EmbedBuilder()
+      .setColor(0xffc0cb)
+      // Quitamos el author para que se vea más limpio el título
+      .setTitle(`👋 ¡Hola, ${username}! Soy ${client.user?.username}`)
+      .setDescription(
+        `>>> Soy un bot multipropósito diseñado para hacer tu servidor más divertido y seguro.\n\n` +
+          `**¿Qué deseas hacer hoy?**\n` +
+          `Usa el menú de abajo para explorar mis **${totalCats} categorías** filtradas para ti.`,
+      )
+      .addFields(
+        {
+          name: "🌟 Novedades",
+          value: "> Nuevo sistema de `/post` estilo Twitter e Instagram.",
+          inline: false,
+        },
+        {
+          name: "📊 Sistema",
+          value: `\`📡\` Ping: **${client.ws.ping}ms**\n\`🤖\` Comandos: **${totalCmds}**`,
+          inline: true,
+        },
+        {
+          name: "🔗 Enlaces",
+          value: `[Soporte](${LINKS.support}) • [Invitar](${LINKS.invite})`,
+          inline: true,
+        },
+      )
+      .setImage(LINKS.banner) // ✅ AHORA SÍ SE MOSTRARÁ
+      .setFooter({
+        text: "Hoshiko System v3.0",
+        iconURL: client.user?.displayAvatarURL(),
+      })
+      .setTimestamp()
+  );
 }
 
 function createCategoryEmbed(
-    client: HoshikoClient,
-    category: string,
-    commands: string[]
+  client: HoshikoClient,
+  category: string,
+  commands: string[],
 ): EmbedBuilder {
-    const config = CATEGORY_CONFIG[category] || {
-        emoji: '✨',
-        description: 'Comandos varios',
-        color: 0xFFC0CB
-    };
+  const info = CATEGORIES[category] || {
+    emoji: "📁",
+    desc: "Comandos Generales",
+    color: 0x2f3136,
+  };
 
-    const embed = new EmbedBuilder()
-        .setColor(config.color)
-        .setAuthor({
-            name: `${config.emoji} ${category}`,
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTitle(`━━━━━━ ${category.toUpperCase()} ━━━━━━`)
-        .setDescription(`*${config.description}*\n\n`)
-        .setThumbnail(client.user?.displayAvatarURL() ?? null)
-        .setFooter({
-            text: `Total: ${commands.length} comando${commands.length !== 1 ? 's' : ''} | Usa el menú para ver otras categorías`,
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTimestamp();
+  // DISEÑO: Bloque de código para que se vea ordenado y compacto
+  const cmdList =
+    commands.length > 0
+      ? commands.join("  ")
+      : "❌ No hay comandos disponibles.";
 
-    const chunkedCommands = [];
-    for (let i = 0; i < commands.length; i += 10) {
-        chunkedCommands.push(commands.slice(i, i + 10));
-    }
-
-    chunkedCommands.forEach((chunk, index) => {
-        const fieldName = chunkedCommands.length > 1 
-            ? `📋 Comandos (Parte ${index + 1}/${chunkedCommands.length})`
-            : '📋 Comandos Disponibles';
-
-        embed.addFields({
-            name: fieldName,
-            value: chunk.map(cmd => `╰ ${cmd}`).join('\n') || '*No hay comandos en esta categoría*',
-            inline: false
-        });
-    });
-
-    return embed;
+  return (
+    new EmbedBuilder()
+      .setColor(info.color)
+      .setTitle(`${info.emoji}  Categoría: ${category}`)
+      .setDescription(
+        `> *${info.desc}*\n\n**Comandos Disponibles:**\n${cmdList}`,
+      ) // Sin bloques de código para que los links de slash funcionen si el cliente los soporta, o usa bloques para estilo
+      // Opción B (Estilo Terminal): .setDescription(`> *${info.desc}*\n\`\`\`\n${commands.map(c => c.replace(/`/g, '')).join(', ')}\n\`\`\``)
+      .setThumbnail(client.user?.displayAvatarURL() || null) // Thumbnail solo en categorías
+      .setFooter({
+        text: `Total: ${commands.length} comandos`,
+        iconURL: client.user?.displayAvatarURL(),
+      })
+  );
 }
 
 function createAIEmbed(client: HoshikoClient): EmbedBuilder {
-    return new EmbedBuilder()
-        .setColor(0x00D9FF)
-        .setAuthor({
-            name: '🧠 Inteligencia Artificial',
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTitle('━━━━━━ ASISTENTE IA ━━━━━━')
-        .setDescription(
-            '¡Puedo ayudarte con cualquier pregunta! Aquí te explico cómo usarme, nya~'
-        )
-        .addFields(
-            {
-                name: '💬 Formas de conversar conmigo',
-                value: 
-                    '**1️⃣ Mención directa:**\n' +
-                    `╰ \`@${client.user?.username} ¿Cuál es la capital de Francia?\`\n\n` +
-                    '**2️⃣ Prefijo "hoshi ask":**\n' +
-                    '╰ `hoshi ask explícame la fotosíntesis`\n\n' +
-                    '**3️⃣ En cualquier canal donde esté:**\n' +
-                    '╰ Solo menciónme y pregúntame lo que quieras',
-                inline: false
-            },
-            {
-                name: '✨ Capacidades',
-                value:
-                    '╰ 📚 Responder preguntas generales\n' +
-                    '╰ 💡 Explicar conceptos complejos\n' +
-                    '╰ 🎵 Buscar letras de canciones\n' +
-                    '╰ 🗣️ Mantener conversaciones naturales\n' +
-                    '╰ 🧮 Ayudar con cálculos y traducciones\n' +
-                    '╰ 📝 Crear contenido creativo',
-                inline: false
-            },
-            {
-                name: '🎯 Comandos especiales',
-                value:
-                    '╰ `hoshi ask olvida` - Reinicia nuestra conversación\n' +
-                    '╰ `hoshi ask letra de [canción]` - Busca letras de música',
-                inline: false
-            },
-            {
-                name: '⚠️ Limitaciones',
-                value:
-                    '╰ No puedo acceder a internet en tiempo real\n' +
-                    '╰ Mi conocimiento tiene fecha de corte\n' +
-                    '╰ No puedo ejecutar código o acceder a archivos\n' +
-                    '╰ Mantengo historial de los últimos 20 mensajes',
-                inline: false
-            }
-        )
-        .setThumbnail(client.user?.displayAvatarURL() ?? null)
-        .setFooter({
-            text: '¡Pregúntame lo que quieras, nya~! 🐾',
-            iconURL: client.user?.displayAvatarURL()
-        })
-        .setTimestamp();
+  return new EmbedBuilder()
+    .setColor(0x00d9ff)
+    .setTitle("🧠  Hoshiko AI Assistant")
+    .setDescription(
+      "He sido potenciada con Inteligencia Artificial para ayudarte.",
+    )
+    .addFields(
+      {
+        name: "💬 Conversación",
+        value: "> Mencióname `@Hoshiko` para hablar conmigo.",
+        inline: true,
+      },
+      {
+        name: "🎨 Creatividad",
+        value: "> Pídeme historias, poemas o chistes.",
+        inline: true,
+      },
+      {
+        name: "🛠️ Comandos",
+        value: "`hoshi ask <pregunta>`\n`hoshi imagine <prompt>`",
+        inline: false,
+      },
+    )
+    .setImage(
+      "https://media.discordapp.net/attachments/123456789/123456789/ai_banner.png?width=800&height=200",
+    ) // Puedes poner otro banner aquí si quieres
+    .setFooter({
+      text: "Powered by Gemini",
+      iconURL: client.user?.displayAvatarURL(),
+    });
 }
-
-const command: SlashCommand = {
-    category: 'Information',
-    data: new SlashCommandBuilder()
-        .setName('help')
-        .setDescription('¡Muestra todos los comandos disponibles, nyaa!')
-        .addStringOption(option =>
-            option
-                .setName('categoria')
-                .setDescription('Selecciona una categoría específica')
-                .setRequired(false)
-                .addChoices(
-                    ...Object.keys(CATEGORY_CONFIG).map(cat => ({
-                        name: `${CATEGORY_CONFIG[cat].emoji} ${cat}`,
-                        value: cat
-                    }))
-                )
-        ),
-
-    async execute(interaction) {
-        const client = interaction.client as HoshikoClient;
-        const commands = client.slashCommands;
-        const selectedCategory = interaction.options.getString('categoria');
-
-        const categorizedCommands: Record<string, string[]> = {};
-        
-        commands.forEach((cmd: SlashCommand) => {
-            const category = cmd.category || 'Otros';
-            if (!categorizedCommands[category]) {
-                categorizedCommands[category] = [];
-            }
-            categorizedCommands[category].push(
-                `\`/${cmd.data.name}\` - ${cmd.data.description}`
-            );
-        });
-
-        const totalCommands = commands.size;
-
-        if (selectedCategory) {
-            const categoryEmbed = selectedCategory === 'AI'
-                ? createAIEmbed(client)
-                : createCategoryEmbed(
-                    client,
-                    selectedCategory,
-                    categorizedCommands[selectedCategory] || []
-                );
-
-            const backButton = new ActionRowBuilder<ButtonBuilder>()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('back_to_main')
-                        .setLabel('← Volver al menú principal')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('🏠')
-                );
-
-            const response = await interaction.reply({
-                embeds: [categoryEmbed],
-                components: [backButton],
-                ephemeral: true
-            });
-
-            const backCollector = response.createMessageComponentCollector({
-                componentType: ComponentType.Button,
-                time: 300000
-            });
-
-            backCollector.on('collect', async (i) => {
-                if (i.user.id !== interaction.user.id) {
-                    return i.reply({
-                        content: '❌ Solo quien ejecutó el comando puede usar este botón.',
-                        ephemeral: true
-                    });
-                }
-
-                const mainEmbed = createMainEmbed(client, totalCommands);
-                const selectMenu = createSelectMenu(categorizedCommands);
-
-                await i.update({
-                    embeds: [mainEmbed],
-                    components: [selectMenu]
-                });
-            });
-
-            return;
-        }
-
-        const selectMenu = createSelectMenu(categorizedCommands);
-        const mainEmbed = createMainEmbed(client, totalCommands);
-
-        const response = await interaction.reply({
-            embeds: [mainEmbed],
-            components: [selectMenu],
-            ephemeral: true
-        });
-
-        const collector = response.createMessageComponentCollector({
-            componentType: ComponentType.StringSelect,
-            time: 300000 // 5 minutos
-        });
-
-        collector.on('collect', async (i) => {
-            if (i.user.id !== interaction.user.id) {
-                return i.reply({
-                    content: '❌ Solo quien ejecutó el comando puede usar este menú.',
-                    ephemeral: true
-                });
-            }
-
-            const selectedValue = i.values[0];
-
-            if (selectedValue === 'main') {
-                await i.update({
-                    embeds: [mainEmbed],
-                    components: [selectMenu]
-                });
-                return;
-            }
-
-            const categoryEmbed = selectedValue === 'AI'
-                ? createAIEmbed(client)
-                : createCategoryEmbed(
-                    client,
-                    selectedValue,
-                    categorizedCommands[selectedValue] || []
-                );
-
-            await i.update({
-                embeds: [categoryEmbed],
-                components: [selectMenu]
-            });
-        });
-
-        collector.on('end', () => {
-            const disabledMenu = ActionRowBuilder.from(selectMenu.components[0].data.custom_id ? selectMenu : selectMenu);
-            interaction.editReply({
-                components: []
-            }).catch(() => {});
-        });
-    },
-};
-
-function createSelectMenu(categorizedCommands: Record<string, string[]>): ActionRowBuilder<StringSelectMenuBuilder> {
-    const options: StringSelectMenuOptionBuilder[] = [
-        new StringSelectMenuOptionBuilder()
-            .setLabel('🏠 Menú Principal')
-            .setDescription('Volver al inicio')
-            .setValue('main')
-            .setEmoji('🏠')
-    ];
-
-
-    for (const category in categorizedCommands) {
-        const config = CATEGORY_CONFIG[category] || { emoji: '✨', description: 'Comandos varios' };
-        const commandCount = categorizedCommands[category].length;
-
-        options.push(
-            new StringSelectMenuOptionBuilder()
-                .setLabel(`${category} (${commandCount})`)
-                .setDescription(config.description.substring(0, 100))
-                .setValue(category)
-                .setEmoji(config.emoji)
-        );
-    }
-
-
-    options.push(
-        new StringSelectMenuOptionBuilder()
-            .setLabel('Inteligencia Artificial')
-            .setDescription('Aprende cómo usar el asistente IA')
-            .setValue('AI')
-            .setEmoji('🧠')
-    );
-
-    return new ActionRowBuilder<StringSelectMenuBuilder>()
-        .addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId('help_category_select')
-                .setPlaceholder('🔍 Selecciona una categoría para explorar...')
-                .setMinValues(1)
-                .setMaxValues(1)
-                .addOptions(options)
-        );
-}
-
-export = command;

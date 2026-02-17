@@ -3,7 +3,11 @@ const DEFAULT_WINDOW_MS = 5000; // 5s
 const DEFAULT_LIMIT = 5; // 5 mensajes por ventana
 
 export class RateLimiter {
-  static isSpamming(userId: string, limit = DEFAULT_LIMIT, windowMs = DEFAULT_WINDOW_MS): boolean {
+  static isSpamming(
+    userId: string,
+    limit = DEFAULT_LIMIT,
+    windowMs = DEFAULT_WINDOW_MS,
+  ): boolean {
     const now = Date.now();
     const rec = windows.get(userId);
     if (!rec) {

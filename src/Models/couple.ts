@@ -1,8 +1,8 @@
-import { Schema, model, models, Document } from 'mongoose';
+import { Schema, model, models, Document } from "mongoose";
 
 // 1. Interfaz
 export interface ICouple extends Document {
-  users: string[]; 
+  users: string[];
   kisses: number;
 }
 
@@ -17,7 +17,7 @@ const coupleSchema = new Schema<ICouple>({
 // La lógica de `findOneAndUpdate` en tu comando kiss.ts ya se encarga de no crear duplicados para la misma pareja.
 
 // Opción B (Opcional): Índice simple para velocidad, PERO SIN 'unique'
-coupleSchema.index({ users: 1 }); 
+coupleSchema.index({ users: 1 });
 
 // 4. Exportación
 export default models.Couple || model<ICouple>("Couple", coupleSchema);

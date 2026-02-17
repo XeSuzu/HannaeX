@@ -1,88 +1,62 @@
-import GuildConfig from '../Models/GuildConfig';
-
-// Usamos una interfaz para asegurar que los datos siempre tengan la estructura correcta
-export interface IGuildSettings {
-    guildId: string;
-    prefix?: string; // 👈 Agregado
-    modLogChannel?: string;
-    honeypotChannel?: string; // 👈 Agregado
-    allowedLinks?: string[]; // 👈 Agregado
-    pointsPerStrike: number;
-    autoActions?: any[]; // 👈 Agregado (InfractionManager)
-    securityModules: {
-        antiRaid: boolean;
-        antiNuke: boolean;
-        antiAlt: boolean;
-        antiLinks: boolean;
-    };
-    // ... otros campos
-}
-
-const settingsCache = new Map<string, IGuildSettings>();
+import { CacheManager } from "./CacheManager";
+import { IServerConfig } from "../Models/serverConfig";
+import ServerConfig from "../Models/serverConfig";
 
 export class SettingsManager {
-    /**
-     * Obtiene ajustes con persistencia de seguridad.
-     */
-    static async getSettings(guildId: string): Promise<IGuildSettings> {
-        // 1. Prioridad: RAM (Velocidad instantánea)
-        if (settingsCache.has(guildId)) {
-            return settingsCache.get(guildId)!;
-        }
+  /**
+   * Obtiene la configuración COMPLETA del servidor.
+   * Ideal cuando vas a usar muchos datos o modificar algo.
+   * Usa la Caché RAM principal.
+   */
+  static async getSettings(guildId: string): Promise<IServerConfig> {
+    return await CacheManager.get(guildId);
+  }
 
-        try {
-            // 2. Fallback: MongoDB con .lean() para rendimiento
-            let config = await GuildConfig.findOne({ guildId }).lean() as IGuildSettings | null;
+  /**
+   * 🚀 NUEVO: Obtiene SOLO una parte de la configuración.
+   * Ideal para eventos rápidos (InteractionCreate, MessageCreate).
+   * @param fields Campos a traer (ej: 'confessions prefix')
+   * @returns Un objeto ligero (JSON) sin funciones de Mongoose.
+   */
+  static async getLite(
+    guildId: string,
+    fields: string,
+  ): Promise<Partial<IServerConfig> | null> {
+    // 1. Consulta a Mongo optimizada
+    const result = await ServerConfig.findOne({ guildId })
+      .select(fields)
+      .lean();
 
-            if (!config) {
-                // 3. Autocuración: Si no existe, lo crea inmediatamente
-                const newDoc = await GuildConfig.create({ guildId });
-                config = newDoc.toObject() as IGuildSettings;
-            }
+    // 👇 AQUÍ ESTÁ EL ARREGLO
+    // Usamos 'as any' para decirle a TypeScript:
+    // "Confía en mí, trata este objeto simple como si fuera la configuración completa"
+    return result as any;
+  }
 
-            // 4. Inyección en Caché
-            settingsCache.set(guildId, config);
-            return config;
-        } catch (error) {
-            console.error(`[CRITICAL] Error recuperando settings para ${guildId}:`, error);
-            
-            // 5. Robustez extrema: Si la DB cae, intentamos devolver un objeto mínimo viable
-            // para que el bot no crashee.
-            return {
-                guildId,
-                pointsPerStrike: 10,
-                securityModules: { antiRaid: false, antiNuke: false, antiAlt: false, antiLinks: false }
-            } as IGuildSettings;
-        }
+  /**
+   * Actualiza la configuración.
+   * Actualiza RAM y MongoDB al mismo tiempo.
+   */
+  static async updateSettings(
+    guildId: string,
+    data: Partial<IServerConfig>,
+  ): Promise<IServerConfig | null> {
+    try {
+      return await CacheManager.update(guildId, data);
+    } catch (error) {
+      console.error(
+        `[ERROR] Fallo al actualizar settings de ${guildId}:`,
+        error,
+      );
+      throw new Error("No se pudo persistir la configuración.");
     }
+  }
 
-    /**
-     * Actualización Atómica y Sincronización de Caché.
-     */
-    static async updateSettings(guildId: string, data: Partial<IGuildSettings>): Promise<IGuildSettings> {
-        try {
-            // Usamos findOneAndUpdate con validación de esquema
-            const updated = await GuildConfig.findOneAndUpdate(
-                { guildId }, 
-                { $set: data }, 
-                { new: true, upsert: true, runValidators: true }
-            ).lean() as IGuildSettings;
-
-            // Sincronización inmediata con la memoria
-            settingsCache.set(guildId, updated);
-            
-            return updated;
-        } catch (error) {
-            console.error(`[ERROR] Fallo al actualizar settings de ${guildId}:`, error);
-            throw new Error("No se pudo persistir la configuración en la base de datos.");
-        }
-    }
-
-    /**
-     * Fuerza la sincronización total de un servidor (Re-hidratación)
-     */
-    static async refresh(guildId: string): Promise<void> {
-        settingsCache.delete(guildId);
-        await this.getSettings(guildId);
-    }
+  /**
+   * Fuerza la recarga de datos
+   */
+  static async refresh(guildId: string): Promise<void> {
+    CacheManager.flush(guildId);
+    await this.getSettings(guildId);
+  }
 }

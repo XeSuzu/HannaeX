@@ -1,37 +1,65 @@
-import { ActivityType, Events } from 'discord.js';
-import { HoshikoClient } from '../../index'; 
-// 👇 Importamos el Schema para buscar los roles vencidos
-import ActiveRole from '../../Database/Schemas/ActiveRole'; 
+import { ActivityType, Events } from "discord.js";
+import { HoshikoClient } from "../../index";
+import ActiveRole from "../../Database/Schemas/ActiveRole";
 
-/**
- * Inicia el rotador de estados dinámicos para Hoshiko 🌸
- */
+// Rotación de estados: lista de actividades mostradas en la presencia
+// Se aceptan las variables `{users}` y `{servers}` que se reemplazan en tiempo real.
+const STATUS_LIST = [
+  { text: "en {servers} servidores 🏠", type: ActivityType.Watching },
+  { text: "/help | 🐱 Neko Mode", type: ActivityType.Playing },
+  { text: "a {users} usuarios 👥", type: ActivityType.Listening },
+  { text: "que todo brille 🌟", type: ActivityType.Competing },
+  { text: "música lo-fi ☕", type: ActivityType.Listening },
+  { text: "protegiendo el chat 🛡️", type: ActivityType.Custom }, // Estado custom (opcional)
+];
+
+/** Rotador de actividad: actualiza presencia periódicamente. */
 function startActivityRotator(client: HoshikoClient) {
-    const activityGenerators = [
-        () => ({ name: `en ${client.guilds.cache.size} servidores 🏠`, type: ActivityType.Watching }),
-        () => ({ name: 'mis comandos con / ✨', type: ActivityType.Playing }),
-        () => {
-            const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
-            return { name: `a ${totalMembers} personitas 👥`, type: ActivityType.Listening };
-        },
-        () => ({ name: 'que todo brille 🌟', type: ActivityType.Competing })
-    ];
-    
-    let currentIndex = 0;
+  let currentIndex = 0;
 
-    setInterval(() => {
-        const generator = activityGenerators[currentIndex];
-        const newActivity = generator();
+  const updateStatus = () => {
+    try {
+      if (!client.user) return;
 
-        client.user?.setPresence({
-            activities: [newActivity],
-            status: 'online'
-        });
+      // Calcular métricas en tiempo real
+      const rawUsers = client.guilds.cache.reduce(
+        (acc, guild) => acc + guild.memberCount,
+        0,
+      );
+      const rawServers = client.guilds.cache.size;
 
-        currentIndex = (currentIndex + 1) % activityGenerators.length;
-    }, 15000);
+      // Formatear números para visualización
+      const fmtUsers = new Intl.NumberFormat("es-ES").format(rawUsers);
+      const fmtServers = new Intl.NumberFormat("es-ES").format(rawServers);
 
-    console.log("🌟 ¡Estados dinámicos iniciados con éxito!");
+      // Seleccionar estado actual
+      const statusConfig = STATUS_LIST[currentIndex];
+
+      // Reemplazar variables en el texto del estado
+      const finalName = statusConfig.text
+        .replace("{users}", fmtUsers)
+        .replace("{servers}", fmtServers);
+
+      // Aplicar la presencia al cliente
+      client.user.setPresence({
+        activities: [{ name: finalName, type: statusConfig.type as any }],
+        status: "online",
+      });
+
+      // Avanzar al siguiente estado (ciclo)
+      currentIndex = (currentIndex + 1) % STATUS_LIST.length;
+    } catch (error) {
+      console.error("⚠️ Error menor actualizando presencia:", error);
+    }
+  };
+
+  // Ejecutar inmediatamente al iniciar
+  updateStatus();
+
+  // Rotar cada 15 segundos
+  setInterval(updateStatus, 15000);
+
+  console.log("🌟 [System] Rotador de estados iniciado correctamente.");
 }
 
 export default {
@@ -40,52 +68,53 @@ export default {
   async execute(client: HoshikoClient) {
     if (!client.user) return;
 
-    console.log('\n═══════════════════════════════════════');
+    console.log("\n═══════════════════════════════════════");
     console.log(`🌸 ✨ ¡Hoshiko ha despertado!`);
     console.log(`💖 Conectada como: ${client.user.tag}`);
-    console.log('═══════════════════════════════════════\n');
+    console.log("═══════════════════════════════════════\n");
 
-    // 1. Iniciamos los estados bonitos
+    // 1. Iniciar Estados (Versión Mejorada)
     startActivityRotator(client);
 
     // =========================================================
-    // ⏰ PASO 5: SISTEMA DE LIMPIEZA DE ROLES TEMPORALES
+    // ⏰ SISTEMA DE LIMPIEZA DE ROLES TEMPORALES
     // =========================================================
-    console.log("⏰ Iniciando reloj de limpieza de roles...");
+    console.log("⏰ [System] Iniciando reloj de limpieza de roles...");
 
     setInterval(async () => {
-        try {
-            const now = new Date();
-            // Buscamos roles cuya fecha de expiración ya pasó (es menor o igual a ahora)
-            const expiredRoles = await ActiveRole.find({ expiresAt: { $lte: now } });
+      try {
+        const now = new Date();
+        const expiredRoles = await ActiveRole.find({
+          expiresAt: { $lte: now },
+        });
 
-            for (const doc of expiredRoles) {
-                // Obtenemos el servidor
-                const guild = client.guilds.cache.get(doc.guildId);
-                
-                // Si el bot ya no está en el server, solo borramos el registro de la DB
-                if (!guild) {
-                    await ActiveRole.deleteOne({ _id: doc._id });
-                    continue;
-                }
-
-                // Intentamos buscar al usuario
-                const member = await guild.members.fetch(doc.userId).catch(() => null);
-                
-                if (member) {
-                    // Quitamos el rol
-                    await member.roles.remove(doc.roleId).catch(err => 
-                        console.error(`⚠️ No pude quitar el rol a ${member.user.tag}:`, err.message)
-                    );
-                    console.log(`⏳ Rol temporal retirado a ${member.user.tag} en ${guild.name}`);
-                }
-
-                // Borramos el registro de la base de datos para no procesarlo de nuevo
-                await ActiveRole.deleteOne({ _id: doc._id });
-            }
-        } catch (error) {
-            console.error('❌ Error en el ciclo de limpieza de roles:', error);
+        // Solo logueamos si hay trabajo que hacer, para no llenar la consola
+        if (expiredRoles.length > 0) {
+          console.log(`🧹 Procesando ${expiredRoles.length} roles vencidos...`);
         }
-    }, 60 * 1000); // Se ejecuta cada 60 segundos (1 minuto)
-  }
+
+        for (const doc of expiredRoles) {
+          const guild = client.guilds.cache.get(doc.guildId);
+
+          if (!guild) {
+            await ActiveRole.deleteOne({ _id: doc._id });
+            continue;
+          }
+
+          const member = await guild.members
+            .fetch(doc.userId)
+            .catch(() => null);
+
+          if (member) {
+            await member.roles.remove(doc.roleId).catch(() => null);
+            // Opcional: Loguear en un canal de logs si quisieras
+          }
+
+          await ActiveRole.deleteOne({ _id: doc._id });
+        }
+      } catch (error) {
+        console.error("❌ Error crítico en limpieza de roles:", error);
+      }
+    }, 60 * 1000); // 60 segundos
+  },
 };
