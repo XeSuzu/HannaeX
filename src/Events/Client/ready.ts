@@ -2,7 +2,6 @@ import { ActivityType, Events, Client } from "discord.js";
 import { HoshikoClient } from "../../index";
 import ActiveRole from "../../Database/Schemas/ActiveRole";
 import { Logger } from "../../Utils/SystemLogger";
-import { processMissedCycles } from "../../Services/StreakService";
 import { HoshikoLogger, LogLevel } from "../../Security";
 
 const STATUS_LIST: { text: string; type: ActivityType }[] = [
@@ -82,45 +81,6 @@ export default {
     // ─────────────────────────────────────
     startActivityRotator(client);
     console.log("   ✨ Presencia dinámica activada");
-
-    // ─────────────────────────────────────
-    // 💀 Procesador de ciclos de rachas
-    // ─────────────────────────────────────
-    let isProcessingCycles = false;
-
-    const runCycleProcessor = async () => {
-      if (isProcessingCycles) return;
-      isProcessingCycles = true;
-
-      try {
-        const result = await processMissedCycles(client);
-
-        if (result.reset || result.frozen) {
-          console.log(
-            `   💀 Ciclos → reset: ${result.reset} | congeladas: ${result.frozen}`
-          );
-        }
-
-        if (result.errors.length > 0) {
-          console.log(
-            `   ⚠️  Ciclos con errores: ${result.errors.length}`
-          );
-        }
-      } catch (error) {
-        await HoshikoLogger.log({
-          level: LogLevel.FATAL,
-          context: "CycleProcessor",
-          message: "Error crítico en procesador de ciclos",
-          metadata: error,
-        });
-      } finally {
-        isProcessingCycles = false;
-      }
-    };
-
-    await runCycleProcessor();
-    setInterval(runCycleProcessor, 15 * 60 * 1000);
-    console.log("   ⏳ Procesador de ciclos activo (15m)");
 
     // ─────────────────────────────────────
     // ⏰ Limpieza de roles temporales

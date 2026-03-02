@@ -11,7 +11,8 @@ import path from "path";
 import express, { Request, Response } from "express";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
 import { loadAntiCrash } from "./Utils/antiCrash";
-import { connectWithRetry } from "./Services/mongo"; // ← MOVIDO AQUÍ
+import { connectWithRetry } from "./Services/mongo";
+import { startCronJobs } from "./scripts/cronJobs"; // ← MOVIDO AQUÍ
 
 const nodeEnv = process.env.NODE_ENV || "development";
 const envPath = path.resolve(process.cwd(), `.env.${nodeEnv}`);
@@ -135,6 +136,7 @@ const loadHandlers = () => {
     });
 
     await client.login(client.config.token);
+    startCronJobs(client);
 
   } catch (err) {
     console.error("💥 ERROR REAL:", err);

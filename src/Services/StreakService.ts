@@ -224,6 +224,15 @@ export async function processMissedCycles(
     // El ciclo 0 no tiene ciclo anterior que procesar
     if (currentCycle < 1) continue;
 
+    // Grupos sin ningún claim aún → nada que procesar
+    if (!g.lastClaimedAt && !g.windowAnchorAt) continue;
+
+    // Si windowAnchorAt existe pero nunca hubo claim, skip
+    if (g.windowAnchorAt && !g.lastClaimedAt) {
+      const firstCycleEnd = g.windowAnchorAt.getTime() + cycleMs;
+      if (now.getTime() < firstCycleEnd) continue; // primer ciclo aún activo
+    }
+
     const prevCycleIdx   = currentCycle - 1;
     const prevCycleStart = g.windowAnchorAt.getTime() + prevCycleIdx * cycleMs;
     const prevCycleEnd   = prevCycleStart + cycleMs;
