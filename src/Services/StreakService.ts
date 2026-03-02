@@ -365,6 +365,7 @@ async function _closeMissedCycle(
       group.currentStreak     = 0;
       group.tier              = "Mayoi";
       group.currentRunStartAt = now;
+      group.windowAnchorAt    = now; // ← AGREGAR ESTO
       outcome = "reset";
 
       // ❗ Lógica de Notificación por DM
