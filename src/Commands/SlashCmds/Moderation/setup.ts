@@ -266,13 +266,6 @@ const command: SlashCommand = {
 
             channelCollector.on("collect", async (m: Message) => {
               await m.delete().catch(() => {});
-
-              console.log("MSG CONTENT:", m.content);
-              console.log("MENTIONS:", [...m.mentions.channels.keys()]);
-
-              const matchLog = m.content.match(/<#(\d+)>/);
-              console.log("REGEX MATCH:", matchLog);
-
               // Intento 1: mención válida
               let mentioned = m.mentions.channels.first() as TextChannel | undefined;
 
@@ -283,6 +276,9 @@ const command: SlashCommand = {
                   mentioned = interaction.guild!.channels.cache.get(match[1]) as TextChannel | undefined;
                 }
               }
+
+              console.log("MENTIONED:", mentioned?.name, mentioned?.type);
+              console.log("IS PUBLIC:", mentioned ? isPublicChannel(mentioned, interaction.guild!) : "no channel");
 
               if (!mentioned || mentioned.type !== ChannelType.GuildText) {
                 await i.followUp({
