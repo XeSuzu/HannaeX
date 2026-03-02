@@ -349,7 +349,7 @@ async function _closeMissedCycle(
     group.totalCycles += 1;
 
     // ── Aplicar reglas ────────────────────────────────────────────────────
-    let outcome: "ok" | "frozen" | "reset" = "ok";
+    let outcome: "ok" | "frozen" | "reset" | "skipped" = "ok";
 
     if (missedCount === 0) {
       // Todos reclamaron (cubiertos por freeze o claim normal)
@@ -388,32 +388,36 @@ async function _closeMissedCycle(
 
     } else {
       // 2+ fallos: racha se rompe
-      group.breakHistory.push({
-        brokenAt:    now,
-        daysReached: group.currentStreak,
-        reason:      "member_failure",
-      });
-      const oldStreak = group.currentStreak;
-      group.neverBroken       = false;
-      group.hasRebuiltEver    = group.currentStreak > 0 || group.hasRebuiltEver;
-      group.timesRoken       += 1;
-      group.currentStreak     = 0;
-      group.tier              = "Mayoi";
-      group.currentRunStartAt = now;
-      // NO se resetea windowAnchorAt. Es el ancla permanente de todos los ciclos.
-      // Cambiarlo rompería la lógica de cálculo de ciclos para los miembros.
-      outcome = "reset";
+      // 🛡️ Solo actuar si la racha es > 0. No se puede "romper" una racha de 0 días.
+      if (group.currentStreak > 0) {
+        group.breakHistory.push({
+          brokenAt:    now,
+          daysReached: group.currentStreak,
+          reason:      "member_failure",
+        });
+        const oldStreak = group.currentStreak;
+        group.neverBroken       = false;
+        group.hasRebuiltEver    = true; // Si se rompe, cualquier recuperación futura será una reconstrucción.
+        group.timesRoken       += 1;
+        group.currentStreak     = 0;
+        group.tier              = "Mayoi";
+        group.currentRunStartAt = now;
+        outcome = "reset";
 
-      // ❗ Lógica de Notificación por DM
-      const notificationMessage = `💀 ¡Oh, no! La racha **${group.name}** se ha roto. Habíais alcanzado **${oldStreak} días**. ¡Es hora de empezar de nuevo!`;
-      for (const memberId of group.memberIds) {
-        try {
-          const user = await client.users.fetch(memberId);
-          await user.send(notificationMessage);
-        } catch (e) {
-          // No se pudo enviar el DM (probablemente los tiene cerrados).
-          // Se ignora el error para no detener el proceso.
+        // ❗ Lógica de Notificación por DM
+        const notificationMessage = `💀 ¡Oh, no! La racha **${group.name}** se ha roto. Habíais alcanzado **${oldStreak} días**. ¡Es hora de empezar de nuevo!`;
+        for (const memberId of group.memberIds) {
+          try {
+            const user = await client.users.fetch(memberId);
+            await user.send(notificationMessage);
+          } catch (e) {
+            // No se pudo enviar el DM (probablemente los tiene cerrados).
+            // Se ignora el error para no detener el proceso.
+          }
         }
+      } else {
+        // La racha ya estaba en 0. No hay nada que "romper". Simplemente se salta el ciclo.
+        outcome = "skipped";
       }
     }
 
