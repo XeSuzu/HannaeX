@@ -62,15 +62,21 @@ export async function sendFirstDeleteNotice(
     const channel = guild.channels.cache.get(channelId) as TextChannel | undefined;
     if (!channel) return;
 
+    const settings = await SettingsManager.getSettings(guild.id);
+    const prefix = settings?.prefix || "x";
+
     const embed = new EmbedBuilder()
       .setColor(0xffb347)
-      .setTitle("⚠️ Aviso de Snipe")
+      .setTitle("🌸 ¡Ups! Se te cayó un mensaje")
       .setDescription(
-        "Este servidor tiene activado el comando `/snipe`, lo que significa que tu mensaje borrado **puede ser visto por otros miembros durante 1 hora**.\n\n" +
-        "Pasada 1 hora se elimina automáticamente.\n\n" +
-        "*Si no quieres que esto ocurra, contacta a un administrador del servidor.*",
+        `¡Oye! Acabas de borrar un mensaje, pero que sepas que en **${guild.name}** tengo buena memoria, nya~\n\n` +
+          "Tu mensaje se ha guardado temporalmente y **puede ser visto por otros durante 1 hora** usando:\n" +
+          `> • \`/snipe\` (Comando Slash)\n` +
+          `> • \`${prefix}snipe\` (Comando de texto)\n` +
+          `> • \`hoshi snipe\`\n\n` +
+          "Después de una hora, lo olvidaré por completo, ¡lo prometo! ✨",
       )
-      .setFooter({ text: "Hoshiko • Solo recibirás este aviso una vez por servidor" })
+      .setFooter({ text: "Solo recibirás este aviso una vez por servidor. | Hoshiko" })
       .setTimestamp();
 
     await channel.send({ content: `<@${userId}>`, embeds: [embed] });
