@@ -9,6 +9,7 @@ import {
   meetsHofRequirements,
 } from "../Utils/streakTier";
 import { HoshikoClient } from "..";
+import { EmbedBuilder } from "discord.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER: TRANSACCIÓN CON RETRY
@@ -405,11 +406,31 @@ async function _closeMissedCycle(
         outcome = "reset";
 
         // ❗ Lógica de Notificación por DM
-        const notificationMessage = `💀 ¡Oh, no! La racha **${group.name}** se ha roto. Habíais alcanzado **${oldStreak} días**. ¡Es hora de empezar de nuevo!`;
+        // Puedes reemplazar los emojis como '📅' con tus propios emojis personalizados.
+        // Para obtener el ID de un emoji, escribe \:tu_emoji: en Discord y copia el resultado.
+        const breakEmbed = new EmbedBuilder()
+          .setColor("#DD2E44") // Rojo oscuro para fallo
+          .setTitle("💀 Racha Rota")
+          .setDescription(`La racha del grupo **${group.name}** se ha reiniciado.`)
+          .setFields(
+            {
+              name: "📅 Días Alcanzados",
+              value: `**${oldStreak}**`,
+              inline: true,
+            },
+            {
+              name: "🏆 Récord Histórico",
+              value: `**${group.bestStreak}** días`,
+              inline: true,
+            },
+            { name: "💔 Roturas Totales", value: `**${group.timesRoken}**`, inline: true }
+          )
+          .setFooter({ text: "No te rindas, cada dia es una mejora ^_^ ." });
+
         for (const memberId of group.memberIds) {
           try {
             const user = await client.users.fetch(memberId);
-            await user.send(notificationMessage);
+            await user.send({ embeds: [breakEmbed] });
           } catch (e) {
             // No se pudo enviar el DM (probablemente los tiene cerrados).
             // Se ignora el error para no detener el proceso.
