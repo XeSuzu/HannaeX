@@ -69,7 +69,7 @@ export async function sendFirstDeleteNotice(
       .setColor(0xffb347)
       .setTitle("🌸 ¡Ups! Se te cayó un mensaje")
       .setDescription(
-        `¡Oye! Acabas de borrar un mensaje, pero que sepas que en **${guild.name}** tengo buena memoria, nya~\n\n` +
+        `¡Oye! Acabas de borrar un mensaje en **${guild.name}**, pero que sepas que tengo buena memoria, nya~\n\n` +
           "Tu mensaje se ha guardado temporalmente y **puede ser visto por otros durante 1 hora** usando:\n" +
           `> • \`/snipe\` (Comando Slash)\n` +
           `> • \`${prefix}snipe\` (Comando de texto)\n` +
@@ -79,7 +79,9 @@ export async function sendFirstDeleteNotice(
       .setFooter({ text: "Solo recibirás este aviso una vez por servidor. | Hoshiko" })
       .setTimestamp();
 
-    await channel.send({ content: `<@${userId}>`, embeds: [embed] });
+    // Enviar mensaje efímero (se borra automáticamente después de 15 segundos)
+    const msg = await channel.send({ content: `<@${userId}>`, embeds: [embed] });
+    if (msg) setTimeout(() => msg.delete().catch(() => {}), 15000);
   } catch {
     // Sin permisos — ignorar
   }
