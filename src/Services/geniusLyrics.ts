@@ -1,5 +1,4 @@
 import { Client as GeniusClient } from "genius-lyrics";
-import "dotenv/config";
 
 const geniusClient = process.env.GENIUS_API_KEY
   ? new GeniusClient(process.env.GENIUS_API_KEY)

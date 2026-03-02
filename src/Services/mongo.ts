@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import "dotenv/config"; // Aseguramos que cargue las variables de entorno
 
 const MONGO_URI = process.env.MONGO_URI;
 let connected = false;

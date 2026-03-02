@@ -1,5 +1,4 @@
 import { EmbedBuilder, WebhookClient } from "discord.js";
-import "dotenv/config";
 
 // Si quieres recibir alertas en un canal privado, pon la URL del Webhook en tu .env
 // Ejemplo en .env: ERROR_WEBHOOK_URL="https://discord.com/api/webhooks/..."

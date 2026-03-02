@@ -1,5 +1,4 @@
 import axios from "axios";
-import "dotenv/config";
 
 if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.SEARCH_ENGINE_ID) {
   console.error(

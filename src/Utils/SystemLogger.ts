@@ -1,5 +1,4 @@
 import { WebhookClient, EmbedBuilder, User } from "discord.js";
-import "dotenv/config";
 
 class HoshikoSystemLogger {
   // 🌟 1. Guardamos las instancias de los 4 webhooks

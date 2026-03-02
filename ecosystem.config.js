@@ -14,6 +14,7 @@ module.exports = {
       // npm run start:staging
       // -----------------
       name: 'Hoshiko-Staging',
+      script: './dist/index.js',
       cwd: '/root/HannaeX',
       watch: false,
       autorestart: true,
@@ -30,9 +31,10 @@ module.exports = {
       // npm run start:prod
       // -----------------
       name: 'Hoshiko-Production',
+      script: './dist/index.js',
       cwd: '/root/HannaeX',
-      exec_mode: 'fork',   // ← cambiar
-      instances: 1,        // ← cambiar
+      exec_mode: 'cluster',
+      instances: 'max',
       watch: false,
       autorestart: true,
       env: {

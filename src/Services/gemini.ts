@@ -7,7 +7,6 @@ import {
   Content,
   Tool,
 } from "@google/generative-ai";
-import "dotenv/config";
 
 // Verificación de API Key
 if (!process.env.GEMINI_API_KEY) {

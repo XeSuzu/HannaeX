@@ -2,7 +2,6 @@ import { Events, Guild, REST, Routes, EmbedBuilder } from "discord.js";
 import path from "path";
 import fs from "fs";
 import { HoshikoClient } from "../../../index";
-import "dotenv/config";
 
 export = {
   name: Events.GuildCreate,
