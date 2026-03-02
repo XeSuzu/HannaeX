@@ -15,3 +15,7 @@ config.json
 .env*
 logs/
 src/Tests/
+
+# Archivos locales
+reports.json
+tools/
