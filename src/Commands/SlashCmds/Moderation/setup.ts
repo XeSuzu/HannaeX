@@ -267,6 +267,12 @@ const command: SlashCommand = {
             channelCollector.on("collect", async (m: Message) => {
               await m.delete().catch(() => {});
 
+              console.log("MSG CONTENT:", m.content);
+              console.log("MENTIONS:", [...m.mentions.channels.keys()]);
+
+              const matchLog = m.content.match(/<#(\d+)>/);
+              console.log("REGEX MATCH:", matchLog);
+
               // Intento 1: mención válida
               let mentioned = m.mentions.channels.first() as TextChannel | undefined;
 
