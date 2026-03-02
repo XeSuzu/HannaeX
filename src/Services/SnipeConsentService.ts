@@ -7,23 +7,22 @@ import {
 } from "discord.js";
 import { SettingsManager } from "../Database/SettingsManager";
 
-export const buildSnipeNoticeEmbed = (guildName: string) =>
+export const buildSnipeNoticeEmbed = (guildName: string) => (
   new EmbedBuilder()
-    .setColor(0xff8fab)
-    .setTitle("🕵️ Aviso de Privacidad — Sistema Snipe")
+    .setColor(0xffb6c1)
+    .setTitle("🌸 A veces borrar no basta")
     .setDescription(
-      `**${guildName}** tiene activado el comando \`/snipe\`.\n\n` +
-      "**¿Qué significa esto?**\n" +
-      "› Cuando borras un mensaje, Hoshiko lo guarda temporalmente.\n" +
-      "› Cualquier miembro puede verlo con `/snipe` durante **1 hora**.\n" +
-      "› Pasada 1 hora se elimina automáticamente y de forma permanente.\n" +
-      "› No se comparte fuera de este servidor.\n\n" +
-      "**¿No quieres que tus mensajes sean visibles?**\n" +
-      "› Evita borrar mensajes o contacta a un administrador.\n\n" +
-      "*Al permanecer en este servidor aceptas este funcionamiento.*",
+      `En **${guildName}** puedo guardar mensajes eliminados durante **1 hora**.\n\n` +
+        "Si alguien borra algo… lo recuerdo por un ratito.\n" +
+        "Cualquiera puede usar `/snipe` antes de que desaparezca.\n\n" +
+        "• 📌 Solo dentro de este servidor.\n" +
+        "• ⏳ Se elimina automáticamente tras 1 hora.\n" +
+        "• 🙈 Si no quieres que lo lean… mejor no lo borres, ¿sí? nya~\n\n" +
+        "*Al quedarte aquí, aceptas este funcionamiento.* ✨",
     )
-    .setFooter({ text: "Hoshiko • Aviso de Privacidad • Cumple con los ToS de Discord" })
-    .setTimestamp();
+    .setFooter({ text: "Hoshiko • Privacidad • ToS ✓ ♡" })
+    .setTimestamp()
+);
 
 export function isPublicChannel(channel: TextChannel, guild: Guild): boolean {
   const everyoneRole = guild.roles.everyone;
