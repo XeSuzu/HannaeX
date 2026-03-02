@@ -1,8 +1,0 @@
-{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-03T07:50:48.744Z"}
-{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 34.83 MB | CPU: 2.80%]","timestamp":"2026-01-03T07:50:49.772Z"}
-{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-03T19:15:44.686Z"}
-{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 36.82 MB | CPU: 5.23%]","timestamp":"2026-01-03T19:15:45.826Z"}
-{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-03T23:15:08.161Z"}
-{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 36.65 MB | CPU: 2.21%]","timestamp":"2026-01-03T23:15:09.269Z"}
-{"level":"INFO","context":"System/Web","message":"Servidor de salud activo en puerto 8080","timestamp":"2026-01-03T23:17:39.603Z"}
-{"level":"SUCCESS","context":"System/Ready","message":"✨ Hoshiko V2#7827 en línea. Vigilando 2 servidores. [RAM: 35.03 MB | CPU: 2.49%]","timestamp":"2026-01-03T23:17:40.581Z"}
