@@ -12,7 +12,6 @@ import path from "path";
 import express, { Request, Response } from "express";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
 import { loadAntiCrash } from "./Utils/antiCrash";
-import { connectWithRetry } from "./Services/mongo";
 
 // Carga el archivo .env correspondiente al entorno actual.
 // Si NODE_ENV no está definido (ej: al correr `npm run dev`), usa 'development' por defecto.
@@ -183,4 +182,5 @@ async function shutdown(signal: string) {
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
+import { connectWithRetry } from "./Services/mongo";
 export default client;
