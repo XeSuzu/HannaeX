@@ -280,9 +280,9 @@ const command: SlashCommand = {
               console.log("MENTIONED:", mentioned?.name, mentioned?.type);
               console.log("IS PUBLIC:", mentioned ? isPublicChannel(mentioned, interaction.guild!) : "no channel");
 
-              if (!mentioned || mentioned.type !== ChannelType.GuildText) {
+              if (!mentioned || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(mentioned.type)) {
                 await i.followUp({
-                  content: "❌ Canal inválido. Asegúrate de **seleccionar el canal de la lista** al escribir `#`.",
+                  content: "❌ Canal inválido. Operación cancelada.",
                   flags: MessageFlags.Ephemeral,
                 });
                 return;
