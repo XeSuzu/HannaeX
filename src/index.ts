@@ -16,8 +16,11 @@ import { connectWithRetry } from "./Services/mongo";
 
 // Carga el archivo .env correspondiente al entorno actual.
 // Si NODE_ENV no está definido (ej: al correr `npm run dev`), usa 'development' por defecto.
+// Carga el archivo .env correspondiente al entorno actual.
 const nodeEnv = process.env.NODE_ENV || "development";
-dotenv.config({ path: path.join(__dirname, `../.env.${nodeEnv}`), override: true });
+const envPath = path.resolve(process.cwd(), `.env.${nodeEnv}`);
+dotenv.config({ path: envPath, override: true });
+console.log(`✅ .env.${nodeEnv} cargado desde: ${envPath}`); // Debug para PM2
 
 import { SlashCommand, PrefixCommand } from "./Interfaces/Command";
 
