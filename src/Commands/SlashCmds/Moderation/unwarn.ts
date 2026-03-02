@@ -5,81 +5,82 @@ import {
   EmbedBuilder,
   GuildMember,
 } from "discord.js";
-import {
-  InfractionManager,
-  userPoints,
-} from "../../../Features/InfractionManager";
+import { SlashCommand } from "../../../Interfaces/Command";
+import { HoshikoClient } from "../../../index";
+import { deleteWarning, IWarning } from "../../../Models/Warning";
 
-export default {
+const command: SlashCommand = {
   category: "Moderation",
+  cooldown: 5,
   data: new SlashCommandBuilder()
     .setName("unwarn")
-    .setDescription(
-      "Limpia el historial o resta puntos de infracción a un usuario.",
-    )
+    .setDescription("Elimina una advertencia específica por su ID.")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addUserOption((option) =>
-      option
+    .addUserOption((opt) =>
+      opt
         .setName("usuario")
-        .setDescription("El usuario al que quieres perdonar.")
-        .setRequired(true),
-    ),
+        .setDescription("Usuario al que pertenece el warn.")
+        .setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("id")
+        .setDescription("Últimos 6 caracteres del ID del warn (visible en /warnings).")
+        .setRequired(true)
+    ) as SlashCommandBuilder,
 
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient): Promise<void> {
     if (!interaction.guild) return;
 
-    const target = interaction.options.getMember("usuario") as GuildMember;
-
-    if (!target) {
-      await interaction.reply({
-        content: "❌ No pude encontrar a ese usuario.",
-        ephemeral: true,
-      });
-      return;
-    }
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     try {
-      // 1. Lógica de limpieza 🌸
-      const key = `${interaction.guild.id}-${target.id}`;
+      const target = interaction.options.getMember("usuario") as GuildMember;
+      const warnId = interaction.options.getString("id", true).trim();
 
-      // Si quieres restar puntos específicos en lugar de borrar todo:
-      const currentPoints = userPoints.get(key) || 0;
-      const newPoints = Math.max(0, currentPoints - 10); // Restamos 10 pero no bajamos de 0
-
-      if (newPoints === 0) {
-        userPoints.delete(key);
-      } else {
-        userPoints.set(key, newPoints);
+      if (!target) {
+        await interaction.editReply("❌ No pude encontrar a ese usuario.");
+        return;
       }
 
-      // 2. Notificar al sistema de logs
-      await InfractionManager.addPoints(
-        target,
-        "Perdón parcial: Puntos removidos por Staff",
-        interaction as any,
+      // El ID que el usuario ve en /warnings son los últimos 6 chars del ObjectId
+      // Necesitamos buscar el warn completo para obtener el _id real
+      const { getWarnings } = await import("../../../Models/Warning.js");
+      const warnings = await getWarnings(interaction.guild.id, target.id);
+      const match = warnings.find((w: IWarning) =>
+        (w as any)._id.toString().endsWith(warnId)
       );
 
+      if (!match) {
+        await interaction.editReply(`❌ No encontré un warn con ID \`${warnId}\` para ese usuario.`);
+        return;
+      }
+
+      const deleted = await deleteWarning(interaction.guild.id, (match as any)._id.toString());
+
+      if (!deleted) {
+        await interaction.editReply("❌ No se pudo eliminar el warn. Intenta de nuevo.");
+        return;
+      }
+
       const embed = new EmbedBuilder()
-        .setTitle("✨ Hoshiko Perdona")
-        .setDescription(
-          `Se han reducido las infracciones de **${target.user.tag}**.`,
+        .setTitle("✨ Advertencia Eliminada")
+        .setDescription(`Se eliminó el warn \`${warnId}\` de **${target.user.tag}**.`)
+        .addFields(
+          { name: "📝 Motivo original", value: match.reason, inline: false },
+          { name: "👤 Usuario", value: `<@${target.id}>`, inline: true },
+          { name: "👮 Moderador", value: `<@${interaction.user.id}>`, inline: true },
         )
-        .addFields({
-          name: "📊 Estado actual",
-          value: `\`${newPoints} puntos\``,
-        })
         .setColor(0x00ff7f)
         .setThumbnail(target.displayAvatarURL())
-        .setTimestamp()
-        .setFooter({ text: "Hoshiko Sentinel 📡" });
+        .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error("💥 Error en comando unwarn:", error);
-      await interaction.reply({
-        content: "🌸 Hubo un error al intentar quitar los puntos.",
-        ephemeral: true,
-      });
+      console.error("❌ Error en /unwarn:", error);
+      await interaction.editReply("😿 Hubo un error al eliminar la advertencia.");
     }
   },
 };
+
+export default command;

@@ -4,63 +4,74 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   GuildMember,
+  TextChannel,
 } from "discord.js";
-import { userPoints } from "../../../Features/InfractionManager";
+import { AutomodManager } from "../../../Features/AutomodManager";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
-  // ✨ Definimos los datos para que Discord lo reconozca como Slash Command
+const command: SlashCommand = {
+  category: "Moderation",
+  cooldown: 5,
   data: new SlashCommandBuilder()
     .setName("unmute")
-    .setDescription("Limpia las infracciones y quita el silencio a un usuario.")
+    .setDescription("Quita el silencio a un usuario.")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addUserOption((option) =>
-      option
-        .setName("usuario")
-        .setDescription("El usuario que recibirá el perdón de Hoshiko.")
-        .setRequired(true),
-    ),
+    .addUserOption((opt) =>
+      opt.setName("usuario").setDescription("El usuario al que quitar el silencio.").setRequired(true)
+    ) as SlashCommandBuilder,
 
-  async execute(interaction: ChatInputCommandInteraction) {
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
 
-    // Obtenemos al usuario de las opciones del comando
-    const target = interaction.options.getMember("usuario") as GuildMember;
+    // ✅ Defer al inicio para evitar 10062
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
-    if (!target) {
-      return interaction.reply({
-        content: "🌸 Nyaa... no pude encontrar a ese usuario en este servidor.",
-        ephemeral: true,
-      });
+    const target = interaction.options.getMember("usuario");
+
+    if (!target || !(target instanceof GuildMember)) {
+      await interaction.editReply({ content: "🌸 No pude encontrar a ese usuario." });
+      return;
     }
 
-    const key = `${interaction.guild.id}-${target.id}`;
-
     try {
-      // 1. Limpiamos sus puntos en la memoria de Hoshiko 📝
-      userPoints.delete(key);
-
-      // 2. Quitamos el timeout de Discord si lo tiene ⏳
       if (target.communicationDisabledUntilTimestamp) {
         await target.timeout(null, `Perdonado por ${interaction.user.tag}`);
+      } else {
+        await interaction.editReply({ content: "ℹ️ Ese usuario no tiene un silencio activo." });
+        return;
       }
 
+      await AutomodManager.recordManualAction(
+        interaction.guild,
+        target,
+        interaction.user,
+        "unmute",
+        `Perdonado manualmente por ${interaction.user.tag}`,
+      );
+
       const embed = new EmbedBuilder()
-        .setTitle("✨ Hoshiko Perdona")
-        .setDescription(
-          `Se han limpiado las infracciones de **${target.user.tag}**. ¡Espero que haya aprendido su lección! 🌸`,
+        .setTitle("✨ Silencio Quitado")
+        .setDescription(`Se ha quitado el silencio a **${target.user.tag}**.`)
+        .addFields(
+          { name: "👤 Usuario", value: `<@${target.id}>`, inline: true },
+          { name: "👮 Moderador", value: `<@${interaction.user.id}>`, inline: true },
         )
         .setThumbnail(target.displayAvatarURL())
         .setColor(0x00ff7f)
         .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ content: "✅ Silencio quitado con éxito." });
+
+      if (interaction.channel && interaction.channel.isTextBased() && "send" in interaction.channel) {
+        await (interaction.channel as TextChannel).send({ embeds: [embed] });
+      }
     } catch (err) {
       console.error("❌ Error en comando unmute:", err);
-      await interaction.reply({
-        content:
-          "🌸 Hubo un problemita al intentar perdonar al usuario. Revisa mis permisos.",
-        ephemeral: true,
-      });
+      await interaction.editReply({
+        content: "🌸 Hubo un error al quitar el silencio. Revisa mis permisos.",
+      }).catch(() => {});
     }
   },
 };
+
+export default command;

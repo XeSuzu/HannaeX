@@ -7,6 +7,7 @@ import {
 import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import { HoshikoClient } from "../../../index";
 import path from "path";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 const fontPath = "./assets/fonts/";
 try {
@@ -18,7 +19,8 @@ try {
 
 const mainFont = 'Arial, "NotoColorEmoji", sans-serif';
 
-export default {
+const command: SlashCommand = {
+  category: "Canvas",
   data: new SlashCommandBuilder()
     .setName("twitter")
     .setDescription("🐦 Crea un tweet (X) con diseño limpio y sin errores.")
@@ -42,7 +44,7 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const text = interaction.options.getString("texto", true);
     const attachment = interaction.options.getAttachment("imagen");
@@ -241,6 +243,8 @@ export default {
     await interaction.editReply({ content: "✅ Tweet publicado." });
   },
 };
+
+export default command;
 
 function wrapTextLines(ctx: any, text: string, maxWidth: number) {
   const words = text.split(" ");

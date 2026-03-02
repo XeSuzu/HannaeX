@@ -2,18 +2,24 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   version as djsVersion,
+  ChatInputCommandInteraction,
 } from "discord.js";
 import mongoose from "mongoose";
-import { PerformanceMonitor } from "../../../Security"; // Asegúrate que la ruta sea correcta
+import { PerformanceMonitor } from "../../../Security";
+import { SlashCommand } from "../../../Interfaces/Command";
+import { HoshikoClient } from "../../../index";
 
-export default {
+const command: SlashCommand = {
+  category: "Performance",
   data: new SlashCommandBuilder()
     .setName("stats")
     .setDescription("📊 Estadísticas vitales y salud del sistema."),
 
-  async execute(interaction: any, client: any) {
+  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+    
     // 1. Calculamos el ping real del bot (Ida y vuelta)
-    const sent = await interaction.deferReply({ fetchReply: true });
+    // ✅ NUEVO: Como el Guardián ya hizo el defer, solo "jalamos" el mensaje
+    const sent = await interaction.fetchReply(); 
     const botPing = sent.createdTimestamp - interaction.createdTimestamp;
     const apiPing = client.ws.ping;
 
@@ -31,9 +37,9 @@ export default {
           : "🔴 Offline";
 
     const statsEmbed = new EmbedBuilder()
-      .setTitle(`📊 Estado del Sistema: ${client.user.username}`)
+      .setTitle(`📊 Estado del Sistema: ${client.user?.username}`)
       .setColor(0x2f3136) // Un gris oscuro elegante
-      .setThumbnail(client.user.displayAvatarURL())
+      .setThumbnail(client.user?.displayAvatarURL() || null)
       .addFields(
         // Fila 1: Signos Vitales
         {
@@ -68,6 +74,8 @@ export default {
       .setFooter({ text: `Hoshiko Security | PID: ${process.pid}` })
       .setTimestamp();
 
+    // ✅ RESPONDEMOS CON EDITREPLY
     await interaction.editReply({ embeds: [statsEmbed] });
   },
 };
+export default command;

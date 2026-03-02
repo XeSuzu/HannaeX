@@ -8,7 +8,7 @@ module.exports = {
     .setDescription("Muestra el meme más votado del servidor."),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     try {
       // Buscar el meme más votado solo por el ID del servidor

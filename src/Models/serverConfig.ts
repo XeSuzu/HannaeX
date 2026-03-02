@@ -1,15 +1,5 @@
 import { Schema, model, Document } from "mongoose";
 
-// --- INTERFACES DE SOPORTE ---
-
-interface ICulture {
-  vocabulary: Map<string, number>;
-  slangs: Array<{ word: string; meaning: string; addedBy: string }>;
-  internalJokes: Array<{ trigger: string; response: string; context: string }>;
-  emojis: Map<string, number>;
-  visualLibrary: Array<{ url: string; context: string; type: string }>;
-}
-
 interface ILevelRole {
   level: number;
   roleId: string;
@@ -18,12 +8,6 @@ interface ILevelRole {
 interface ISocialMap {
   targets: Array<{ userId: string; tag: string; reason: string }>;
   trustLevels: Map<string, number>;
-}
-
-interface IAutoModRule {
-  threshold: number;
-  action: "WARN" | "MUTE" | "KICK" | "BAN";
-  duration: number;
 }
 
 interface ISecurityModules {
@@ -42,19 +26,34 @@ interface IFeedConfig {
   counter: number;
 }
 
-// --- INTERFAZ PRINCIPAL ---
+interface ICulture {
+  vocabulary: Map<string, number>;
+  slangs: Array<{ word: string; meaning: string; addedBy: string }>;
+  internalJokes: Array<{ trigger: string; response: string; context: string }>;
+  emojis: Map<string, number>;
+  visualLibrary: Array<{ url: string; context: string; type: string }>;
+}
+
+export interface ILogChannels {
+  modlog: string | null;       // Ban, kick, mute, warn (manual + automod)
+  serverlog: string | null;    // Entradas/salidas, cambios de roles y canales
+  confesslog: string | null;   // Confesiones reportadas (sensible)
+  joinlog: string | null;      // Entradas de miembros + detección de alts
+  messagelog: string | null;   // Mensajes editados/eliminados [PREMIUM]
+  voicelog: string | null;     // Actividad de canales de voz [PREMIUM]
+  boostlog: string | null;     // Boosts del servidor [PREMIUM]
+  levellog: string | null;     // Subidas de nivel [PREMIUM]
+}
 
 export interface IServerConfig extends Document {
   guildId: string;
   prefix: string;
 
-  // 👇 SISTEMA DE ROLES AUTOMÁTICOS
   autoJoin: {
     enabled: boolean;
     roles: string[];
   };
 
-  // 👇 SISTEMA DE CONFESIONES & FEEDS
   confessions: {
     enabled: boolean;
     channelId: string | null;
@@ -67,7 +66,6 @@ export interface IServerConfig extends Document {
     feeds: IFeedConfig[];
   };
 
-  // 👇 SISTEMA DE NIVELES
   leveling: {
     enabled: boolean;
     xpRate: number;
@@ -78,21 +76,17 @@ export interface IServerConfig extends Document {
     announceMessage: string;
   };
 
-  // 👇 CANALES Y CONFIGURACIÓN GENERAL
   memeChannelId: string;
+
+  // @deprecated — usar logChannels.modlog en su lugar
   modLogChannel?: string;
 
-  // 🛡️ SEGURIDAD
   honeypotChannel?: string;
   allowedLinks?: string[];
-  pointsPerStrike: number;
 
-  // 👇 SOPORTE PARA MODCONFIG (STRIKES)
-  strikeMuteThreshold?: number | null;
-  strikeBanThreshold?: number | null;
-  strikeMuteDurationMs?: number | null;
+  // ✅ Sistema de logs centralizado
+  logChannels: ILogChannels;
 
-  // 👇 IA
   aiMode: "calmado" | "libre";
   aiSafety: "relaxed" | "standard" | "strict" | "high";
   premiumUntil: Date | null;
@@ -115,8 +109,6 @@ export interface IServerConfig extends Document {
   };
 
   securityModules: ISecurityModules;
-  autoModRules: IAutoModRule[];
-  infractionsMap: Map<string, number>;
 
   culture: ICulture;
   socialMap: ISocialMap;
@@ -127,12 +119,8 @@ export interface IServerConfig extends Document {
   }>;
 }
 
-// --- SCHEMA MONGOOSE ---
-
 const serverConfigSchema = new Schema<IServerConfig>({
   guildId: { type: String, required: true, unique: true },
-
-  // 👇 CAMBIO IMPORTANTE: AHORA ES 'x' POR DEFECTO
   prefix: { type: String, default: "x" },
 
   autoJoin: {
@@ -174,16 +162,24 @@ const serverConfigSchema = new Schema<IServerConfig>({
   },
 
   memeChannelId: { type: String, default: "" },
+
+  // @deprecated — se mantiene para migración automática
   modLogChannel: { type: String, default: null },
 
-  // SEGURIDAD
   honeypotChannel: { type: String, default: null },
   allowedLinks: { type: [String], default: [] },
-  pointsPerStrike: { type: Number, default: 10 },
 
-  strikeMuteThreshold: { type: Number, default: null },
-  strikeBanThreshold: { type: Number, default: null },
-  strikeMuteDurationMs: { type: Number, default: null },
+  // ✅ Sistema de logs centralizado
+  logChannels: {
+    modlog:     { type: String, default: null },
+    serverlog:  { type: String, default: null },
+    confesslog: { type: String, default: null },
+    joinlog:    { type: String, default: null },
+    messagelog: { type: String, default: null },
+    voicelog:   { type: String, default: null },
+    boostlog:   { type: String, default: null },
+    levellog:   { type: String, default: null },
+  },
 
   aiMode: { type: String, enum: ["calmado", "libre"], default: "calmado" },
   aiSafety: {
@@ -197,14 +193,8 @@ const serverConfigSchema = new Schema<IServerConfig>({
     mode: {
       type: String,
       enum: [
-        "neko",
-        "maid",
-        "gymbro",
-        "yandere",
-        "assistant",
-        "custom",
-        "tsundere",
-        "borracha",
+        "neko", "maid", "gymbro", "yandere",
+        "assistant", "custom", "tsundere", "borracha",
       ],
       default: "neko",
     },
@@ -226,23 +216,6 @@ const serverConfigSchema = new Schema<IServerConfig>({
     antiNuke: { type: Boolean, default: false },
     antiAlt: { type: Boolean, default: false },
   },
-
-  autoModRules: {
-    type: [
-      {
-        threshold: { type: Number, required: true },
-        action: {
-          type: String,
-          enum: ["WARN", "MUTE", "KICK", "BAN"],
-          required: true,
-        },
-        duration: { type: Number, default: 0 },
-      },
-    ],
-    default: [],
-  },
-
-  infractionsMap: { type: Map, of: Number, default: new Map() },
 
   culture: {
     vocabulary: { type: Map, of: Number, default: new Map() },
@@ -270,6 +243,25 @@ const serverConfigSchema = new Schema<IServerConfig>({
       participants: [String],
     },
   ],
+});
+
+// ✅ MIGRACIÓN AUTOMÁTICA: Si el servidor tenía modLogChannel configurado
+// y todavía no tiene logChannels.modlog, lo copiamos automáticamente
+serverConfigSchema.post("find", function (docs: IServerConfig[]) {
+  for (const doc of docs) {
+    if (doc.modLogChannel && !doc.logChannels?.modlog) {
+      doc.logChannels = doc.logChannels || {} as ILogChannels;
+      doc.logChannels.modlog = doc.modLogChannel;
+    }
+  }
+});
+
+serverConfigSchema.post("findOne", function (doc: IServerConfig | null) {
+  if (!doc) return;
+  if (doc.modLogChannel && !doc.logChannels?.modlog) {
+    doc.logChannels = doc.logChannels || {} as ILogChannels;
+    doc.logChannels.modlog = doc.modLogChannel;
+  }
 });
 
 export default model<IServerConfig>("ServerConfig", serverConfigSchema);

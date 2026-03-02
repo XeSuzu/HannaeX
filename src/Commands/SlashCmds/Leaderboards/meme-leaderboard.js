@@ -8,7 +8,7 @@ module.exports = {
     .setDescription("Muestra el top 10 de usuarios por reputación de memes."),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     try {
       const config = await ServerConfig.findOne({

@@ -8,6 +8,7 @@ import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import { HoshikoClient } from "../../../index";
 import path from "path";
 import fs from "fs";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 // Cargar fuente de emojis
 try {
@@ -163,7 +164,7 @@ const SHIP_TIERS: ShipTier[] = [
 // ══════════════════════════════════════════════════════════
 // 🎯 COMANDO PRINCIPAL
 // ══════════════════════════════════════════════════════════
-export default {
+const command: SlashCommand = {
   category: "Social",
   data: new SlashCommandBuilder()
     .setName("ship")
@@ -185,7 +186,7 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     const user1 = interaction.options.getUser("usuario1", true);
     const user2 = interaction.options.getUser("usuario2") || interaction.user;
@@ -340,6 +341,8 @@ export default {
     }
   },
 };
+
+export default command;
 
 // ══════════════════════════════════════════════════════════
 // 🎨 FUNCIONES DE RENDERIZADO MEJORADAS

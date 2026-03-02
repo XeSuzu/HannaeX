@@ -3,23 +3,17 @@ import {
   EmbedBuilder,
   PermissionsBitField,
   ChatInputCommandInteraction,
-  Message,
-  InteractionResponse,
 } from "discord.js";
 import AFK from "../../../Models/afk";
 import { HoshikoClient } from "../../../index";
-
-interface SlashCommand {
-  data: SlashCommandBuilder | any;
-  category: string;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void | Message | InteractionResponse>;
-}
+import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Information",
+  // ✅ cooldown movido a options
+  options: {
+    cooldown: 5,
+  },
   data: new SlashCommandBuilder()
     .setName("afk")
     .setDescription("😽 Marca que estás AFK y avisa a quienes te mencionen.")
@@ -29,13 +23,18 @@ const command: SlashCommand = {
         .setDescription("Opcional: ¿Por qué te ausentas? 🐾"),
     ),
 
-  async execute(interaction, client) {
-    await interaction.deferReply();
+  // ✅ Retorna Promise<void>, no Message
+  async execute(
+    interaction: ChatInputCommandInteraction, 
+    client: HoshikoClient
+  ): Promise<void> {
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     if (!interaction.guild || !interaction.member) {
-      return interaction.editReply({
+      await interaction.editReply({
         content: "Este comando solo se puede usar en un servidor.",
       });
+      return; // ✅ void, no return value
     }
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
@@ -82,9 +81,10 @@ const command: SlashCommand = {
       );
     } catch (dbError) {
       console.error("[AFK] Error DB:", dbError);
-      return interaction.editReply({
+      await interaction.editReply({
         content: "❌ Error al guardar tu estado AFK.",
       });
+      return;
     }
 
     const unixTimestamp = Math.floor(Date.now() / 1000);
@@ -108,6 +108,7 @@ const command: SlashCommand = {
       });
     }
 
+    // ✅ Solo editReply, void, no return
     await interaction.editReply({ embeds: [embed] });
   },
 };

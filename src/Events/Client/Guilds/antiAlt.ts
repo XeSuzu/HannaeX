@@ -60,9 +60,8 @@ export default {
         // Log para el Staff
         await HoshikoLogger.sendLog(
           member.guild,
-          "⚠️ Cuenta Joven Detectada",
+          "ANTI_ALT",
           `El usuario **${member.user.tag}** tiene una cuenta de solo ${ageInHours} horas. Se le ha pedido verificación por botón.`,
-          0xffff00,
           member.user,
         );
       } catch (err) {
@@ -71,3 +70,4 @@ export default {
     }
   },
 };
+

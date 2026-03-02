@@ -12,15 +12,7 @@ import {
   ComponentType,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
-
-interface SlashCommand {
-  data: SlashCommandBuilder | any;
-  category: string;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void | Message | InteractionResponse>;
-}
+import { SlashCommand } from "../../../Interfaces/Command";
 
 // Configuración de estados
 const STATUS_CONFIG = {
@@ -229,7 +221,7 @@ const command: SlashCommand = {
     }
 
     try {
-      await interaction.deferReply(); // Público
+      // ❌ ELIMINADO: await interaction.deferReply(); // Público
 
       const targetUser =
         interaction.options.getUser("usuario") ?? interaction.user;
@@ -510,5 +502,4 @@ const command: SlashCommand = {
     }
   },
 };
-
-export = command;
+export default command;

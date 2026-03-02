@@ -5,15 +5,17 @@ import {
   PermissionFlagsBits,
 } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
   data: new SlashCommandBuilder()
     .setName("confessions-status")
     .setDescription("📊 Ver estado de canales activos y suscripción")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const settings = await ServerConfig.findOne({
       guildId: interaction.guildId,
@@ -79,6 +81,8 @@ module.exports = {
     return interaction.editReply({ embeds: [embed] });
   },
 };
+
+export default command;
 
 function createProgressBar(percent: number) {
   const totalBars = 10;

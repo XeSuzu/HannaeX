@@ -5,6 +5,7 @@ import {
   GenerateContentStreamResult,
   SafetySetting,
   Content,
+  Tool,
 } from "@google/generative-ai";
 import "dotenv/config";
 
@@ -65,44 +66,40 @@ export async function generateResponseStream(
   ];
 
   const controller = new AbortController();
-  // Aumentamos a 30s para evitar cortes en respuestas largas
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash", // ⚡ Mantenido tal cual pediste
+      model: "gemini-2.5-flash-lite",
       safetySettings,
       systemInstruction: systemInstruction,
+
+      tools: [
+        { google_search: {} } as unknown as Tool,
+      ],
+
       generationConfig: {
-        temperature: 0.8,
+        temperature: 0.7, // ✅ Ajustado ligeramente para mayor precisión técnica
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 4096, // ✅ ¡El tanque de oxígeno!
       },
     });
-
-    // ---------------------------------------------------------
-    // 🚑 FIX DE HISTORIAL: Limpieza de mensajes iniciales
-    // ---------------------------------------------------------
 
     // 1. Separamos el historial previo del mensaje actual
     let chatHistory = history.slice(0, -1);
 
     // 2. Google exige que el historial empiece con 'user'.
-    // Si el primer mensaje es del bot ('model'), lo borramos hasta encontrar un usuario.
     while (chatHistory.length > 0 && chatHistory[0].role === "model") {
       chatHistory.shift();
     }
 
-    // 🧠 Iniciamos chat para mantener el contexto correctamente
     const chat = model.startChat({
       history: chatHistory,
     });
 
-    // Obtenemos el último mensaje (el prompt actual del usuario)
     const lastMessage = history[history.length - 1]?.parts[0]?.text || "";
 
-    // Enviamos el mensaje
     const result = await chat.sendMessageStream(lastMessage, {
       signal: controller.signal,
     });
@@ -118,18 +115,13 @@ export async function generateResponseStream(
       err.message?.includes("blocked") ||
       err.response
     ) {
-      console.log("\n🚨 --- REPORTE DE BLOQUEO --- 🚨");
+      console.log("\n🚨 --- REPORTE DE BLOQUEO DE SEGURIDAD --- 🚨");
       console.log(`🎚️ Nivel configurado: [${safetyLevel.toUpperCase()}]`);
 
-      // 1. ¿Fue culpa del mensaje del Usuario?
       if (err.response?.promptFeedback) {
-        console.log(
-          "🔍 Feedback del Prompt:",
-          JSON.stringify(err.response.promptFeedback, null, 2),
-        );
+        console.log("🔍 Feedback del Prompt:", JSON.stringify(err.response.promptFeedback, null, 2));
       }
 
-      // 2. ¿Fue culpa de la respuesta de la IA?
       if (err.response?.candidates && err.response.candidates.length > 0) {
         const candidate = err.response.candidates[0];
         console.log("🚫 Razón de bloqueo:", candidate.finishReason);
@@ -149,10 +141,69 @@ export async function generateResponseStream(
     }
 
     if (err.name === "AbortError") {
+      console.error(`[GEMINI] ⏱️ Timeout: La respuesta tardó más de 30 segundos`);
       throw new Error("TIMEOUT_ERROR");
     }
 
-    console.error("⚠️ [Gemini Service Error]:", err.message);
+    console.error("⚠️ [GEMINI] Error inesperado:", err.message);
     throw err;
+  }
+}
+
+/**
+ * Extrae facts relevantes del mensaje de un usuario para memoria persistente.
+ * Devuelve un array de strings con los facts encontrados, o vacío si no hay nada relevante.
+ */
+export async function extractFacts(
+  username: string,
+  userMessage: string,
+  userId?: string,
+): Promise<string[]> {
+  if (!userMessage || userMessage.trim().length < 5) return [];
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      generationConfig: {
+        temperature: 0.1, // Muy bajo — queremos respuestas deterministas
+        maxOutputTokens: 256,
+      },
+    });
+
+    const prompt = `
+Analiza el siguiente mensaje de un usuario de Discord llamado "${username}" y extrae ÚNICAMENTE información personal relevante y duradera sobre él.
+
+REGLAS ESTRICTAS:
+- Solo extrae hechos concretos: gustos, preferencias, nombre real, edad, idioma, hobbies, trabajo, etc.
+- NO extraigas preguntas, saludos, opiniones temporales ni comentarios del momento.
+- Si no hay nada relevante, responde exactamente: []
+- Responde SOLO con un array JSON de strings. Sin explicaciones. Sin markdown.
+
+Ejemplos de facts válidos:
+- "Le gusta el anime de mechas"
+- "Su nombre real es Carlos"
+- "Trabaja como programador"
+- "Prefiere respuestas cortas"
+
+Mensaje del usuario:
+"${userMessage}"
+
+Respuesta (solo el array JSON):
+    `.trim();
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+
+    // Limpiamos posibles backticks que Gemini añada
+    const clean = text.replace(/```json|```/g, "").trim();
+
+    const parsed = JSON.parse(clean);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((f: any) => typeof f === "string" && f.trim().length > 0);
+  } catch (err) {
+    // Si falla la extracción, no bloqueamos nada — simplemente no guardamos facts
+    console.warn("[GEMINI] ⚠️ No se pudieron extraer facts:", err);
+    return [];
   }
 }

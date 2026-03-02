@@ -9,6 +9,7 @@ import {
   PermissionFlagsBits,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 // ==========================================================
 // 📝 CONFIGURACIÓN DE ACCESO
@@ -56,7 +57,7 @@ const TEST_SCENARIOS: Record<
   },
 };
 
-export default {
+const command: SlashCommand = {
   // 🔴 IMPORTANTE: Ponemos 'Utility' o 'Public' para que el sistema NO lo bloquee automáticamente.
   category: "Utility",
 
@@ -78,7 +79,7 @@ export default {
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     // --- MENÚ ---
     const selectMenu = new StringSelectMenuBuilder()
@@ -128,3 +129,4 @@ export default {
     });
   },
 };
+export default command;

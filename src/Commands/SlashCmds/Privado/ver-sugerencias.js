@@ -17,7 +17,7 @@ module.exports = {
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     try {
       const suggestions = await Suggestion.find().sort({ timestamp: -1 });

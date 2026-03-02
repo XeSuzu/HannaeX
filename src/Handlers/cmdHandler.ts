@@ -1,14 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { HoshikoClient } from "../index";
+import { SlashCommand, PrefixCommand } from "../Interfaces/Command";
 
-interface CommandFile {
-  name?: string;
-  data?: any;
-  execute: (...args: any[]) => void;
-}
-
-// Recorre un directorio y devuelve rutas de archivos .ts/.js (excluye mapas y definiciones)
 function getFilesRecursively(directory: string): string[] {
   let files: string[] = [];
   if (!fs.existsSync(directory)) return files;
@@ -21,7 +15,6 @@ function getFilesRecursively(directory: string): string[] {
       files = files.concat(getFilesRecursively(fullPath));
     } else if (item.isFile()) {
       const ext = path.extname(item.name);
-      // ✨ Aceptamos .ts y .js para evitar errores de entorno
       if (
         [".ts", ".js"].includes(ext) &&
         !item.name.endsWith(".js.map") &&
@@ -34,57 +27,57 @@ function getFilesRecursively(directory: string): string[] {
   return files;
 }
 
-function loadCommands(directoryPath: string): CommandFile[] {
-  const commands: CommandFile[] = [];
+function loadCommands<T>(directoryPath: string, validator: (cmd: any) => boolean): T[] {
+  const commands: T[] = [];
   const allFiles = getFilesRecursively(directoryPath);
 
-  console.log(
-    `[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos encontrados)`,
-  );
+  console.log(`[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos)`);
 
   for (const filePath of allFiles) {
     try {
+      delete require.cache[require.resolve(filePath)];
+      
       const mod = require(path.resolve(filePath));
-      const command: CommandFile = mod.default || mod;
+      const command = mod.default || mod;
 
-      if (command && typeof command.execute === "function") {
-        commands.push(command);
+      if (validator(command)) {
+        commands.push(command as T); 
+      } else {
+        console.warn(`⚠️ [WARNING] El archivo ${path.basename(filePath)} fue ignorado porque no tiene la estructura correcta (le falta name, data o execute).`);
       }
-    } catch (err: any) {
-      console.error(`Error al cargar ${filePath}:`, err.message);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`❌ Error al cargar ${filePath}:`, errorMessage);
     }
   }
   return commands;
 }
 
 export default (client: HoshikoClient) => {
-  // 1. Cargar comandos de Prefijo (!)
   const prefixPath = path.join(__dirname, "../Commands/PrefixCmds");
-  const prefixCommands = loadCommands(prefixPath);
+  
+  const prefixCommands = loadCommands<PrefixCommand>(prefixPath, (cmd) => {
+    return cmd && typeof cmd.name === "string" && typeof cmd.execute === "function";
+  });
+  
   for (const c of prefixCommands) {
-    if (c.name) client.commands.set(c.name, c);
+    client.commands.set(c.name, c);
   }
-  console.log(`📜 Prefijo cargados: ${client.commands.size}`);
+  console.log(`📜 Prefijos validados y cargados: ${client.commands.size}`);
 
-  // 2. Cargar Slash Commands (/)
   const slashPath = path.join(__dirname, "../Commands/SlashCmds");
-  const slashCommands = loadCommands(slashPath);
+  
+  const slashCommands = loadCommands<SlashCommand>(slashPath, (cmd) => {
+    return cmd && cmd.data && typeof cmd.execute === "function";
+  });
 
   for (const command of slashCommands) {
-    const data = command.data;
-    if (!data) continue;
-
-    const items = Array.isArray(data) ? data : [data];
-
-    for (const item of items) {
-      const json = typeof item.toJSON === "function" ? item.toJSON() : item;
-      const name: string = json.name;
-
-      if (name) {
-        client.slashCommands.set(name, command);
-      }
+    const name = command.data.name; 
+    
+    if (name) {
+      client.slashCommands.set(name, command);
     }
   }
 
-  console.log(`✨ Slash cargados: ${client.slashCommands.size}`);
+  console.log(`✨ Slash validados y cargados: ${client.slashCommands.size}`);
 };

@@ -1,32 +1,136 @@
-import { Message, EmbedBuilder } from "discord.js";
+import {
+  Message,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  TextChannel,
+} from "discord.js";
 import { HoshikoClient } from "../index";
 import { generateResponseStream } from "../Services/gemini";
 import { buscarLetraGenius } from "../Services/geniusLyrics";
+import { SearchService, isQuerySafe } from "../Services/search";
 import { Content } from "@google/generative-ai";
 import { IAConfigManager } from "../Database/IAConfigManager";
 import { PremiumManager } from "../Database/PremiumManager";
 import ServerConfig from "../Models/serverConfig";
-import { SystemPrompts } from "../Utils/AI/SystemPrompts";
+import { SystemPrompts, SystemPromptContext } from "../Utils/AI/SystemPrompts";
+import { UserMemoryManager } from "../Database/UserMemoryManager";
+import { extractFacts } from "../Services/gemini";
 
-const antiSpamCooldown = new Set<string>();
+const antiSpamCooldown  = new Set<string>();
+const processedMessages = new Set<string>(); // 👈 nuevo — por mensaje, no por canal
 
 export default async (
   message: Message,
   client: HoshikoClient,
+  forced: boolean = false,
 ): Promise<boolean> => {
-  // 1. FILTROS BÁSICOS
   if (message.author.bot || !message.guild) return false;
 
-  // Cargar configuración completa
+  // =============================================================
+  // 🛡️ GUARD PRINCIPAL — evita doble procesamiento del mismo mensaje
+  // =============================================================
+  if (processedMessages.has(message.id)) return false;
+
   let config = await ServerConfig.findOne({ guildId: message.guild.id });
   if (!config) config = new ServerConfig({ guildId: message.guild.id });
 
-  // Asegurar que aiSystem existe
+  // --- ✨ BÚSQUEDA DE IMÁGENES CON PAGINACIÓN ---
+  const prefix = config.prefix || "x";
+  const imgAskMatch       = message.content.match(/^(?:hoshi ask img|neko ask img)\s+(.+)/i);
+  const prefixCommandMatch = message.content.match(new RegExp(`^\\${prefix}(img|ximg)\\s+(.+)`, "i"));
+
+  if (imgAskMatch || prefixCommandMatch) {
+    processedMessages.add(message.id);
+    setTimeout(() => processedMessages.delete(message.id), 5000);
+
+    const query = (imgAskMatch ? imgAskMatch[1] : prefixCommandMatch![2]).trim();
+
+    const isNsfwChannel =
+      message.channel instanceof TextChannel && (message.channel as TextChannel).nsfw;
+
+    if (!isNsfwChannel && !isQuerySafe(query)) {
+      await message.reply("🚫 Ese término no está permitido en este canal. 🐾");
+      return true;
+    }
+
+    const waitingMsg = await message.reply(`🖼️ Buscando imágenes de **${query}**...`);
+
+    try {
+      const results = await SearchService.searchImages(query, 10, !isNsfwChannel);
+
+      if (!results || results.length === 0) {
+        await waitingMsg.edit(`😿 Mya... no encontré ninguna imagen para \`${query}\`.`);
+        return true;
+      }
+
+      let page = 0;
+      const total = results.length;
+
+      const buildProgress = (index: number, total: number) => {
+        const filled = Math.round((index / (total - 1)) * 8);
+        return "▰".repeat(filled) + "▱".repeat(8 - filled);
+      };
+
+      const buildEmbed = (index: number) => {
+        const img      = results[index];
+        const progress = buildProgress(index, total);
+        return new EmbedBuilder()
+          .setColor(0xff8fab)
+          .setAuthor({ name: `🔍 ${query}`, iconURL: client.user?.displayAvatarURL() })
+          .setTitle(img.title?.substring(0, 256) || query)
+          .setURL(img.link)
+          .setImage(img.imageUrl)
+          .addFields(
+            { name: "🌐 Fuente",     value: `[${img.source}](${img.link})`,  inline: true },
+            { name: "🖼️ Resultado", value: `\`${index + 1} de ${total}\``,  inline: true },
+          )
+          .setFooter({
+            text:    `${progress} • pedida por ${message.author.username}`,
+            iconURL: message.author.displayAvatarURL(),
+          });
+      };
+
+      const buildButtons = (index: number) =>
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("img_first").setEmoji("⏮️").setStyle(ButtonStyle.Secondary).setDisabled(index === 0),
+          new ButtonBuilder().setCustomId("img_prev").setEmoji("◀️").setStyle(ButtonStyle.Primary).setDisabled(index === 0),
+          new ButtonBuilder().setCustomId("img_next").setEmoji("▶️").setStyle(ButtonStyle.Primary).setDisabled(index === total - 1),
+          new ButtonBuilder().setCustomId("img_last").setEmoji("⏭️").setStyle(ButtonStyle.Secondary).setDisabled(index === total - 1),
+          new ButtonBuilder().setCustomId("img_close").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+        );
+
+      await waitingMsg.edit({ content: null, embeds: [buildEmbed(page)], components: [buildButtons(page)] });
+
+      const collector = waitingMsg.createMessageComponentCollector({
+        filter: (i) => i.user.id === message.author.id,
+        time:   120_000,
+      });
+
+      collector.on("collect", async (i) => {
+        await i.deferUpdate();
+        if (i.customId === "img_close") { collector.stop(); return; }
+        if (i.customId === "img_first") page = 0;
+        else if (i.customId === "img_prev") page = Math.max(0, page - 1);
+        else if (i.customId === "img_next") page = Math.min(total - 1, page + 1);
+        else if (i.customId === "img_last") page = total - 1;
+        await waitingMsg.edit({ embeds: [buildEmbed(page)], components: [buildButtons(page)] });
+      });
+
+      collector.on("end", async () => {
+        await waitingMsg.edit({ components: [] }).catch(() => {});
+      });
+
+    } catch (error) {
+      console.error("[aiHandler Img] Error:", error);
+      await waitingMsg.edit("😿 Hubo un error al buscar la imagen. ¡Miau!");
+    }
+    return true;
+  }
+
   const aiSystem = config.aiSystem || {
-    mode: "neko",
-    behavior: "normal",
-    randomChance: 3,
-    spontaneousChannels: [],
+    mode: "neko", behavior: "normal", randomChance: 3, spontaneousChannels: [],
   };
   const isPremium = await PremiumManager.isPremium(message.guild.id);
 
@@ -35,17 +139,15 @@ export default async (
     /(?:letra de|busca la letra de|dame la letra de)\s+(.+?)(?:\s+de\s+|\s+-\s+)(.+)|(?:letra de|busca la letra de|dame la letra de)\s+(.+)/i,
   );
   if (lyricsMatch) {
-    const cancion = (lyricsMatch[1] || lyricsMatch[3])
-      ?.replace(/-/g, " ")
-      .trim();
+    processedMessages.add(message.id);
+    setTimeout(() => processedMessages.delete(message.id), 5000);
+
+    const cancion = (lyricsMatch[1] || lyricsMatch[3])?.replace(/-/g, " ").trim();
     const artista = lyricsMatch[2]?.replace(/-/g, " ").trim() || null;
     const waiting = await message.reply("🎶 Buscando...");
-    const letra = await buscarLetraGenius(artista, cancion);
+    const letra   = await buscarLetraGenius(artista, cancion);
     if (letra) {
-      const embed = new EmbedBuilder()
-        .setTitle(cancion.toUpperCase())
-        .setDescription(letra)
-        .setColor(0xffff00);
+      const embed = new EmbedBuilder().setTitle(cancion.toUpperCase()).setDescription(letra).setColor(0xffff00);
       await waiting.edit({ content: null, embeds: [embed] });
       return true;
     }
@@ -53,92 +155,85 @@ export default async (
     return true;
   }
 
-  // --- 🚨 DETECCIÓN DE INTERÉS (GATILLOS) ---
-  const isMentioned = message.mentions.users.has(client.user!.id);
-  const prefixMatch = message.content.toLowerCase().startsWith("hoshi ask ");
+  // --- 🚨 DETECCIÓN DE GATILLOS ---
+  const isMentioned  = message.mentions.users.has(client.user!.id);
+  const prefixMatch  = message.content.toLowerCase().startsWith("hoshi ask ");
 
   let isReplyToMe = false;
   if (isPremium && message.reference && message.reference.messageId) {
     try {
-      const repliedMsg = await message.channel.messages.fetch(
-        message.reference.messageId,
-      );
+      const repliedMsg = await message.channel.messages.fetch(message.reference.messageId);
       if (repliedMsg.author.id === client.user!.id) isReplyToMe = true;
     } catch (e) {}
   }
 
-  const isDirectInteraction = isMentioned || prefixMatch || isReplyToMe;
+  const isDirectInteraction = forced || isMentioned || prefixMatch || isReplyToMe;
+
+  // Si no es forced y tiene gatillos directos → salir (messageCreate lo manejará con forced=true)
+  if (!forced && (isMentioned || prefixMatch || isReplyToMe)) return false;
 
   // --- 🎲 GATILLO ESPONTÁNEO ---
   let isRandomTrigger = false;
   if (!isDirectInteraction) {
     const allowedChannels = aiSystem.spontaneousChannels || [];
     if (allowedChannels.includes(message.channel.id)) {
-      const roll = Math.random() * 100;
-      isRandomTrigger = roll < (aiSystem.randomChance || 3);
+      isRandomTrigger = (Math.random() * 100) < (aiSystem.randomChance || 3);
     }
   }
 
-  // --- 🔋 CHEQUEO DE ENERGÍA / COOLDOWN ---
-  const now = new Date();
-  const isOnCooldown = new Date(aiSystem.cooldownUntil || 0) > now;
-  if (!isDirectInteraction) {
-    if (!isRandomTrigger) return false;
-    if (isOnCooldown) return false;
-  }
+  // --- 🔋 COOLDOWN ---
+  const isOnCooldown = new Date(aiSystem.cooldownUntil || 0) > new Date();
+  if (!isDirectInteraction && (!isRandomTrigger || isOnCooldown)) return false;
 
+  // --- 🛡️ ANTI SPAM ---
   if (antiSpamCooldown.has(message.channel.id)) return false;
   antiSpamCooldown.add(message.channel.id);
   setTimeout(() => antiSpamCooldown.delete(message.channel.id), 2500);
 
-  // Indicador visual
+  // Marcar mensaje como procesado AQUÍ — después de todos los guards
+  processedMessages.add(message.id);
+  setTimeout(() => processedMessages.delete(message.id), 10000);
+
   if (isDirectInteraction && "sendTyping" in message.channel) {
     await (message.channel as any).sendTyping().catch(() => null);
   }
 
   try {
-    // --- 🧠 CONSTRUCCIÓN DEL CONTEXTO ---
-    const limit = isDirectInteraction ? 10 : 15;
-    const channel = message.channel as any;
-    const prevMessages = await channel.messages.fetch({ limit: limit });
+    const limit       = isPremium ? 15 : 10;
+    const prevMessages = await (message.channel as any).messages.fetch({ limit });
 
-    const chatHistoryScript = prevMessages
-      .reverse()
-      .map((m: Message) => {
-        const content = m.content.replace(/<@!?[0-9]+>/g, "").trim();
-        const name = m.author.username.replace(/[^a-zA-Z0-9]/g, "");
-        if (!content && m.attachments.size === 0) return null;
-        return `[${name}]: ${content || "(Imagen)"}`;
-      })
-      .filter(Boolean)
-      .join("\n");
+    const triggerType: SystemPromptContext["triggerType"] = isRandomTrigger
+      ? "spontaneous"
+      : isReplyToMe
+      ? "reply"
+      : "direct";
 
-    // =================================================================
-    // 🔥 CARGA DE INSTRUCCIONES DINÁMICAS (Nuevo Sistema)
-    // =================================================================
+    const channelName = "name" in message.channel ? (message.channel as any).name : undefined;
+    const userFacts   = await UserMemoryManager.getFacts(message.author.id, message.guild.id);
 
-    // 1. Obtenemos la personalidad desde SystemPrompts (actualizado a Neko/Maid/etc)
-    const basePersona = SystemPrompts.getInstruction(config);
+    const promptContext: SystemPromptContext = {
+      guildName: message.guild.name,
+      channelName,
+      triggerType,
+      userFacts,
+      currentUsername: message.author.username,
+    };
 
-    // 2. Fusionamos con el historial
-    const systemInstruction = `
-        ${basePersona}
-        
-        CONTEXTO RECIENTE DEL CHAT:
-        ${chatHistoryScript}
-        
-        INSTRUCCIÓN FINAL:
-        Responde al último mensaje basándote estrictamente en tu ROL definido arriba.
-        `;
-
-    // =================================================================
-
-    // Preparar Input para Gemini
+    const systemInstruction = SystemPrompts.getInstruction(config, promptContext);
     const historyForApi: Content[] = [];
+    const sortedMessages = Array.from(prevMessages.values()).reverse().slice(0, -1);
 
-    let userMessage = message.content
-      .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
-      .trim();
+    for (const m of sortedMessages) {
+      const msgObj = m as Message;
+      if (!msgObj.content && msgObj.attachments.size === 0) continue;
+      const role        = msgObj.author.id === client.user!.id ? "model" : "user";
+      let textContent   = msgObj.content.replace(/<@!?[0-9]+>/g, "").trim();
+      if (msgObj.attachments.size > 0 && role === "user") textContent += " [El usuario envió una imagen/archivo]";
+      const finalWord   = role === "user" ? `[${msgObj.author.username} dice]: ${textContent || "..."}` : textContent;
+      historyForApi.push({ role, parts: [{ text: finalWord || "..." }] });
+    }
+
+    let userMessage = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "").trim();
     if (!userMessage && isMentioned) userMessage = "Hola";
     if (prefixMatch) userMessage = message.content.substring(10).trim();
 
@@ -146,80 +241,76 @@ export default async (
       message.attachments.size > 0 &&
       message.attachments.first()?.contentType?.startsWith("image/")
     ) {
-      const imgData = await fetch(message.attachments.first()!.url).then((r) =>
-        r.arrayBuffer(),
-      );
-      historyForApi.push({
-        role: "user",
-        parts: [
-          { text: "Mira esta imagen:" },
-          {
-            inlineData: {
-              mimeType: message.attachments.first()!.contentType!,
-              data: Buffer.from(imgData).toString("base64"),
-            },
-          },
-        ],
-      });
+      try {
+        const imgResponse = await fetch(message.attachments.first()!.url);
+        const imgBuffer   = await imgResponse.arrayBuffer();
+        historyForApi.push({
+          role: "user",
+          parts: [
+            { text: `[MENSAJE ACTUAL - enviado por ${message.author.username}]: ${userMessage || "Mira esta imagen:"}` },
+            { inlineData: { mimeType: message.attachments.first()!.contentType!, data: Buffer.from(imgBuffer).toString("base64") } },
+          ],
+        });
+      } catch (err) {
+        historyForApi.push({
+          role: "user",
+          parts: [{ text: `[${message.author.username} dice]: ${userMessage} [Error al cargar la imagen enviada]` }],
+        });
+      }
     } else {
       historyForApi.push({
         role: "user",
-        parts: [{ text: userMessage || "..." }],
+        parts: [{ text: `[MENSAJE ACTUAL - enviado por ${message.author.username}]: ${userMessage}` }],
       });
     }
 
-    // --- LLAMADA A LA API ---
-
-    // Determinamos el nivel de seguridad basado en la configuración
-    // El comando /setup ya guarda 'relaxed' si el modo es agresivo
-    const safetyMode =
-      (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
-
-    // ⚠️ CORRECCIÓN: Pasamos el STRING 'safetyMode', no el objeto complejo.
-    // gemini.ts ya sabe convertir el string a las reglas de Google.
-    const stream = await generateResponseStream(
-      systemInstruction,
-      historyForApi,
-      safetyMode,
-    );
+    const safetyMode = (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
+    const stream     = await generateResponseStream(systemInstruction, historyForApi, safetyMode);
 
     let fullText = "";
     for await (const chunk of stream) {
-      if (chunk.candidates?.[0]?.finishReason === "SAFETY")
-        throw new Error("PROHIBITED_CONTENT");
+      if (chunk.candidates?.[0]?.finishReason === "SAFETY") throw new Error("PROHIBITED_CONTENT");
       fullText += chunk.text();
     }
 
-    // --- RESPUESTA ---
-    // 🎨 Color varía según el comportamiento (Nuevo sistema)
-    const behavior = aiSystem.behavior || "normal";
-    let embedColor = 0xffb6c1; // Rosa (Normal)
+    // --- ✂️ CHUNKS ---
+    const MAX = 1996;
+    const cleanText = (fullText.trim() || "...").replace(/^>>>\s*/, '');
 
-    if (behavior === "pesado") embedColor = 0xffa500; // Naranja
-    if (behavior === "agresivo") embedColor = 0xff0000; // Rojo
+    if (cleanText.length <= MAX) {
+      await message.reply(cleanText);
+    } else {
+      const chunks: string[] = [];
+      let remaining = cleanText;
+      while (remaining.length > 0) {
+        if (remaining.length <= MAX) { chunks.push(remaining); break; }
+        let cutAt = remaining.lastIndexOf(" ", MAX);
+        if (cutAt === -1) cutAt = MAX;
+        chunks.push(remaining.substring(0, cutAt));
+        remaining = remaining.substring(cutAt).trim();
+      }
+      await message.reply(chunks[0]);
+      for (let i = 1; i < chunks.length; i++) {
+        await (message.channel as any).send(chunks[i]);
+      }
+    }
 
-    const finalEmbed = new EmbedBuilder()
-      .setColor(embedColor)
-      .setDescription(fullText.substring(0, 4000) || "...");
+    extractFacts(message.author.username, userMessage, message.author.id)
+      .then((facts) => {
+        if (facts.length > 0) return UserMemoryManager.addFacts(message.author.id, message.guild!.id, facts);
+      })
+      .catch((err) => console.warn("[AI] ⚠️ Error guardando facts:", err));
 
-    await message.reply({ embeds: [finalEmbed] });
-
-    // Cooldown
     if (!isDirectInteraction) {
       const cooldownMinutes = isPremium ? 0.3 : 10;
       await IAConfigManager.setCooldown(message.guild.id, cooldownMinutes);
     }
   } catch (error: any) {
     if (error.message === "PROHIBITED_CONTENT") {
-      await message.reply(
-        "Lo siento, mis protocolos de seguridad bloquean ese tema. 🤐",
-      );
+      await message.reply("Lo siento, mis protocolos de seguridad bloquean ese tema. 🤐");
     } else {
-      console.error("💥 AI Error:", error);
-      if (isDirectInteraction)
-        await message.reply(
-          "Tuve un pequeño error procesando eso. ¿Intentamos de nuevo?",
-        );
+      console.error(`[AI] 💥 Error inesperado procesando respuesta:`, error);
+      if (isDirectInteraction) await message.reply("Tuve un pequeño error procesando eso. ¿Intentamos de nuevo?");
     }
   }
   return true;

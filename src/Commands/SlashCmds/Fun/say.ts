@@ -6,20 +6,16 @@ import {
   MessageFlags,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
-// Importar Logger para auditoría de uso
 import { Logger } from "../../../Utils/SystemLogger";
-
-interface SlashCommand {
-  data: SlashCommandBuilder | any;
-  category: string;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void>;
-}
+import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Fun",
+  // ✅ AQUÍ ESTÁ EL SECRETO: Le avisamos al Guardián Supremo cómo actuar
+  options: {
+    cooldown: 5,
+    ephemeral: true, // Esto hace que el "Hoshiko está pensando..." sea privado
+  },
   data: new SlashCommandBuilder()
     .setName("say")
     .setDescription("Hace que el bot diga un mensaje")
@@ -31,25 +27,21 @@ const command: SlashCommand = {
         .setMaxLength(1500),
     )
     .setDMPermission(false)
-    .setDefaultMemberPermissions(PermissionFlagsBits.SendMessages), // ⚠️ Sugerencia: ManageMessages es más seguro
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
-  async execute(interaction, client) {
-    // Verificaciones iniciales
+  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+    // 1. Verificaciones iniciales
+    // ✅ Usamos editReply porque el Guardián ya hizo el defer
     if (
       !interaction.guild ||
       !interaction.channel ||
       !(interaction.channel instanceof TextChannel)
     ) {
-      await interaction.reply({
-        content:
-          "❌ Este comando solo funciona en canales de texto del servidor.",
-        flags: MessageFlags.Ephemeral,
+      await interaction.editReply({
+        content: "❌ Este comando solo funciona en canales de texto del servidor.",
       });
       return;
     }
-
-    // Deferimos de forma invisible
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const channel = interaction.channel;
     const mensaje = interaction.options.getString("mensaje", true).trim();
@@ -61,22 +53,20 @@ const command: SlashCommand = {
       return;
     }
 
-    // Sanitiza el mensaje
+    // 2. Sanitiza el mensaje
     const limpio = mensaje
       .replace(/@everyone/gi, "@\u200beveryone")
       .replace(/@here/gi, "@\u200bhere")
-      // Nota: Esta regex elimina emojis y tildes, ten cuidado si quieres permitirlos.
-      // Si quieres permitir todo menos control characters, usa: /[^\x20-\x7E\u00A0-\uFFFF]/g
       .trim();
 
     try {
-      // Enviar el mensaje al canal
+      // Enviar el mensaje al canal (esto sí es público)
       await channel.send({
         content: limpio,
-        allowedMentions: { parse: ["users"] }, // Evita menciones fantasma a roles
+        allowedMentions: { parse: ["users"] },
       });
 
-      // Registrar uso en webhook (no bloquear la ejecución)
+      // Registrar uso (Auditoría)
       void Logger.logSay(
         interaction.user,
         interaction.guild.name,
@@ -84,7 +74,7 @@ const command: SlashCommand = {
         limpio,
       );
 
-      // 3. Confirmamos al usuario
+      // 3. Confirmamos al usuario (esto será privado gracias al Guardián)
       await interaction.editReply({
         content: "✅ Mensaje enviado correctamente.",
       });
@@ -97,4 +87,4 @@ const command: SlashCommand = {
   },
 };
 
-export = command;
+export default command;

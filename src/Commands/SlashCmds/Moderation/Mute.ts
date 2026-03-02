@@ -4,104 +4,69 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   GuildMember,
+  TextChannel,
 } from "discord.js";
-import { InfractionManager } from "../../../Features/InfractionManager";
 import ms from "ms";
+import { AutomodManager } from "../../../Features/AutomodManager";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
   category: "Moderation",
+  cooldown: 5,
   data: new SlashCommandBuilder()
     .setName("mute")
     .setDescription("Silencia a un usuario por un tiempo determinado.")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addUserOption((option) =>
-      option
-        .setName("usuario")
-        .setDescription("El usuario que deseas silenciar.")
-        .setRequired(true),
+    .addUserOption((opt) =>
+      opt.setName("usuario").setDescription("El usuario a silenciar.").setRequired(true)
     )
-    .addStringOption((option) =>
-      option
-        .setName("tiempo")
-        .setDescription("Duración del silencio (ej: 10m, 1h, 1d).")
-        .setRequired(true),
+    .addStringOption((opt) =>
+      opt.setName("tiempo").setDescription("Duración (ej: 10m, 1h, 1d).").setRequired(true)
     )
-    .addStringOption((option) =>
-      option
-        .setName("motivo")
-        .setDescription("Razón del silencio.")
-        .setRequired(false),
-    ),
+    .addStringOption((opt) =>
+      opt.setName("motivo").setDescription("Razón del silencio.").setRequired(false)
+    ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
 
-    const target = interaction.options.getMember("usuario") as GuildMember;
-    const timeInput = interaction.options.getString("tiempo");
-    const reason =
-      interaction.options.getString("motivo") || "No se especificó un motivo.";
+    // ✅ Defer al inicio para evitar 10062
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
-    // 1. Validaciones de Seguridad 🛡️
-    if (!target) {
-      await interaction.reply({
-        content: "❌ No pude encontrar a ese usuario.",
-        ephemeral: true,
-      });
+    const target = interaction.options.getMember("usuario");
+    const timeInput = interaction.options.getString("tiempo", true);
+    const reason = interaction.options.getString("motivo") || "No se especificó un motivo.";
+
+    if (!target || !(target instanceof GuildMember)) {
+      await interaction.editReply({ content: "❌ No pude encontrar a ese usuario." });
       return;
     }
-
     if (target.id === interaction.user.id) {
-      await interaction.reply({
-        content: "🌸 No puedes silenciarte a ti mismo, tontito.",
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: "🌸 No puedes silenciarte a ti mismo." });
       return;
     }
-
     if (target.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: "❌ No puedo silenciar a un miembro del staff.",
-        ephemeral: true,
-      });
+      await interaction.editReply({ content: "❌ No puedo silenciar a un miembro del staff." });
       return;
     }
 
-    // 2. Cálculo del tiempo ⏳
-    if (!timeInput) {
-      await interaction.reply({
-        content: "❌ Debes especificar un tiempo válido.",
-        ephemeral: true,
-      });
-      return;
-    }
-
-    // ✨ TRUCO: Usamos (ms as any) para saltar el error de Overload de TypeScript
-    const duration = (ms as any)(timeInput);
-
-    if (
-      !duration ||
-      typeof duration !== "number" ||
-      duration < 5000 ||
-      duration > 2419200000
-    ) {
-      await interaction.reply({
-        content:
-          "❌ Tiempo no válido (ej: 10m, 1h) o fuera de rango (máximo 28 días).",
-        ephemeral: true,
+    const duration = ms(timeInput as any);
+    if (!duration || typeof duration !== "number" || duration < 5000 || duration > 2419200000) {
+      await interaction.editReply({
+        content: "❌ Tiempo no válido (ej: 10m, 1h) o fuera de rango (máximo 28 días).",
       });
       return;
     }
 
     try {
-      // 3. Aplicar el timeout en Discord
       await target.timeout(duration, reason);
 
-      // 4. Sumar puntos de infracción 📊
-      // Quitamos el número fijo (20) que daba error en el build
-      await InfractionManager.addPoints(
+      await AutomodManager.recordManualAction(
+        interaction.guild,
         target,
-        `Mute manual: ${reason}`,
-        interaction as any,
+        interaction.user,
+        "mute",
+        `Mute manual por ${interaction.user.tag}: ${reason}`,
       );
 
       const embed = new EmbedBuilder()
@@ -110,25 +75,25 @@ export default {
         .addFields(
           { name: "⏳ Duración", value: `\`${timeInput}\``, inline: true },
           { name: "📝 Motivo", value: reason, inline: true },
+          { name: "👮 Moderador", value: `<@${interaction.user.id}>`, inline: true },
         )
         .setColor(0xffb6c1)
         .setThumbnail(target.displayAvatarURL())
         .setTimestamp()
-        .setFooter({ text: "Hoshiko Sentinel 📡" });
+        .setFooter({ text: "Acción registrada en el historial" });
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ content: "✅ Silencio aplicado con éxito." });
+
+      if (interaction.channel && interaction.channel.isTextBased() && "send" in interaction.channel) {
+        await (interaction.channel as TextChannel).send({ embeds: [embed] });
+      }
     } catch (error) {
       console.error("💥 Error en comando mute:", error);
-      if (interaction.replied || interaction.deferred) {
-        await interaction.editReply({
-          content: "🌸 Hubo un error al intentar silenciar al usuario.",
-        });
-      } else {
-        await interaction.reply({
-          content: "🌸 Hubo un error al intentar silenciar al usuario.",
-          ephemeral: true,
-        });
-      }
+      await interaction.editReply({
+        content: "🌸 Hubo un error al silenciar al usuario. Revisa mis permisos.",
+      });
     }
   },
 };
+
+export default command;

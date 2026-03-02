@@ -5,8 +5,10 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
   data: new SlashCommandBuilder()
     .setName("confession-ban")
     .setDescription("🚫 Veta a un usuario de las publicaciones (Blacklist)")
@@ -25,7 +27,7 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const targetUser = interaction.options.getUser("usuario", true);
     const reason =
@@ -92,3 +94,4 @@ module.exports = {
     return interaction.editReply({ embeds: [embed] });
   },
 };
+export default command;

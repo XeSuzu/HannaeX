@@ -6,8 +6,9 @@ import {
 } from "discord.js";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
   category: "Social",
   data: new SlashCommandBuilder()
     .setName("match")
@@ -25,7 +26,7 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     const user1 = interaction.options.getUser("usuario1", true);
     const user2 = interaction.options.getUser("usuario2") || interaction.user;
@@ -112,3 +113,4 @@ export default {
     }
   },
 };
+export default command;

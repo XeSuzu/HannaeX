@@ -8,7 +8,7 @@ module.exports = {
     .setDescription("Muestra tu meme más votado y tu reputación de memes."),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false }); // Muestra el estado "El bot está pensando..."
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: false }); // Muestra el estado "El bot está pensando..."
 
     try {
       const userId = interaction.user.id;

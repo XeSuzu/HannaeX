@@ -12,15 +12,7 @@ import {
   GuildPremiumTier,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
-
-interface SlashCommand {
-  data: SlashCommandBuilder | any;
-  category: string;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void | Message | InteractionResponse>;
-}
+import { SlashCommand } from "../../../Interfaces/Command";
 
 function formatDate(timestamp: number | null | undefined): string {
   if (!timestamp) return "Desconocido";
@@ -94,7 +86,7 @@ const command: SlashCommand = {
     const guild = interaction.guild;
 
     try {
-      await interaction.deferReply();
+      // ❌ ELIMINADO: await interaction.deferReply();
 
       const owner = await guild.fetchOwner().catch(() => null);
       const iconURL = guild.iconURL({ size: 512 });
@@ -381,5 +373,4 @@ const command: SlashCommand = {
     }
   },
 };
-
-export = command;
+export default command;

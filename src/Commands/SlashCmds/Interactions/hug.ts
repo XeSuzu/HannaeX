@@ -13,6 +13,7 @@ import {
   InteractionResponse, // Asegúrate de importar esto si no lo usas en otro lado
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 // ⚙️ FUNCIÓN AUXILIAR API
 async function getAnimeGif(category: string): Promise<string> {
@@ -141,9 +142,7 @@ async function startHug(
 }
 
 // 📦 EXPORTACIÓN DEL COMANDO
-export default {
-  name: "hug", // Nombre para texto
-  aliases: ["abrazar", "abrazo", "cariño"], // Alias para texto
+const command: SlashCommand = {
   category: "Interactions",
 
   // 🟢 DATA SLASH
@@ -171,9 +170,7 @@ export default {
       member?.displayHexColor || "#f48fb1",
       // Adaptador: Interaction -> Message
       async (payload) => {
-        const res = await interaction.reply({ ...payload, fetchReply: true });
-        // 👇 AQUÍ ESTÁ EL ARREGLO: Forzamos el tipo a Message
-        return res as unknown as Message;
+        return await interaction.editReply(payload) as Message;
       },
     );
   },
@@ -198,3 +195,4 @@ export default {
     );
   },
 };
+export default command;

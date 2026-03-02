@@ -11,19 +11,12 @@ import {
   InteractionResponse,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
+import { Logger } from "../../../Utils/SystemLogger";
 
 // --- Interfaces ---
 
 // ✅ Interfaz corregida para aceptar todos los tipos de respuesta posibles
-interface SlashCommand {
-  data: SlashCommandBuilder | any;
-  category: string;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void | Message | InteractionResponse>;
-}
-
 interface BotStats {
   totalServers: number;
   totalMembers: number;
@@ -202,6 +195,9 @@ const command: SlashCommand = {
 
   async execute(interaction, client) {
     if (interaction.user.id !== process.env.BOT_OWNER_ID) {
+      // 📊 Log de intento de acceso no autorizado
+      await Logger.logSecurityBreach(interaction.user, "servidores");
+      
       return interaction.reply({
         content:
           "❌ Nyaa... este es un comando solo para el propietario del bot. 😿",
@@ -209,7 +205,7 @@ const command: SlashCommand = {
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     try {
       const searchQuery = interaction.options.getString("buscar");
@@ -312,5 +308,4 @@ const command: SlashCommand = {
     }
   },
 };
-
-export = command;
+export default command;

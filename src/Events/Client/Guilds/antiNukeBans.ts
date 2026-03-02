@@ -4,6 +4,7 @@ import {
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
 import { SettingsManager } from "../../../Database/SettingsManager";
+import { Logger } from "../../../Utils/SystemLogger";
 
 const banTracker = new Map<string, { count: number; lastBan: number }>();
 const LIMIT = 4; // Un poco más permisivo que canales, pero aún estricto
@@ -30,7 +31,7 @@ export default {
       if (!executor || executor.bot || executor.id === guild.ownerId) return;
 
       const now = Date.now();
-      const userData = banTracker.get(executor.id) || { count: 0, lastBan: 0 };
+      const userData = banTracker.get(executor!.id) || { count: 0, lastBan: 0 };
 
       if (now - userData.lastBan > TIME_WINDOW) {
         userData.count = 1;
@@ -42,7 +43,7 @@ export default {
       banTracker.set(executor.id, userData);
 
       if (userData.count >= LIMIT) {
-        const executorMember = await guild.members.fetch(executor.id);
+        const executorMember = await guild.members.fetch(executor!.id);
 
         // 🛡️ Acción inmediata: Quitar roles administrativos
         const rolesToRemove = executorMember.roles.cache.filter(
@@ -56,19 +57,24 @@ export default {
         HoshikoLogger.log({
           level: LogLevel.FATAL,
           context: "Security/AntiNuke",
-          message: `¡ALERTA DE BANEOS! ${executor.tag} baneó a ${userData.count} personas rápidamente.`,
+          message: `¡ALERTA DE BANEOS! ${executor!.tag || "Usuario desconocido"} baneó a ${userData.count} personas rápidamente.`,
           guildId: guild.id,
         });
 
         await HoshikoLogger.sendLog(
           guild,
-          "🚨 PROTOCOLO ANTI-NUKE: BANEOS",
-          `El usuario **${executor.tag}** ha sido degradado por realizar baneos masivos de forma sospechosa.`,
-          0xff0000,
+          "ANTI_NUKE",
+          `El usuario **${executor!.tag || "Usuario desconocido"}** ha sido degradado por realizar baneos masivos de forma sospechosa.`,
           executor as User,
         );
 
-        banTracker.delete(executor.id);
+        // 📊 Log al webhook #alertas
+        await Logger.logAntiNuke(
+          [executor!.tag || "Usuario desconocido"],
+          guild.name
+        );
+
+        banTracker.delete(executor!.id);
       }
     } catch (err) {
       console.error("❌ Error en Anti-Nuke Bans:", err);

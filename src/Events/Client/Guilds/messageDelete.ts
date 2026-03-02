@@ -1,6 +1,6 @@
-import { Events, Message, Collection } from "discord.js";
+import { Events, Message, PartialMessage, EmbedBuilder, Collection } from "discord.js";
+import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
-// Definimos la estructura de datos
 export interface SnipeData {
   content: string;
   author: string;
@@ -9,41 +9,52 @@ export interface SnipeData {
   timestamp: number;
 }
 
-// Mapa global de Snipes
 export const snipes = new Collection<string, SnipeData[]>();
 
 export default {
   name: Events.MessageDelete,
-  execute(message: Message) {
-    // 🛡️ PROTECCIÓN CRÍTICA (ESTO ARREGLA TU ERROR)
-    // Si el mensaje es muy viejo, Discord no nos da los datos del autor (es null).
-    // Si no hay autor, cancelamos para no tumbar el bot.
-    if (!message.author) return;
+  async execute(
+    message: Message | PartialMessage,
+    client: any
+  ): Promise<void> {
+    if (message.author?.bot) return;
+    if (!message.guild) return;
 
-    // Ignoramos bots y mensajes privados
-    if (message.author.bot || !message.guild) return;
-
-    // Obtenemos la lista actual de este canal
-    const currentSnipes = snipes.get(message.channel.id) || [];
-
-    // Creamos el nuevo registro
-    const newSnipe: SnipeData = {
-      content: message.content || "*(Solo imagen/sticker)*",
-      author: message.author.tag,
-      authorAvatar: message.author.displayAvatarURL(),
-      image: message.attachments.first()?.proxyURL || null,
-      timestamp: Date.now(),
-    };
-
-    // Ponemos el nuevo al PRINCIPIO de la lista
-    currentSnipes.unshift(newSnipe);
-
-    // Limpieza de memoria (máximo 10)
-    if (currentSnipes.length > 10) {
-      currentSnipes.pop();
+    // ─── 1. SNIPE ────────────────────────────────────────────────────────────
+    if (message.author && message.content !== undefined) {
+      const currentSnipes = snipes.get(message.channel.id) || [];
+      currentSnipes.unshift({
+        content: message.content || "*(Solo imagen/sticker)*",
+        author: message.author.tag,
+        authorAvatar: message.author.displayAvatarURL(),
+        image: (message as Message).attachments?.first()?.proxyURL || null,
+        timestamp: Date.now(),
+      });
+      if (currentSnipes.length > 10) currentSnipes.pop();
+      snipes.set(message.channel.id, currentSnipes);
     }
 
-    // Guardamos
-    snipes.set(message.channel.id, currentSnipes);
+    // ─── 2. MESSAGE LOG ──────────────────────────────────────────────────────
+    const content = message.content ?? "[no disponible — no estaba en caché]";
+    const user = message.author;
+
+    const embed = new EmbedBuilder()
+      .setTitle("🗑️ Mensaje Eliminado")
+      .setColor(0xff6b6b)
+      .addFields(
+        { name: "Contenido", value: content.slice(0, 1024) || "[vacío]" },
+        { name: "Canal", value: `<#${message.channelId}>`, inline: true },
+        {
+          name: "Usuario",
+          value: user ? `${user.tag} \`(${user.id})\`` : "[desconocido — mensaje parcial]",
+          inline: true,
+        }
+      )
+      .setTimestamp()
+      .setFooter({ text: "Hoshiko • Message Log" });
+
+    if (user) embed.setThumbnail(user.displayAvatarURL());
+
+    await HoshikoLogger.sendToChannel(message.guild, "messagelog", embed);
   },
 };

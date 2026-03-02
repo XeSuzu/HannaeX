@@ -68,9 +68,8 @@ export default {
 
         await HoshikoLogger.sendLog(
           guild,
-          "🚨 PROTOCOLO ANTI-NUKE: ROLES",
+          "ANTI_NUKE",
           `El usuario **${executor.tag}** ha sido despojado de sus permisos por borrar roles masivamente.`,
-          0xff0000,
           executor as User,
         );
 

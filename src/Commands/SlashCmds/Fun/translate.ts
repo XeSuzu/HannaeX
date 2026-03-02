@@ -5,14 +5,7 @@ import {
 } from "discord.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { HoshikoClient } from "../../../index";
-
-interface SlashCommand {
-  data: any;
-  execute: (
-    interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
-  ) => Promise<void>;
-}
+import { SlashCommand } from "../../../Interfaces/Command";
 
 const LANG_CHOICES = [
   ["Auto Detect", "auto"],
@@ -27,6 +20,8 @@ const LANG_CHOICES = [
 ] as const;
 
 const command: SlashCommand = {
+  category: "Fun",
+  cooldown: 5, // 5 segundos entre traducciones
   data: new SlashCommandBuilder()
     .setName("translate")
     .setDescription(
@@ -51,7 +46,7 @@ const command: SlashCommand = {
     ),
 
   async execute(interaction, client) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -164,5 +159,4 @@ const command: SlashCommand = {
     }
   },
 };
-
-export = command;
+export default command;

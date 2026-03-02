@@ -7,22 +7,13 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import { Logger } from "../../../Utils/SystemLogger";
-
-interface PrefixCommand {
-  name: string;
-  description: string;
-  execute: (
-    message: Message<boolean>,
-    args: string[],
-    client: HoshikoClient,
-  ) => Promise<void>;
-}
+import { PrefixCommand } from "../../../Interfaces/Command"; 
 
 const command: PrefixCommand = {
   name: "say",
   description: "Hace que el bot diga un mensaje",
 
-  async execute(message, args, client) {
+  async execute(message: Message, args: string[], client: HoshikoClient) {
     if (!message.channel?.isTextBased()) return;
 
     const channel = message.channel as TextChannel | NewsChannel | DMChannel;
@@ -69,7 +60,7 @@ const command: PrefixCommand = {
       Logger.logSay(
         message.author,
         message.guild?.name || "DM",
-        (channel as any).name || "Desconocido",
+        (channel as any).name || "Desconocido", 
         msg,
       );
     } catch (error) {
@@ -81,4 +72,4 @@ const command: PrefixCommand = {
   },
 };
 
-export = command;
+export default command;

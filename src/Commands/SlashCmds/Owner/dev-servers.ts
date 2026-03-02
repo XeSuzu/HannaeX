@@ -4,13 +4,15 @@ import {
   EmbedBuilder,
   AttachmentBuilder,
 } from "discord.js";
+import { SlashCommand } from "../../../Interfaces/Command";
+import { Logger } from "../../../Utils/SystemLogger";
 
-export default {
+const command: SlashCommand = {
   // 🔴 ANTES: .toJSON() al final
   // 🟢 AHORA: Sin .toJSON() (El deploy script lo hará por ti)
   data: new SlashCommandBuilder()
     .setName("dev-servers")
-    .setDescription("🕵️‍♀️ [DEV] Lista secreta de servidores donde estoy."),
+    .setDescription(" [DEV] Te muestro todos los lugares donde vivo, nya~"),
 
   // Agregamos esto para asegurar que el deploy sepa que es privado
   category: "Owner",
@@ -29,14 +31,16 @@ export default {
     }
 
     if (interaction.user.id !== ownerId) {
+      // 📊 Log de intento de acceso no autorizado
+      await Logger.logSecurityBreach(interaction.user, "dev-servers");
+      
       return interaction.reply({
-        content:
-          '🚫 **Acceso Denegado.** Protocolo de seguridad "Hoshiko" activo.',
+        content: "🚫 ¡Oye! Solo mi creador puede ver esto, ¡miau!",
         ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const guilds = interaction.client.guilds.cache;
 
@@ -54,21 +58,21 @@ export default {
     if (totalServers <= 10) {
       const description = sortedGuilds
         .map((g, index) => {
-          return `**${index + 1}. ${g.name}**\n🆔 \`${g.id}\` | 👥 ${g.memberCount} miembros | 👑 <@${g.ownerId}>`;
+          return `**${index + 1}. ${g.name}**\n> 🆔 \`${g.id}\`\n> 👥 ${g.memberCount} personitas\n> 👑 Creado por <@${g.ownerId}>`;
         })
         .join("\n\n");
 
       const embed = new EmbedBuilder()
-        .setTitle(`🕵️‍♀️ Reporte de Infiltración`)
+        .setTitle(`🌸 Mis Casitas Actuales`)
         .setColor("#2b2d31")
         .setDescription(description)
         .addFields(
           {
-            name: "📊 Total Servidores",
+            name: "🏡 Total de Casitas",
             value: `${totalServers}`,
             inline: true,
           },
-          { name: "👥 Total Usuarios", value: `${totalMembers}`, inline: true },
+          { name: " Total de Amigos", value: `${totalMembers}`, inline: true },
         )
         .setTimestamp();
 
@@ -77,15 +81,15 @@ export default {
 
     // 📝 OPCIÓN B: Muchos servidores (Archivo .txt)
     else {
-      let fileContent = `🕵️‍♀️ REPORTE DE SERVIDORES - HOSHIKO\n\n`;
-      fileContent += `📊 Total: ${totalServers} Servers | 👥 ${totalMembers} Usuarios\n`;
+      let fileContent = `🌸 MI DIARIO SECRETO DE CASITAS - HOSHIKO 🌸\n\n`;
+      fileContent += `📊 Total: ${totalServers} casitas | 💖 ${totalMembers} amigos en total\n`;
       fileContent += `==================================================\n\n`;
 
       sortedGuilds.forEach((g, index) => {
         fileContent += `${index + 1}. [${g.name}]\n`;
         fileContent += `   ID: ${g.id}\n`;
-        fileContent += `   Miembros: ${g.memberCount}\n`;
-        fileContent += `   Dueño ID: ${g.ownerId}\n\n`;
+        fileContent += `   Personitas: ${g.memberCount}\n`;
+        fileContent += `   Dueño/a: ${g.ownerId}\n\n`;
       });
 
       const buffer = Buffer.from(fileContent, "utf-8");
@@ -94,14 +98,14 @@ export default {
       });
 
       const embed = new EmbedBuilder()
-        .setTitle(`🕵️‍♀️ Reporte de Infiltración (Extenso)`)
+        .setTitle(`🌸 ¡Tengo muchas casitas!`)
         .setColor("#2b2d31")
         .setDescription(
-          `Estoy en demasiados servidores (**${totalServers}**) para ponerlos aquí.\nTe he generado un archivo secreto con la lista completa.`,
+          `¡Miau! Son demasiadas casitas (**${totalServers}**) para un solo mensajito.\n¡Pero no te preocupes! Te hice un diario secreto con la lista completa, nya~ 💖`,
         )
         .addFields({
-          name: "👥 Alcance Total",
-          value: `${totalMembers} usuarios`,
+          name: "💖 Amigos Totales",
+          value: `${totalMembers} personitas`,
           inline: true,
         });
 
@@ -109,3 +113,4 @@ export default {
     }
   },
 };
+export default command;

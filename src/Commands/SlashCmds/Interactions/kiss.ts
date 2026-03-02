@@ -13,6 +13,7 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import Couple from "../../../Models/couple";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 async function getAnimeGif(category: string): Promise<string> {
   try {
@@ -148,9 +149,7 @@ async function startKiss(
   });
 }
 
-export default {
-  name: "kiss",
-  aliases: ["besar", "beso", "chu"],
+const command: SlashCommand = {
   category: "Interactions",
 
   data: new SlashCommandBuilder()
@@ -175,8 +174,7 @@ export default {
       interaction.user,
       member?.displayHexColor || "#ff9eb5",
       async (payload) => {
-        const res = await interaction.reply({ ...payload, fetchReply: true });
-        return res as unknown as Message;
+        return await interaction.editReply(payload) as Message;
       },
     );
   },
@@ -194,3 +192,4 @@ export default {
     );
   },
 };
+export default command;

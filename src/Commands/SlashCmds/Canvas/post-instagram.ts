@@ -7,6 +7,7 @@ import {
 import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import { HoshikoClient } from "../../../index";
 import path from "path";
+import { SlashCommand } from "../../../Interfaces/Command";
 
 const fontPath = "./assets/fonts/";
 try {
@@ -25,7 +26,11 @@ const FOOTER_H = 310;
 const TOTAL_W = 1080;
 const TOTAL_H = HEADER_H + CONTENT_H + FOOTER_H;
 
-export default {
+const command: SlashCommand = {
+  category: "Canvas",
+  options: {
+    ephemeral: true,
+  },
   data: new SlashCommandBuilder()
     .setName("post")
     .setDescription("Genera posts de redes sociales.")
@@ -59,7 +64,7 @@ export default {
   ) {
     if (interaction.options.getSubcommand() !== "instagram") return;
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     let text = interaction.options.getString("texto", true);
     const attachment = interaction.options.getAttachment("imagen");
@@ -236,11 +241,17 @@ export default {
     const file = new AttachmentBuilder(finalBuffer, {
       name: "insta-fixed.png",
     });
+    
+    // ✅ Se mantiene enviando la foto de forma pública al canal
     if (interaction.channel && interaction.channel.isTextBased())
       await (interaction.channel as TextChannel).send({ files: [file] });
-    await interaction.editReply({ content: "✅ Post publicado." });
+      
+    // ✅ Se edita la respuesta oculta avisando que ya se subió
+    await interaction.editReply({ content: "✅ Post publicado en el canal." });
   },
 };
+
+export default command;
 
 function roundRect(
   ctx: any,

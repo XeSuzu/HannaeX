@@ -7,8 +7,10 @@ import {
 } from "discord.js";
 import Confession from "../../../Models/Confession";
 import ServerConfig from "../../../Models/serverConfig";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
   data: new SlashCommandBuilder()
     .setName("confession-delete")
     .setDescription("🗑️ Eliminación forzosa de publicaciones (Admin)")
@@ -28,7 +30,7 @@ module.exports = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) return;
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const targetId = interaction.options.getInteger("id", true);
     const reason = interaction.options.getString("razon", true);
@@ -139,3 +141,4 @@ module.exports = {
     return interaction.editReply({ embeds: [confirmEmbed] });
   },
 };
+export default command;

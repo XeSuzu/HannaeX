@@ -4,8 +4,10 @@ import {
   PermissionFlagsBits,
 } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
   data: new SlashCommandBuilder()
     .setName("confession-unban")
     .setDescription("✅ Retira el veto de confesiones a un usuario")
@@ -18,7 +20,7 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const targetUser = interaction.options.getUser("usuario", true);
 
@@ -49,3 +51,4 @@ module.exports = {
     );
   },
 };
+export default command;

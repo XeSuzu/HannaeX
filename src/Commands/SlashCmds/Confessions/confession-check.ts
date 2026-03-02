@@ -5,101 +5,90 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import Confession from "../../../Models/Confession";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
+  ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("confession-check")
-    .setDescription(
-      "🕵️‍♂️ Auditoría Forense: Revela los metadatos de un caso (Admin)",
-    )
+    .setDescription("🔍 Nyaa~ Investiga quién envió una publicación (Solo admins)")
     .addIntegerOption((option) =>
       option
         .setName("id")
-        .setDescription("Número de expediente (ID de la publicación)")
+        .setDescription("El número de la publicación a investigar")
         .setRequired(true),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    // 🔒 1. Verificación de Seguridad
-    if (
-      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-    ) {
-      return interaction.reply({
-        content: "⛔ **Acceso Denegado:** Credenciales insuficientes.",
-        ephemeral: true,
-      });
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      await interaction.editReply({ content: "⛔ Nyaa~ No tienes permiso para esto." });
+      return;
     }
 
     const targetId = interaction.options.getInteger("id", true);
-    await interaction.deferReply({ ephemeral: true });
 
-    // 🔍 2. Búsqueda en Base de Datos
     const evidence = await Confession.findOne({
       guildId: interaction.guildId,
       confessionId: targetId,
     });
 
     if (!evidence) {
-      return interaction.editReply(
-        `❌ **Error 404:** El expediente **#${targetId}** no consta en los archivos.`,
-      );
+      await interaction.editReply({
+        content: `🐾 No encontré ninguna publicación con el ID **#${targetId}**...`,
+      });
+      return;
     }
 
-    // 🕵️‍♂️ 3. Investigación del Usuario
     let userTag = evidence.authorTag;
     let avatarUrl = "https://cdn.discordapp.com/embed/avatars/0.png";
-    let status = "🔻 DESCONOCIDO (Fuera del radar)";
-    let color = 0x2f3136; // Gris oscuro (Técnico/Desconocido)
+    let status = "😿 Fuera del radar";
+    let color = 0x2f3136;
 
     try {
       const user = await interaction.client.users.fetch(evidence.authorId);
       userTag = user.tag;
       avatarUrl = user.displayAvatarURL({ size: 512 });
-      status = "🟢 ACTIVO (Localizado)";
-      color = 0x5865f2; // Blurple (Color oficial de Discord/Sistema)
+      status = "🌸 Localizado~";
+      color = 0xff9ecd;
     } catch (e) {}
 
-    // 4. 🎨 DISEÑO HOSHIKO UI (Expediente Secreto)
     const auditEmbed = new EmbedBuilder()
       .setAuthor({
-        name: `EXPEDIENTE DE INVESTIGACIÓN #${targetId}`,
-        iconURL: "https://cdn-icons-png.flaticon.com/512/1022/1022484.png", // Icono de Lupa/Investigación
+        name: `🔎 Investigación de Publicación #${targetId}`,
+        iconURL: "https://cdn-icons-png.flaticon.com/512/1022/1022484.png",
       })
       .setColor(color as any)
       .setThumbnail(avatarUrl)
       .addFields(
         {
-          name: "👤 SUJETO IDENTIFICADO",
-          // Usamos bloque YAML para alineación técnica perfecta
-          value: `\`\`\`yaml\nTag: ${userTag}\nID:  ${evidence.authorId}\nEstado: ${status}\`\`\``,
+          name: "🐱 Autor Identificado",
+          value: `\`\`\`yaml\nTag: ${userTag}\nID: ${evidence.authorId}\nEstado: ${status}\`\`\``,
           inline: false,
         },
         {
-          name: "📅 METADATA DEL CASO",
-          // Mostramos los nuevos datos (Modo y Tipo)
-          value: `> **Fecha:** <t:${Math.floor(evidence.timestamp.getTime() / 1000)}:f>\n> **Modo:** ${evidence.isAnonymous ? "🔒 Anónimo" : "🔓 Público"}\n> **Tipo:** ${evidence.replyToId ? `↩️ Respuesta al caso #${evidence.replyToId}` : "📝 Publicación Original"}`,
+          name: "🌷 Detalles de la Publicación",
+          value: `> **Fecha:** <t:${Math.floor(evidence.timestamp.getTime() / 1000)}:f>\n> **Modo:** ${evidence.isAnonymous ? "🔒 Anónimo" : "🔓 Público"}\n> **Tipo:** ${evidence.replyToId ? `↩️ Respuesta a #${evidence.replyToId}` : "📝 Publicación Original"}`,
           inline: false,
         },
         {
-          name: "📝 TRANSCRIPCIÓN",
+          name: "💬 Contenido",
           value: `>>> ${evidence.content}`,
         },
       )
-      .setFooter({
-        text: `System Audit ID: ${evidence._id} • Solo para ojos autorizados`,
-      })
+      .setFooter({ text: `Solo para ojos autorizados~ 🐾 • ID: ${evidence._id}` })
       .setTimestamp();
 
-    // Si había imagen adjunta
     if (evidence.imageUrl) {
       auditEmbed.setImage(evidence.imageUrl);
       auditEmbed.addFields({
-        name: "📸 EVIDENCIA ADJUNTA",
-        value: `[🔗 Abrir enlace de imagen](${evidence.imageUrl})`,
+        name: "🖼️ Imagen Adjunta",
+        value: `[🔗 Ver imagen](${evidence.imageUrl})`,
       });
     }
 
     await interaction.editReply({ embeds: [auditEmbed] });
   },
 };
+export default command;

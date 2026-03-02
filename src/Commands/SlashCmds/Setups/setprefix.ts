@@ -5,8 +5,10 @@ import {
 } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
+  category: "Setups",
   data: new SlashCommandBuilder()
     .setName("setprefix")
     .setDescription(
@@ -28,7 +30,7 @@ export default {
     // Obtenemos el nuevo prefijo que escribió el usuario
     const newPrefix = interaction.options.getString("nuevo", true);
 
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
 
     try {
       // 💾 GUARDAR EN BASE DE DATOS
@@ -53,3 +55,4 @@ export default {
     }
   },
 };
+export default command;

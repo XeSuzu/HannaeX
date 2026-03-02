@@ -1,120 +1,178 @@
-import { ActivityType, Events } from "discord.js";
+import { ActivityType, Events, Client } from "discord.js";
 import { HoshikoClient } from "../../index";
 import ActiveRole from "../../Database/Schemas/ActiveRole";
+import { Logger } from "../../Utils/SystemLogger";
+import { processMissedCycles } from "../../Services/StreakService";
+import { HoshikoLogger, LogLevel } from "../../Security";
 
-// Rotación de estados: lista de actividades mostradas en la presencia
-// Se aceptan las variables `{users}` y `{servers}` que se reemplazan en tiempo real.
-const STATUS_LIST = [
+const STATUS_LIST: { text: string; type: ActivityType }[] = [
   { text: "en {servers} servidores 🏠", type: ActivityType.Watching },
   { text: "/help | 🐱 Neko Mode", type: ActivityType.Playing },
   { text: "a {users} usuarios 👥", type: ActivityType.Listening },
   { text: "que todo brille 🌟", type: ActivityType.Competing },
   { text: "música lo-fi ☕", type: ActivityType.Listening },
-  { text: "protegiendo el chat 🛡️", type: ActivityType.Custom }, // Estado custom (opcional)
 ];
 
-/** Rotador de actividad: actualiza presencia periódicamente. */
 function startActivityRotator(client: HoshikoClient) {
   let currentIndex = 0;
 
-  const updateStatus = () => {
+  const updateStatus = async () => {
     try {
       if (!client.user) return;
 
-      // Calcular métricas en tiempo real
-      const rawUsers = client.guilds.cache.reduce(
+      const totalUsers = client.guilds.cache.reduce(
         (acc, guild) => acc + guild.memberCount,
-        0,
+        0
       );
-      const rawServers = client.guilds.cache.size;
 
-      // Formatear números para visualización
-      const fmtUsers = new Intl.NumberFormat("es-ES").format(rawUsers);
-      const fmtServers = new Intl.NumberFormat("es-ES").format(rawServers);
+      const totalServers = client.guilds.cache.size;
 
-      // Seleccionar estado actual
-      const statusConfig = STATUS_LIST[currentIndex];
+      const fmtUsers = new Intl.NumberFormat("es-ES").format(totalUsers);
+      const fmtServers = new Intl.NumberFormat("es-ES").format(totalServers);
 
-      // Reemplazar variables en el texto del estado
-      const finalName = statusConfig.text
-        .replace("{users}", fmtUsers)
-        .replace("{servers}", fmtServers);
+      const config = STATUS_LIST[currentIndex];
 
-      // Aplicar la presencia al cliente
       client.user.setPresence({
-        activities: [{ name: finalName, type: statusConfig.type as any }],
+        activities: [
+          {
+            name: config.text
+              .replace("{users}", fmtUsers)
+              .replace("{servers}", fmtServers),
+            type: config.type,
+          },
+        ],
         status: "online",
       });
 
-      // Avanzar al siguiente estado (ciclo)
       currentIndex = (currentIndex + 1) % STATUS_LIST.length;
     } catch (error) {
-      console.error("⚠️ Error menor actualizando presencia:", error);
+      await HoshikoLogger.log({
+        level: LogLevel.ERROR,
+        context: "PresenceRotator",
+        message: "Error actualizando presencia",
+        metadata: error,
+      });
     }
   };
 
-  // Ejecutar inmediatamente al iniciar
   updateStatus();
-
-  // Rotar cada 15 segundos
   setInterval(updateStatus, 15000);
-
-  console.log("🌟 [System] Rotador de estados iniciado correctamente.");
 }
 
 export default {
   name: Events.ClientReady,
   once: true,
-  async execute(client: HoshikoClient) {
+  async execute(_readyClient: Client<true>, client: HoshikoClient) {
     if (!client.user) return;
 
-    console.log("\n═══════════════════════════════════════");
-    console.log(`🌸 ✨ ¡Hoshiko ha despertado!`);
-    console.log(`💖 Conectada como: ${client.user.tag}`);
-    console.log("═══════════════════════════════════════\n");
+    const bootStart = Date.now();
 
-    // 1. Iniciar Estados (Versión Mejorada)
+    console.log("\n╭──────────────────────────────────────╮");
+    console.log("│        🌸 Hoshiko Online 🌸         │");
+    console.log("╰──────────────────────────────────────╯");
+    console.log(`   👤 Usuario: ${client.user.tag}`);
+    console.log(`   🏠 Servidores: ${client.guilds.cache.size}`);
+    console.log(`   🌍 Entorno: ${process.env.NODE_ENV || "development"}`);
+    console.log("");
+
+    await Logger.logBotRestart("Bot iniciado correctamente");
+
+    // ─────────────────────────────────────
+    // 🎀 Rotador de estados
+    // ─────────────────────────────────────
     startActivityRotator(client);
+    console.log("   ✨ Presencia dinámica activada");
 
-    // =========================================================
-    // ⏰ SISTEMA DE LIMPIEZA DE ROLES TEMPORALES
-    // =========================================================
-    console.log("⏰ [System] Iniciando reloj de limpieza de roles...");
+    // ─────────────────────────────────────
+    // 💀 Procesador de ciclos de rachas
+    // ─────────────────────────────────────
+    let isProcessingCycles = false;
 
+    const runCycleProcessor = async () => {
+      if (isProcessingCycles) return;
+      isProcessingCycles = true;
+
+      try {
+        const result = await processMissedCycles(client);
+
+        if (result.reset || result.frozen) {
+          console.log(
+            `   💀 Ciclos → reset: ${result.reset} | congeladas: ${result.frozen}`
+          );
+        }
+
+        if (result.errors.length > 0) {
+          console.log(
+            `   ⚠️  Ciclos con errores: ${result.errors.length}`
+          );
+        }
+      } catch (error) {
+        await HoshikoLogger.log({
+          level: LogLevel.FATAL,
+          context: "CycleProcessor",
+          message: "Error crítico en procesador de ciclos",
+          metadata: error,
+        });
+      } finally {
+        isProcessingCycles = false;
+      }
+    };
+
+    await runCycleProcessor();
+    setInterval(runCycleProcessor, 15 * 60 * 1000);
+    console.log("   ⏳ Procesador de ciclos activo (15m)");
+
+    // ─────────────────────────────────────
+    // ⏰ Limpieza de roles temporales
+    // ─────────────────────────────────────
     setInterval(async () => {
       try {
         const now = new Date();
+
         const expiredRoles = await ActiveRole.find({
           expiresAt: { $lte: now },
+        }).limit(200);
+
+        if (!expiredRoles.length) return;
+
+        const tasks = expiredRoles.map(async (doc) => {
+          try {
+            const guild = client.guilds.cache.get(doc.guildId);
+            if (!guild) return;
+
+            const member =
+              guild.members.cache.get(doc.userId) ??
+              (await guild.members.fetch(doc.userId).catch(() => null));
+
+            if (member) {
+              await member.roles.remove(doc.roleId).catch(() => null);
+            }
+          } finally {
+            await ActiveRole.deleteOne({ _id: doc._id });
+          }
         });
 
-        // Solo logueamos si hay trabajo que hacer, para no llenar la consola
-        if (expiredRoles.length > 0) {
-          console.log(`🧹 Procesando ${expiredRoles.length} roles vencidos...`);
-        }
+        await Promise.allSettled(tasks);
 
-        for (const doc of expiredRoles) {
-          const guild = client.guilds.cache.get(doc.guildId);
-
-          if (!guild) {
-            await ActiveRole.deleteOne({ _id: doc._id });
-            continue;
-          }
-
-          const member = await guild.members
-            .fetch(doc.userId)
-            .catch(() => null);
-
-          if (member) {
-            await member.roles.remove(doc.roleId).catch(() => null);
-            // Opcional: Loguear en un canal de logs si quisieras
-          }
-
-          await ActiveRole.deleteOne({ _id: doc._id });
-        }
+        console.log(
+          `   🧹 Roles temporales limpiados: ${expiredRoles.length}`
+        );
       } catch (error) {
-        console.error("❌ Error crítico en limpieza de roles:", error);
+        await HoshikoLogger.log({
+          level: LogLevel.ERROR,
+          context: "RoleCleanup",
+          message: "Error en limpieza de roles temporales",
+          metadata: error,
+        });
       }
-    }, 60 * 1000); // 60 segundos
+    }, 60 * 1000);
+
+    console.log("   ⏰ Limpieza automática activa (1m)");
+
+    const bootTime = Date.now() - bootStart;
+
+    console.log("");
+    console.log(`✨ Sistema estable | Startup: ${bootTime}ms`);
+    console.log("────────────────────────────────────────\n");
   },
 };

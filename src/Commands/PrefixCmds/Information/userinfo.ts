@@ -7,23 +7,14 @@ import {
   ActivityType,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
-interface PrefixCommand {
-  name: string;
-  description: string;
-  usage: string;
-  execute: (
-    message: Message,
-    args: string[],
-    client: HoshikoClient,
-  ) => Promise<void | Message>;
-}
+import { PrefixCommand } from "../../../Interfaces/Command";
 
 const command: PrefixCommand = {
   name: "userinfo",
   description: "Obtén información detallada de un usuario",
   usage: "!userinfo [@usuario]",
 
-  async execute(message, args, client) {
+  async execute(message: Message, args: string[], client: HoshikoClient) {
     if (!message.guild) return;
 
     try {
@@ -35,9 +26,11 @@ const command: PrefixCommand = {
         try {
           user = await client.users.fetch(args[0]);
         } catch {
-          return message.reply(
+
+          await message.reply(
             "❌ Usuario no encontrado. Por favor menciona a un usuario o proporciona un ID válido.",
           );
+          return; 
         }
       } else {
         user = message.author;
@@ -121,12 +114,14 @@ const command: PrefixCommand = {
         });
       }
 
-      return await message.reply({ embeds: [embed] });
-    } catch (error: any) {
-      console.error("Error mostrando información del usuario:", error);
+      await message.reply({ embeds: [embed] });
+      
+    } catch (error) { 
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Error mostrando información del usuario:", errorMessage);
       await message.reply("❌ Ocurrió un error al ejecutar el comando.");
     }
   },
 };
 
-export = command;
+export default command;

@@ -5,9 +5,11 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { SettingsManager } from "../../../Database/SettingsManager";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
   category: "Moderation",
+  cooldown: 5, // 5 segundos entre cambios de whitelist
   data: new SlashCommandBuilder()
     .setName("whitelist")
     .setDescription("Gestiona los dominios permitidos en el servidor.")
@@ -96,3 +98,4 @@ export default {
     await interaction.reply({ embeds: [embed] });
   },
 };
+export default command;

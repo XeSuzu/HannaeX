@@ -12,15 +12,17 @@ import {
   Role,
 } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Setups",
   data: new SlashCommandBuilder()
     .setName("setup-autojoin")
     .setDescription("🤖 Dashboard: Configura los roles automáticos al entrar")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     // 1. Cargar Configuración
     let settings = await ServerConfig.findOne({ guildId: interaction.guildId });
@@ -215,3 +217,4 @@ module.exports = {
     });
   },
 };
+export default command;

@@ -1,8 +1,10 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { HoshikoClient } from "../../../index";
-import Tester from "../../../Models/testers"; // Ajusta la ruta
+import Tester from "../../../Models/testers";
+import { SlashCommand } from "../../../Interfaces/Command"; // Ajusta la ruta
+import { Logger } from "../../../Utils/SystemLogger";
 
-export default {
+const command: SlashCommand = {
   category: "Owner", // 🔒 CRÍTICO: Categoría Owner
   data: new SlashCommandBuilder()
     .setName("manage-testers")
@@ -36,6 +38,9 @@ export default {
   ) {
     // 1. Verificar que seas TÚ (El Dueño Real)
     if (interaction.user.id !== process.env.BOT_OWNER_ID) {
+      // 📊 Log de intento de acceso no autorizado
+      await Logger.logSecurityBreach(interaction.user, "manage-testers");
+      
       return interaction.reply({
         content: "⛔ No puedes usar esto.",
         ephemeral: true,
@@ -85,3 +90,4 @@ export default {
     }
   },
 };
+export default command;

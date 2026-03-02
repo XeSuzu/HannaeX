@@ -1,23 +1,14 @@
 import { Message, TextChannel, DMChannel, NewsChannel } from "discord.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { HoshikoClient } from "../../../index";
-
-interface PrefixCommand {
-  name: string;
-  description: string;
-  execute: (
-    message: Message,
-    args: string[],
-    client: HoshikoClient,
-  ) => Promise<void>;
-}
+import { PrefixCommand } from "../../../Interfaces/Command";
 
 const command: PrefixCommand = {
   name: "translate",
   description:
-    "Traduce texto o el mensaje al que respondes usando Google Translate",
+    "Traduce texto o el mensaje al que respondes usando Gemini",
 
-  async execute(message, args, client) {
+  async execute(message: Message, args: string[], client: HoshikoClient) {
     if (!message.channel || !message.channel.isTextBased()) return;
     const channel = message.channel as TextChannel | DMChannel | NewsChannel;
 
@@ -142,14 +133,15 @@ const command: PrefixCommand = {
       await channel.send(
         `🌐 Traducción (${detectedLang} → ${targetLang})${autoNote}:\n${translated}`,
       );
-    } catch (err: any) {
+    } catch (err) { 
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(
         "Error en comando translate (prefix):",
-        err?.message || err,
+        errorMessage,
       );
       await channel.send("❌ Ocurrió un error al traducir.");
     }
   },
 };
 
-export = command;
+export default command;

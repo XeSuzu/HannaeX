@@ -7,8 +7,9 @@ import {
 } from "discord.js";
 import StatusConfig from "../../../Models/StatutsConfig"; // Asegúrate de que la ruta sea correcta
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
   category: "Admin",
   data: new SlashCommandBuilder()
     .setName("status-reward")
@@ -61,7 +62,7 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply();
+    // ❌ ELIMINADO: await interaction.deferReply();
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
 
@@ -172,3 +173,4 @@ export default {
     }
   },
 };
+export default command;

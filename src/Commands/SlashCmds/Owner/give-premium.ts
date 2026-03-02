@@ -2,8 +2,9 @@ import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
 // 👇 1. Importamos el Logger nuevo
 import { Logger } from "../../../Utils/SystemLogger";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-export default {
+const command: SlashCommand = {
   category: "Owner",
   data: new SlashCommandBuilder()
     .setName("give-premium")
@@ -39,7 +40,7 @@ export default {
     const targetGuildId = interaction.options.getString("server_id", true);
     const days = interaction.options.getInteger("dias", true);
 
-    await interaction.deferReply({ ephemeral: true });
+    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     try {
       // 2. Buscamos o Creamos la configuración
@@ -101,3 +102,4 @@ export default {
     }
   },
 };
+export default command;

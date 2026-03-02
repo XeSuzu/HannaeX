@@ -1,30 +1,34 @@
 import { Message, PermissionFlagsBits } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
 import { HoshikoClient } from "../../../index";
+import { PrefixCommand } from "../../../Interfaces/Command";
 
-const command = {
+const command: PrefixCommand = {
   name: "prefix",
-  aliases: ["setprefix", "cambiarprefijo"],
+  aliases: ["setprefix", "cambiarprefijo"], 
   description: "Cambia el símbolo con el que responde el bot.",
 
   async execute(message: Message, args: string[], client: HoshikoClient) {
     if (!message.guild) return;
 
     if (!message.member?.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply(
+      await message.reply(
         "❌ **Acceso denegado.** Solo los administradores pueden cambiar mi prefijo.",
       );
+      return;
     }
 
     const newPrefix = args[0];
     if (!newPrefix) {
-      return message.reply(
+      await message.reply(
         "⚠️ **Falta el prefijo.**\n> Uso correcto: `xprefix <nuevo_simbolo>`\n> Ejemplo: `xprefix .`",
       );
+      return;
     }
 
     if (newPrefix.length > 3) {
-      return message.reply("❌ El prefijo no puede tener más de 3 caracteres.");
+      await message.reply("❌ El prefijo no puede tener más de 3 caracteres.");
+      return;
     }
 
     try {
@@ -38,10 +42,12 @@ const command = {
         `✅ **¡Listo!** Prefijo actualizado a: \`${newPrefix}\`\n> Ahora usa: \`${newPrefix}ping\``,
       );
     } catch (error) {
-      console.error(error);
-      message.reply("❌ Hubo un error al guardar en la base de datos.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Error al guardar el prefijo:", errorMessage);
+      await message.reply("❌ Hubo un error al guardar en la base de datos.");
     }
   },
 };
 
-export = command;
+//  3. Exportación limpia y moderna
+export default command;

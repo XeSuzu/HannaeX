@@ -1,31 +1,33 @@
 import fs from "fs";
 import path from "path";
+import { pathToFileURL } from "url";
+import { ClientEvents } from "discord.js";
 import { HoshikoClient } from "../index";
+import { HoshikoLogger, LogLevel } from "../Security";
 
-interface EventFile {
-  name: string;
+export interface EventFile<K extends keyof ClientEvents = keyof ClientEvents> {
+  name: K;
   once?: boolean;
-  execute: (...args: any[]) => void;
+  execute: (...args: [...ClientEvents[K], HoshikoClient]) => void | Promise<void>;
 }
 
-// Recorre un árbol de carpetas y devuelve archivos con las extensiones permitidas
-function getFilesRecursively(
-  directory: string,
-  extensions: string[],
-): string[] {
-  let files: string[] = [];
+function getFilesRecursively(directory: string): string[] {
+  const files: string[] = [];
   if (!fs.existsSync(directory)) return files;
 
   const items = fs.readdirSync(directory, { withFileTypes: true });
 
   for (const item of items) {
     const fullPath = path.join(directory, item.name);
+
     if (item.isDirectory()) {
-      files = [...files, ...getFilesRecursively(fullPath, extensions)];
+      files.push(...getFilesRecursively(fullPath));
     } else if (item.isFile()) {
       const ext = path.extname(item.name);
+      const isProd = process.env.NODE_ENV === "production";
+
       if (
-        extensions.includes(ext) &&
+        (isProd ? ext === ".js" : [".ts", ".js"].includes(ext)) &&
         !item.name.endsWith(".js.map") &&
         !item.name.endsWith(".d.ts")
       ) {
@@ -33,56 +35,78 @@ function getFilesRecursively(
       }
     }
   }
+
   return files;
 }
 
-export default (client: HoshikoClient) => {
+export default async (client: HoshikoClient) => {
   const eventsPath = path.join(__dirname, "../Events");
+  const allEventFiles = getFilesRecursively(eventsPath);
 
-  // Detectar entorno para cargar .ts en desarrollo o .js en producción
-  const isTs =
-    !!process.env.TS_NODE ||
-    !!process.env.TS_NODE_DEV ||
-    process.execArgv.some((a) => a.includes("ts-node"));
-  const allowedExts = isTs ? [".ts"] : [".js"];
+  let loaded = 0;
+  let failed = 0;
 
-  const allEventFiles = getFilesRecursively(eventsPath, allowedExts);
-
-  console.log(`[EVENT HANDLER] Cargando ${allEventFiles.length} eventos...`);
+  console.log("\n╭──────────────────────────────────────╮");
+  console.log("│        ⚡ Event Handler Boot ⚡      │");
+  console.log("╰──────────────────────────────────────╯");
 
   for (const filePath of allEventFiles) {
     try {
-      // Manejamos el require de forma segura para TS/JS
-      const mod = require(path.resolve(filePath));
-      const event: EventFile = mod.default || mod;
+      delete require.cache[require.resolve(filePath)];
+
+      const mod = await import(pathToFileURL(filePath).href);      
+      const eventModule = mod.default ?? mod;
+      const event: EventFile = eventModule?.default ?? eventModule;
+
 
       if (!event || !event.name || typeof event.execute !== "function") {
-        console.warn(
-          `⚠️ [EVENT HANDLER] Estructura inválida en ${path.basename(filePath)}: Falta 'name' o 'execute'.`,
-        );
+        failed++;
+        await HoshikoLogger.log({
+          level: LogLevel.WARN,
+          context: "EventHandler",
+          message: `Estructura inválida: ${path.basename(filePath)}`,
+        });
         continue;
       }
 
-      // Evitamos duplicar listeners si recargas el handler
-      client.removeAllListeners(event.name);
+      const handler = (...args: ClientEvents[typeof event.name]) =>
+        event.execute(...args, client);
 
       if (event.once) {
-        client.once(event.name, (...args: any[]) =>
-          event.execute(...args, client),
-        );
+        client.once(event.name, handler);
       } else {
-        client.on(event.name, (...args: any[]) =>
-          event.execute(...args, client),
-        );
+        client.on(event.name, handler);
       }
 
-      const relativePath = path.relative(eventsPath, filePath);
-      console.log(`   ✅ Evento cargado: ${event.name} (${relativePath})`);
-    } catch (error: any) {
-      console.error(
-        `   ❌ Error cargando el evento en ${filePath}:`,
-        error.message,
+      loaded++;
+
+      console.log(
+        `   ✨ ${event.name.padEnd(22)} | ${path.relative(
+          eventsPath,
+          filePath
+        )}`
       );
+    } catch (error) {
+      failed++;
+
+      await HoshikoLogger.log({
+        level: LogLevel.ERROR,
+        context: "EventHandler",
+        message: `Error cargando evento: ${path.basename(filePath)}`,
+        metadata: error instanceof Error ? error.message : String(error),
+      });
     }
   }
+
+  console.log("");
+  console.log(
+    `✨ EventHandler listo → ${loaded} cargados | ${failed} errores`
+  );
+  console.log("────────────────────────────────────────\n");
+
+  await HoshikoLogger.log({
+    level: LogLevel.SUCCESS,
+    context: "EventHandler",
+    message: `Inicialización completa (${loaded} eventos cargados, ${failed} errores)`,
+  });
 };

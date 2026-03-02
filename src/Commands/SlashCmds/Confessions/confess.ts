@@ -6,8 +6,10 @@ import {
   TextInputStyle,
   ActionRowBuilder,
 } from "discord.js";
+import { SlashCommand } from "../../../Interfaces/Command";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Confessions",
   data: new SlashCommandBuilder()
     .setName("confess")
     .setDescription("Envía una confesión anónima al servidor"),
@@ -32,3 +34,4 @@ module.exports = {
     await interaction.showModal(modal);
   },
 };
+export default command;

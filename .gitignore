@@ -12,3 +12,4 @@ config.json
 
 # Build output
 /dist
+.env*

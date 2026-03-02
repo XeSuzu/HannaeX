@@ -1,4 +1,5 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+
 import {
   Client,
   Collection,
@@ -11,13 +12,17 @@ import path from "path";
 import express, { Request, Response } from "express";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
 import { loadAntiCrash } from "./Utils/antiCrash";
-// 👇 Importamos la conexión robusta
 import { connectWithRetry } from "./Services/mongo";
 
-// 1. ACTIVAR MODO INMORTAL
+// Carga el archivo .env correspondiente al entorno actual.
+// Si NODE_ENV no está definido (ej: al correr `npm run dev`), usa 'development' por defecto.
+const nodeEnv = process.env.NODE_ENV || "development";
+dotenv.config({ path: path.join(__dirname, `../.env.${nodeEnv}`), override: true });
+
+import { SlashCommand, PrefixCommand } from "./Interfaces/Command";
+
 loadAntiCrash();
 
-// --- Configuración de Express (Health Check) ---
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -29,40 +34,36 @@ app.get("/healthz", (req: Request, res: Response) => {
   res.send("ok");
 });
 
-app.listen(PORT, () => {
-  HoshikoLogger.log({
-    level: LogLevel.INFO,
-    context: "System/Web",
-    message: `Servidor de salud activo en puerto ${PORT}`,
-  });
-});
+export class HoshikoClient extends Client<true> {
+  public commands = new Collection<string, PrefixCommand>();
+  public slashCommands = new Collection<string, SlashCommand>();
+  public cooldowns = new Collection<string, Collection<string, number>>();
 
-// --- Interfaz del Cliente ---
-export interface HoshikoClient extends Client<true> {
-  commands: Collection<string, any>;
-  slashCommands: Collection<string, any>;
-  config: {
-    token?: string;
-    BotId?: string;
-    prefix?: string;
-    guildIds: string[];
+  public config = {
+    token: process.env.TOKEN || "",
+    BotId: process.env.BOT_ID || "",
+    prefix: process.env.PREFIX || "!",
+    guildIds: process.env.GUILD_ID
+      ? process.env.GUILD_ID.split(",").map(id => id.trim())
+      : [],
   };
-  cooldowns: Collection<string, Collection<string, number>>;
 }
 
-// 2. CLIENTE CON GESTIÓN DE RAM (Optimización)
-const client = new Client({
-  // 👇 Mantenemos la optimización de RAM
+// Se extrae el BOT_ID para evitar una referencia circular en la inicialización del cliente.
+const BOT_ID = process.env.BOT_ID || "";
+
+// 2. CLIENTE CON GESTIÓN DE RAM OPTIMIZADA
+const client = new HoshikoClient({
   makeCache: Options.cacheWithLimits({
     MessageManager: 50,
     PresenceManager: 0,
     UserManager: {
       maxSize: 1000,
-      keepOverLimit: (user) => user.id === client.user?.id,
+      keepOverLimit: (user) => user.id === BOT_ID,
     },
     GuildMemberManager: {
       maxSize: 1000,
-      keepOverLimit: (member) => member.id === client.user?.id,
+      keepOverLimit: (member) => member.id === BOT_ID,
     },
   }),
   intents: [
@@ -74,40 +75,28 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
-}) as HoshikoClient;
+});
 
-// 🧠 Inicializamos las colecciones
-client.commands = new Collection();
-client.slashCommands = new Collection();
-client.cooldowns = new Collection(); //
+// --- Carga de Handlers (Refactorizada para evitar duplicados) ---
+const loadHandlers = () => {
+  const handlersDir = path.join(__dirname, "Handlers");
+  if (!fs.existsSync(handlersDir)) return;
 
-client.config = {
-  token: process.env.TOKEN || "",
-  BotId: process.env.BOT_ID || "",
-  prefix: process.env.PREFIX || "!",
-  guildIds: process.env.GUILD_ID
-    ? process.env.GUILD_ID.split(",").map((id) => id.trim())
-    : [],
-};
-
-// --- Carga de Handlers ---
-const handlersDir = path.join(__dirname, "Handlers");
-
-if (fs.existsSync(handlersDir)) {
   const handlerFiles = fs
     .readdirSync(handlersDir)
-    .filter(
-      (file) =>
-        (file.endsWith(".js") || file.endsWith(".ts")) &&
-        !file.endsWith(".map.js"),
+    .filter((file) => 
+      (file.endsWith(".js") || file.endsWith(".ts")) && 
+      !file.endsWith(".map.js") && 
+      !file.endsWith(".d.ts")
     );
 
   handlerFiles.forEach((file) => {
-    // Evitamos cargar handlers de base de datos viejos
     if (file.includes("database") || file.includes("mongo")) return;
 
     try {
       const handlerPath = path.join(handlersDir, file);
+      delete require.cache[require.resolve(handlerPath)];
+      
       const handlerModule = require(handlerPath);
       const handler = handlerModule.default || handlerModule;
 
@@ -123,7 +112,7 @@ if (fs.existsSync(handlersDir)) {
       });
     }
   });
-}
+};
 
 // --- Arranque Principal ---
 (async () => {
@@ -132,12 +121,32 @@ if (fs.existsSync(handlersDir)) {
       throw new Error("No se encontró el TOKEN en el archivo .env");
     }
 
-    // 3. CONEXIÓN A MONGODB
+    // 1. Monitor de Rendimiento
+    const stats = PerformanceMonitor.getSystemStats();
+    HoshikoLogger.log({
+         level: LogLevel.INFO,
+         context: "System/Performance",
+         message: `Hoshiko iniciando en ${stats.platform}. RAM en uso: ${stats.ramUsage}`,
+   });
+
+    // 2. Conectar a MongoDB
     await connectWithRetry();
 
-    // 4. Iniciar sesión
-    // NOTA: No llamamos a statusRotator aquí porque tu ready.ts ya lo hace.
+    // 3. Cargar Eventos y Comandos
+    loadHandlers();
+
+    // 4. Iniciar Servidor Web
+    app.listen(PORT, () => {
+      HoshikoLogger.log({
+        level: LogLevel.INFO,
+        context: "System/Web",
+        message: `Servidor de salud activo en puerto ${PORT}`,
+      });
+    });
+
+    // 5. Login
     await client.login(client.config.token);
+
   } catch (err) {
     HoshikoLogger.log({
       level: LogLevel.FATAL,
@@ -149,18 +158,23 @@ if (fs.existsSync(handlersDir)) {
   }
 })();
 
-// --- Apagado Seguro ---
+// --- Apagado Seguro (Graceful Shutdown) ---
 async function shutdown(signal: string) {
   HoshikoLogger.log({
     level: LogLevel.WARN,
     context: "System/Shutdown",
-    message: `Señal ${signal} recibida. Apagando...`,
+    message: `Señal ${signal} recibida. Apagando Hoshiko de forma segura...`,
   });
 
   try {
+    // Aquí puedes cerrar conexiones de base de datos si fuera necesario
     client.destroy();
-  } catch (e) {}
-  process.exit(0);
+    HoshikoLogger.log({ level: LogLevel.INFO, context: "System", message: "Cliente de Discord destruido." });
+  } catch (e) {
+    console.error("Error durante el cierre:", e);
+  } finally {
+    process.exit(0);
+  }
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

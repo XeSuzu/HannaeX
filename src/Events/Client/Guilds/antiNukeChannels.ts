@@ -83,9 +83,8 @@ export default {
         // 3. Aviso estético al canal de logs del servidor
         await HoshikoLogger.sendLog(
           guild,
-          "🚨 PROTOCOLO ANTI-NUKE ACTIVADO",
+          "ANTI_NUKE",
           `El usuario **${executor.tag}** ha sido puesto en cuarentena por intentar borrar múltiples canales rápidamente.\nSe le han retirado todos sus roles administrativos.`,
-          0xff0000,
           executor as any,
         );
 
