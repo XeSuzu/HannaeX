@@ -6,6 +6,7 @@ import {
 import { snipes } from "../../../Events/Client/Guilds/messageDelete";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
+import { SettingsManager } from "../../../Database/SettingsManager";
 
 const command: SlashCommand = {
   category: "Fun",
@@ -23,6 +24,21 @@ const command: SlashCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+    if (!interaction.guildId) {
+      await interaction.editReply({
+        content: "❌ Este comando solo se puede usar en un servidor.",
+      });
+      return;
+    }
+
+    const settings = await SettingsManager.getSettings(interaction.guildId);
+    if (!settings?.securityModules?.snipe) {
+      await interaction.editReply({
+        content: "❌ El comando snipe está desactivado en este servidor.",
+      });
+      return;
+    }
+
     const position = interaction.options.getInteger("numero") || 1;
     const index = position - 1;
     const channelSnipes = snipes.get(interaction.channelId);

@@ -43,7 +43,7 @@ const command: SlashCommand = {
         PremiumManager.isPremium(guildId),
       ]);
 
-      const modules = set?.securityModules || { antiRaid: false, antiLinks: false };
+      const modules = set?.securityModules || { antiRaid: false, antiLinks: false, snipe: false };
       const aiSys = aiSet.aiSystem || { mode: "neko", behavior: "normal", spontaneousChannels: [] };
 
       const currentBehavior = (aiSys.behavior || "normal").toLowerCase();
@@ -89,7 +89,7 @@ const command: SlashCommand = {
           },
           {
             name: "🛡️ **SEGURIDAD DEL SERVIDOR**",
-            value: `> ⚔️ **Anti-Raid:** ${modules.antiRaid ? "✅ ON" : "❌ OFF"}\n> 🔗 **Anti-Links:** ${modules.antiLinks ? "✅ ON" : "❌ OFF"}\n> 📝 **Logs:** ${logsDisplay}`,
+            value: `> ⚔️ **Anti-Raid:** ${modules.antiRaid ? "✅ ON" : "❌ OFF"}\n> 🔗 **Anti-Links:** ${modules.antiLinks ? "✅ ON" : "❌ OFF"}\n> 🕵️ **Snipe:** ${modules.snipe ? "✅ ON" : "❌ OFF"}\n> 📝 **Logs:** ${logsDisplay}`,
             inline: true,
           },
           {
@@ -176,6 +176,7 @@ const command: SlashCommand = {
               new StringSelectMenuBuilder().setCustomId("submenu_security_select").setPlaceholder("🛡️ Opciones de Protección").addOptions([
                 { label: "Alternar Anti-Raid", value: "toggle_antiRaid", emoji: "⚔️" },
                 { label: "Alternar Anti-Links", value: "toggle_antiLinks", emoji: "🔗" },
+                { label: "Alternar Snipe", value: "toggle_snipe", emoji: "🕵️", description: "Permite o bloquea el comando /snipe en este servidor." },
                 { label: "Configurar Logs", value: "go_setup_logs", emoji: "📝", description: "Abre /setup-logs para gestionar canales de log." },
               ]),
             );

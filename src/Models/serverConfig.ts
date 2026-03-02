@@ -16,6 +16,7 @@ interface ISecurityModules {
   antiRaid: boolean;
   antiNuke: boolean;
   antiAlt: boolean;
+  snipe?: boolean;
 }
 
 interface IFeedConfig {
@@ -215,6 +216,7 @@ const serverConfigSchema = new Schema<IServerConfig>({
     antiRaid: { type: Boolean, default: false },
     antiNuke: { type: Boolean, default: false },
     antiAlt: { type: Boolean, default: false },
+    snipe: { type: Boolean, default: false },
   },
 
   culture: {
