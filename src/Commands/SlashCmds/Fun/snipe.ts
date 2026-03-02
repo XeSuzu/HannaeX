@@ -6,16 +6,15 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { Snipe } from "../../../Models/snipe";
+import { Snipe } from "../../../Models/Snipe";
 import { SettingsManager } from "../../../Database/SettingsManager";
 
 const command: SlashCommand = {
   category: "Fun",
-  ephemeral: true,
   cooldown: 3,
   data: new SlashCommandBuilder()
     .setName("snipe")
-    .setDescription("Recupera mensajes borrados recientemente 🕵️‍♀️")
+    .setDescription("Recupera el último mensaje borrado en este canal 🕵️‍♀️")
     .addIntegerOption((opt) =>
       opt
         .setName("numero")
@@ -25,7 +24,7 @@ const command: SlashCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
-    // Verificar si snipe está habilitado en el servidor
+    // 1. Verificar si snipe está habilitado en el servidor
     const settings = await SettingsManager.getSettings(interaction.guildId!);
     if (!settings?.securityModules?.snipe) {
       await interaction.editReply({
@@ -34,6 +33,7 @@ const command: SlashCommand = {
       return;
     }
 
+    // 2. Buscar mensaje borrado
     const position = interaction.options.getInteger("numero") || 1;
     const index    = position - 1;
 
@@ -56,12 +56,13 @@ const command: SlashCommand = {
       .setAuthor({ name: `${msg.author} borró esto:`, iconURL: msg.authorAvatar })
       .setDescription(msg.content)
       .setFooter({
-        text: `Snipe ${position}/${doc.snipes.length} • Atrapado por Hoshiko 🐾 • Expira en 1h`,
+        text: `Snipe ${position}/${doc.snipes.length} • Hoshiko 🐾 • Expira en 1h`,
       })
       .setTimestamp(msg.deletedAt);
 
     if (msg.image) embed.setImage(msg.image);
 
+    // Respuesta pública
     await interaction.editReply({ embeds: [embed] });
   },
 };

@@ -1,3 +1,4 @@
+// src/Commands/SlashCmds/Moderation/setup.ts
 import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -5,25 +6,28 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
   ButtonInteraction,
   StringSelectMenuInteraction,
+  ChannelType,
+  TextChannel,
+  Message,
+  ReadonlyCollection,
 } from "discord.js";
 import { SettingsManager } from "../../../Database/SettingsManager";
 import { IAConfigManager } from "../../../Database/IAConfigManager";
 import { PremiumManager } from "../../../Database/PremiumManager";
 import { SlashCommand } from "../../../Interfaces/Command";
+import { publishSnipeNotice, isPublicChannel } from "../../../Services/SnipeConsentService";
 
 const GLOBAL_BANNER =
   "https://i.pinimg.com/originals/2f/43/76/2f437614d7fa7239696a8b34d5e41769.gif";
 
 const command: SlashCommand = {
   category: "Moderation",
+  ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("setup")
     .setDescription("⚙️ Configura la seguridad y la personalidad de Hoshiko.")
@@ -32,7 +36,6 @@ const command: SlashCommand = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
 
-    // --- FUNCIÓN GENERADORA DE UI ---
     const generateUI = async (
       guildId: string,
       specificMenu: ActionRowBuilder<StringSelectMenuBuilder> | null = null,
@@ -44,35 +47,29 @@ const command: SlashCommand = {
       ]);
 
       const modules = set?.securityModules || { antiRaid: false, antiLinks: false, snipe: false };
-      const aiSys = aiSet.aiSystem || { mode: "neko", behavior: "normal", spontaneousChannels: [] };
+      const aiSys   = aiSet.aiSystem || { mode: "neko", behavior: "normal", spontaneousChannels: [] };
 
       const currentBehavior = (aiSys.behavior || "normal").toLowerCase();
       let behaviorDisplay = "";
-      let safetyDisplay = "";
+      let safetyDisplay   = "";
 
       switch (currentBehavior) {
         case "agresivo":
           behaviorDisplay = "😈 AGRESIVO (Tóxico)";
-          safetyDisplay = "⚠️ Mínimo (Sin censura)";
+          safetyDisplay   = "⚠️ Mínimo (Sin censura)";
           break;
         case "pesado":
           behaviorDisplay = "😒 PESADO (Sarcástico)";
-          safetyDisplay = "⚖️ Medio (Permite bromas)";
+          safetyDisplay   = "⚖️ Medio (Permite bromas)";
           break;
-        case "normal":
         default:
           behaviorDisplay = "😇 NORMAL (Amigable)";
-          safetyDisplay = "🛡️ Robusto (Family Friendly)";
-          break;
+          safetyDisplay   = "🛡️ Robusto (Family Friendly)";
       }
 
       const isSpontaneousHere = (aiSys.spontaneousChannels || []).includes(interaction.channelId);
-
-      // Usamos logChannels.modlog como fuente de verdad
-      const modlogChannel = set?.logChannels?.modlog ?? set?.modLogChannel ?? null;
-      const logsDisplay = modlogChannel
-        ? `<#${modlogChannel}>`
-        : "⚠️ Sin configurar — usa \`/setup-logs\`";
+      const modlogChannel     = set?.logChannels?.modlog ?? set?.modLogChannel ?? null;
+      const logsDisplay       = modlogChannel ? `<#${modlogChannel}>` : "⚠️ Sin configurar — usa `/setup-logs`";
 
       const embed = new EmbedBuilder()
         .setTitle("｡･:* 🐾 **CONFIGURACIÓN DEL NÚCLEO** *:･ﾟ")
@@ -83,24 +80,24 @@ const command: SlashCommand = {
         .setThumbnail(interaction.client.user?.displayAvatarURL() || null)
         .addFields(
           {
-            name: "🧠 **NIVEL DE COMPORTAMIENTO (IA)**",
-            value: `> 🎭 **Modo Actual:** \`${behaviorDisplay}\`\n> 🛡️ **Filtro IA:** \`${safetyDisplay}\`\n> *El filtro se ajusta automáticamente según el modo.*`,
+            name:   "🧠 **NIVEL DE COMPORTAMIENTO (IA)**",
+            value:  `> 🎭 **Modo Actual:** \`${behaviorDisplay}\`\n> 🛡️ **Filtro IA:** \`${safetyDisplay}\`\n> *El filtro se ajusta automáticamente según el modo.*`,
             inline: false,
           },
           {
-            name: "🛡️ **SEGURIDAD DEL SERVIDOR**",
-            value: `> ⚔️ **Anti-Raid:** ${modules.antiRaid ? "✅ ON" : "❌ OFF"}\n> 🔗 **Anti-Links:** ${modules.antiLinks ? "✅ ON" : "❌ OFF"}\n> 🕵️ **Snipe:** ${modules.snipe ? "✅ ON" : "❌ OFF"}\n> 📝 **Logs:** ${logsDisplay}`,
+            name:   "🛡️ **SEGURIDAD DEL SERVIDOR**",
+            value:  `> ⚔️ **Anti-Raid:** ${modules.antiRaid ? "✅ ON" : "❌ OFF"}\n> 🔗 **Anti-Links:** ${modules.antiLinks ? "✅ ON" : "❌ OFF"}\n> 🕵️ **Snipe:** ${modules.snipe ? "✅ ON" : "❌ OFF"}\n> 📝 **Logs:** ${logsDisplay}`,
             inline: true,
           },
           {
-            name: "🗣️ **CHAT ESPONTÁNEO**",
-            value: `> 📍 **En este canal:** ${isSpontaneousHere ? "✅ HABLANDO" : "🔇 CALLADA"}`,
+            name:   "🗣️ **CHAT ESPONTÁNEO**",
+            value:  `> 📍 **En este canal:** ${isSpontaneousHere ? "✅ HABLANDO" : "🔇 CALLADA"}`,
             inline: true,
           },
         )
         .setImage(GLOBAL_BANNER)
         .setFooter({
-          text: "Hoshiko System • Configuración Unificada",
+          text:    "Hoshiko System • Configuración Unificada",
           iconURL: interaction.user.displayAvatarURL(),
         });
 
@@ -109,10 +106,10 @@ const command: SlashCommand = {
           .setCustomId("setup_main_menu")
           .setPlaceholder("Selecciona una opción...")
           .addOptions([
-            { label: "Ajustar Comportamiento/Filtro", value: "menu_behavior", emoji: "🧠", description: "Cambia entre Normal, Pesado o Agresivo." },
-            { label: "Cambiar Identidad (Roleplay)", value: "menu_identity", emoji: "🎭", description: "Neko, Maid, Gymbro, etc." },
-            { label: "Seguridad (Anti-Raid/Links)", value: "menu_security", emoji: "🛡️", description: "Activa o desactiva protecciones." },
-            { label: "Chat Espontáneo AQUÍ", value: "ai_toggle_spontaneous", emoji: "🗣️", description: "Activa/Desactiva que hable sola en este canal." },
+            { label: "Ajustar Comportamiento/Filtro", value: "menu_behavior",         emoji: "🧠", description: "Cambia entre Normal, Pesado o Agresivo." },
+            { label: "Cambiar Identidad (Roleplay)",  value: "menu_identity",         emoji: "🎭", description: "Neko, Maid, Gymbro, etc." },
+            { label: "Seguridad (Anti-Raid/Links)",   value: "menu_security",         emoji: "🛡️", description: "Activa o desactiva protecciones." },
+            { label: "Chat Espontáneo AQUÍ",          value: "ai_toggle_spontaneous", emoji: "🗣️", description: "Activa/Desactiva que hable sola en este canal." },
           ]),
       );
 
@@ -123,7 +120,7 @@ const command: SlashCommand = {
       );
 
       return {
-        embeds: [embed],
+        embeds:     [embed],
         components: (specificMenu ? [specificMenu, buttons] : [mainMenu, buttons]) as any[],
       };
     };
@@ -132,38 +129,38 @@ const command: SlashCommand = {
 
     const collector = message.createMessageComponentCollector({
       filter: (i) => i.user.id === interaction.user.id,
-      time: 300_000,
+      time:   300_000,
     });
 
     collector.on("collect", async (i: ButtonInteraction | StringSelectMenuInteraction) => {
       const guildId = interaction.guild!.id;
 
-      // 🌟 Diferir todas las interacciones inmediatamente excepto modales
       try {
         await i.deferUpdate();
-      } catch (e) {
+      } catch {
         return;
       }
 
       const isPremium = await PremiumManager.isPremium(guildId);
 
-      // --- BOTONES ---
+      // ── BOTONES ──────────────────────────────────────────────────────────────
       if (i.isButton()) {
         if (i.customId === "setup_close") return collector.stop();
         await interaction.editReply(await generateUI(guildId));
         return;
       }
 
-      // --- MENÚS ---
+      // ── MENÚS ────────────────────────────────────────────────────────────────
       if (i.isStringSelectMenu()) {
         const choice = i.values[0];
 
         if (i.customId === "setup_main_menu") {
+
           if (choice === "menu_behavior") {
             const subMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
               new StringSelectMenuBuilder().setCustomId("submenu_behavior_select").setPlaceholder("🔥 Elige el nivel de intensidad...").addOptions([
-                { label: "😇 Normal (Robusto)", value: "normal", emoji: "🛡️", description: "Amigable. Filtro de seguridad MÁXIMO." },
-                { label: "😒 Pesado (Medio)", value: "pesado", emoji: "💢", description: "Sarcástica/Seca. Filtro MEDIO (Premium)." },
+                { label: "😇 Normal (Robusto)",       value: "normal",   emoji: "🛡️", description: "Amigable. Filtro de seguridad MÁXIMO." },
+                { label: "😒 Pesado (Medio)",         value: "pesado",   emoji: "💢", description: "Sarcástica/Seca. Filtro MEDIO (Premium)." },
                 { label: "😈 Agresivo (Sin Filtros)", value: "agresivo", emoji: "🔥", description: "Tóxica/Insultos. Filtro MÍNIMO (Premium)." },
               ]),
             );
@@ -174,10 +171,10 @@ const command: SlashCommand = {
           if (choice === "menu_security") {
             const subMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
               new StringSelectMenuBuilder().setCustomId("submenu_security_select").setPlaceholder("🛡️ Opciones de Protección").addOptions([
-                { label: "Alternar Anti-Raid", value: "toggle_antiRaid", emoji: "⚔️" },
+                { label: "Alternar Anti-Raid",  value: "toggle_antiRaid",  emoji: "⚔️" },
                 { label: "Alternar Anti-Links", value: "toggle_antiLinks", emoji: "🔗" },
-                { label: "Alternar Snipe", value: "toggle_snipe", emoji: "🕵️", description: "Permite o bloquea el comando /snipe en este servidor." },
-                { label: "Configurar Logs", value: "go_setup_logs", emoji: "📝", description: "Abre /setup-logs para gestionar canales de log." },
+                { label: "Alternar Snipe",      value: "toggle_snipe",     emoji: "🕵️", description: "Al activar, publica aviso de privacidad en canal público." },
+                { label: "Configurar Logs",     value: "go_setup_logs",    emoji: "📝", description: "Abre /setup-logs para gestionar canales de log." },
               ]),
             );
             await interaction.editReply(await generateUI(guildId, subMenu));
@@ -187,10 +184,10 @@ const command: SlashCommand = {
           if (choice === "menu_identity") {
             const subMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
               new StringSelectMenuBuilder().setCustomId("submenu_identity_select").setPlaceholder("🎭 Elige el personaje...").addOptions([
-                { label: "Neko", value: "neko", emoji: "🐱" },
-                { label: "Maid", value: "maid", emoji: "🧹" },
-                { label: "Gymbro", value: "gymbro", emoji: "💪" },
-                { label: "Yandere", value: "yandere", emoji: "🔪" },
+                { label: "Neko",      value: "neko",      emoji: "🐱" },
+                { label: "Maid",      value: "maid",      emoji: "🧹" },
+                { label: "Gymbro",    value: "gymbro",    emoji: "💪" },
+                { label: "Yandere",   value: "yandere",   emoji: "🔪" },
                 { label: "Assistant", value: "assistant", emoji: "👓" },
               ]),
             );
@@ -209,7 +206,7 @@ const command: SlashCommand = {
           }
         }
 
-        // --- SUBMENÚS APLICAR ---
+        // ── SUBMENÚ: COMPORTAMIENTO ───────────────────────────────────────────
         if (i.customId === "submenu_behavior_select") {
           if (choice !== "normal" && !isPremium) {
             await i.followUp({ content: '🔒 **Modo Premium:** Los modos "Pesado" y "Agresivo" requieren suscripción.', flags: MessageFlags.Ephemeral });
@@ -221,23 +218,106 @@ const command: SlashCommand = {
           return;
         }
 
+        // ── SUBMENÚ: SEGURIDAD ────────────────────────────────────────────────
         if (i.customId === "submenu_security_select") {
-          // Si seleccionó "Configurar Logs", redirigir al comando /setup-logs
+
           if (choice === "go_setup_logs") {
             await i.followUp({
               content: "📋 Usa el comando `/setup-logs` para configurar todos los canales de logs del servidor.",
-              flags: MessageFlags.Ephemeral,
+              flags:   MessageFlags.Ephemeral,
             });
             return;
           }
 
-          const moduleName = choice.split("_")[1];
           const set = await SettingsManager.getSettings(guildId);
 
+          // ── SNIPE: flujo especial con canal público ───────────────────────
+          if (choice === "toggle_snipe") {
+            const currentSnipe = set?.securityModules?.snipe || false;
+
+            // DESACTIVAR → directo
+            if (currentSnipe) {
+              await SettingsManager.updateSettings(guildId, {
+                "securityModules.snipe": false,
+              } as any);
+              await interaction.editReply(await generateUI(guildId));
+              return;
+            }
+
+            // ACTIVAR → pedir canal público
+            await i.followUp({
+              content:
+                "🕵️ **Activar Snipe**\n\n" +
+                "Necesito publicar un **aviso de privacidad en un canal público** para cumplir con los Términos de Servicio de Discord.\n\n" +
+                "Menciona el canal donde publicarlo (ej: <#" + interaction.channelId + ">).\n\n" +
+                "⚠️ El canal debe ser visible para **@everyone**.\n" +
+                "*Tienes 60 segundos para responder.*",
+              flags: MessageFlags.Ephemeral,
+            });
+
+            const textChannel = interaction.channel as TextChannel;
+            if (!textChannel?.createMessageCollector) return;
+
+            const channelCollector = textChannel.createMessageCollector({ 
+              filter: (m: Message) => m.author.id === interaction.user.id,
+              time:   60_000,
+              max:    1,
+            });
+
+            channelCollector.on("collect", async (m: Message) => {
+              await m.delete().catch(() => {});
+
+              const mentioned = m.mentions.channels.first() as TextChannel | undefined;
+
+              if (!mentioned || mentioned.type !== ChannelType.GuildText) {
+                await i.followUp({ content: "❌ Canal inválido. Operación cancelada.", flags: MessageFlags.Ephemeral });
+                return;
+              }
+
+              if (!isPublicChannel(mentioned, interaction.guild!)) {
+                await i.followUp({
+                  content: "❌ Ese canal **no es público** (@everyone no puede verlo). Operación cancelada.",
+                  flags:   MessageFlags.Ephemeral,
+                });
+                return;
+              }
+
+              const result = await publishSnipeNotice(interaction.guild!, mentioned.id);
+
+              if (!result.ok) {
+                await i.followUp({ content: `❌ No pude publicar el aviso: ${result.reason}`, flags: MessageFlags.Ephemeral });
+                return;
+              }
+
+              await SettingsManager.updateSettings(guildId, {
+                "securityModules.snipe": true,
+              } as any);
+
+              await i.followUp({
+                content: `✅ Snipe activado. Aviso de privacidad publicado en <#${mentioned.id}>.`,
+                flags:   MessageFlags.Ephemeral,
+              });
+
+              await interaction.editReply(await generateUI(guildId));
+            });
+
+            channelCollector.on("end", async (collected: ReadonlyCollection<string, Message>) => {
+              if (collected.size === 0) {
+                await i.followUp({
+                  content: "⏰ Tiempo agotado. Snipe no fue activado.",
+                  flags:   MessageFlags.Ephemeral,
+                }).catch(() => {});
+              }
+            });
+
+            return;
+          }
+
+          // ── Otros módulos (antiRaid, antiLinks) ───────────────────────────
+          const moduleName    = choice.split("_")[1];
           if (set && set.securityModules) {
             const safeModuleKey = moduleName as keyof typeof set.securityModules;
-            const current = set.securityModules[safeModuleKey] || false;
-
+            const current       = set.securityModules[safeModuleKey] || false;
             await SettingsManager.updateSettings(guildId, {
               [`securityModules.${moduleName}`]: !current,
             });
@@ -247,6 +327,7 @@ const command: SlashCommand = {
           return;
         }
 
+        // ── SUBMENÚ: IDENTIDAD ────────────────────────────────────────────────
         if (i.customId === "submenu_identity_select") {
           const premiumModes = ["yandere", "gymbro"];
           if (premiumModes.includes(choice) && !isPremium) {
@@ -263,7 +344,7 @@ const command: SlashCommand = {
     collector.on("end", async () => {
       try {
         await interaction.editReply({ components: [] });
-      } catch (e) {}
+      } catch {}
     });
   },
 };

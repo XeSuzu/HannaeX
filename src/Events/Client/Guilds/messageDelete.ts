@@ -1,7 +1,10 @@
 // src/Events/Client/Guilds/messageDelete.ts
 import { Events, Message, PartialMessage, EmbedBuilder } from "discord.js";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
-import { Snipe } from "../../../Models/snipe";
+import { Snipe } from "../../../Models/Snipe";
+import { SettingsManager } from "../../../Database/SettingsManager";
+import GlobalProfile from "../../../Models/Globalprofile";
+import { sendFirstDeleteDM } from "../../../Services/SnipeConsentService";
 
 export default {
   name: Events.MessageDelete,
@@ -9,32 +12,49 @@ export default {
     if (message.author?.bot) return;
     if (!message.guild) return;
 
-    // ─── 1. SNIPE (persistido en MongoDB con TTL de 1h) ──────────────────────
+    // ─── 1. SNIPE ─────────────────────────────────────────────────────────────
     if (message.author && message.content !== undefined) {
-      const snipeEntry = {
-        content:      message.content || "*(Solo imagen/sticker)*",
-        author:       message.author.tag,
-        authorId:     message.author.id,
-        authorAvatar: message.author.displayAvatarURL(),
-        image:        (message as Message).attachments?.first()?.proxyURL || null,
-        deletedAt:    new Date(),
-      };
+      const settings = await SettingsManager.getLite(
+        message.guild.id,
+        "securityModules.snipe"
+      );
 
-      await Snipe.findOneAndUpdate(
-        { channelId: message.channel.id },
-        {
-          $set:  { guildId: message.guild.id },
-          // Inserta al inicio, máximo 10 entradas
-          $push: {
-            snipes: {
-              $each:     [snipeEntry],
-              $position: 0,
-              $slice:    10,
+      if (settings?.securityModules?.snipe) {
+        await Snipe.findOneAndUpdate(
+          { channelId: message.channel.id },
+          {
+            $set:  { guildId: message.guild.id },
+            $push: {
+              snipes: {
+                $each:     [{
+                  content:      message.content || "*(Solo imagen/sticker)*",
+                  author:       message.author.tag,
+                  authorId:     message.author.id,
+                  authorAvatar: message.author.displayAvatarURL(),
+                  image:        (message as Message).attachments?.first()?.proxyURL || null,
+                  deletedAt:    new Date(),
+                }],
+                $position: 0,
+                $slice:    10,
+              },
             },
           },
-        },
-        { upsert: true }
-      );
+          { upsert: true }
+        );
+
+        // DM solo la primera vez que borra en este servidor
+        const profile = await GlobalProfile.findOne({ userId: message.author.id });
+        const alreadyNotified = profile?.snipeNotifiedGuilds?.includes(message.guild.id);
+
+        if (!alreadyNotified) {
+          await sendFirstDeleteDM(message.author.id, message.guild, client);
+          await GlobalProfile.findOneAndUpdate(
+            { userId: message.author.id },
+            { $addToSet: { snipeNotifiedGuilds: message.guild.id } },
+            { upsert: true }
+          );
+        }
+      }
     }
 
     // ─── 2. MESSAGE LOG ───────────────────────────────────────────────────────
@@ -46,8 +66,8 @@ export default {
       .setColor(0xff6b6b)
       .addFields(
         { name: "Contenido", value: content.slice(0, 1024) || "[vacío]" },
-        { name: "Canal",     value: `<#${message.channelId}>`,                                          inline: true },
-        { name: "Usuario",   value: user ? `${user.tag} \`(${user.id})\`` : "[desconocido]", inline: true },
+        { name: "Canal",   value: `<#${message.channelId}>`,                              inline: true },
+        { name: "Usuario", value: user ? `${user.tag} \`(${user.id})\`` : "[desconocido]", inline: true },
       )
       .setTimestamp()
       .setFooter({ text: "Hoshiko • Message Log" });
