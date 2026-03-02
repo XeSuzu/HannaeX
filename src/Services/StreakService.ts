@@ -183,6 +183,9 @@ export async function claimStreak(
 // 2. CRON — CIERRE DE CICLOS VENCIDOS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// 🔒 Flag para evitar ejecuciones paralelas del cron si una tarda demasiado.
+let isProcessingCycles = false;
+
 export type CronResult = {
   processed: number;
   frozen:    number;
@@ -206,6 +209,13 @@ export type CronResult = {
 export async function processMissedCycles(
   client: HoshikoClient
 ): Promise<CronResult> {
+  if (isProcessingCycles) {
+    // Ya hay un proceso en ejecución, se omite este para evitar solapamiento.
+    return { processed: 0, frozen: 0, reset: 0, errors: [] };
+  }
+  isProcessingCycles = true;
+
+  try {
   const now    = new Date();
   const result: CronResult = { processed: 0, frozen: 0, reset: 0, errors: [] };
 
@@ -243,6 +253,19 @@ export async function processMissedCycles(
     // El ciclo anterior aún no venció del todo
     if (now.getTime() < prevCycleEnd) continue;
 
+    // 📋 Periodo de gracia si el bot acaba de reiniciar (por deploy o crash)
+    const lastRestartSeconds = process.uptime();
+    if (lastRestartSeconds < 300) { // Solo aplicar en los primeros 5 minutos tras un reinicio
+      const botStartTime = now.getTime() - (lastRestartSeconds * 1000);
+
+      // Si el ciclo venció COMPLETAMENTE antes de que el bot arrancara,
+      // se considera que el usuario no pudo reclamar por culpa del downtime.
+      // Se perdona el ciclo y se le permite reclamar el actual.
+      if (prevCycleEnd < botStartTime) {
+        continue; // Saltar procesamiento de este ciclo vencido
+      }
+    }
+
     try {
       const outcome = await _closeMissedCycle(g._id.toString(), prevCycleIdx, now, client);
       result.processed++;
@@ -254,6 +277,9 @@ export async function processMissedCycles(
   }
 
   return result;
+  } finally {
+    isProcessingCycles = false;
+  }
 }
 
 /**
@@ -270,13 +296,23 @@ async function _closeMissedCycle(
     const group = await StreakGroup.findById(groupId).session(session);
     if (!group || group.status !== "active" || !group.windowAnchorAt) return "skipped";
 
-    // Re-verificar idempotencia dentro de la transacción
+    // 🛡️ Re-verificar idempotencia dentro de la transacción
     const currentCycle = getCurrentCycleIndex(group.windowAnchorAt, now);
     if (cycleIndex >= currentCycle) return "skipped";
+
+    // Si el ciclo ya se cerró exitosamente, se omite.
     if (group.lastClaimedAt) {
       const cycleMs    = 24 * 60 * 60 * 1000;
       const cycleStart = group.windowAnchorAt.getTime() + cycleIndex * cycleMs;
       if (group.lastClaimedAt.getTime() >= cycleStart) return "skipped";
+    }
+
+    // ⏱️ Si el cron ya procesó este ciclo (con cualquier resultado), se omite.
+    if (group.lastProcessedAt) {
+      const lastProcessedCycleForGroup = getCurrentCycleIndex(group.windowAnchorAt, group.lastProcessedAt);
+      if (lastProcessedCycleForGroup >= cycleIndex) {
+        return "skipped";
+      }
     }
 
     // Miembros que no reclamaron y no tienen freeze activo
@@ -320,9 +356,8 @@ async function _closeMissedCycle(
       // Este caso raro ocurre si el cron corre antes de que claimStreak
       // cierre el ciclo — se cierra aquí igualmente
       group.currentStreak += 1;
-      group.totalCycles   += 1; // ya se sumó arriba, restar el duplicado
-      group.totalCycles   -= 1;
-      group.punctualDays  += 1; // asumimos puntual si todos tenían freeze
+      // group.totalCycles ya se incrementó antes del bloque if/else.
+      group.punctualDays  += 1; // Asumimos puntual si todos usaron freeze o reclamaron
       if (group.currentStreak > group.bestStreak) group.bestStreak = group.currentStreak;
       group.tier          = getStreakTier(group.currentStreak);
       group.lastClaimedAt = now;
@@ -365,7 +400,8 @@ async function _closeMissedCycle(
       group.currentStreak     = 0;
       group.tier              = "Mayoi";
       group.currentRunStartAt = now;
-      group.windowAnchorAt    = now; // ← AGREGAR ESTO
+      // NO se resetea windowAnchorAt. Es el ancla permanente de todos los ciclos.
+      // Cambiarlo rompería la lógica de cálculo de ciclos para los miembros.
       outcome = "reset";
 
       // ❗ Lógica de Notificación por DM
@@ -388,6 +424,7 @@ async function _closeMissedCycle(
       { session }
     );
 
+    group.lastProcessedAt = now; // Marcar este ciclo como procesado.
     await group.save({ session });
     return outcome;
   });

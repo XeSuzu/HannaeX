@@ -165,6 +165,11 @@ export interface IStreakGroup extends Document {
   lastClaimedAt: Date | null;
   /** Contador de veces que la racha se rompió (para categoría especial en top) */
   timesRoken: number;
+  /**
+   * Timestamp de la última vez que el cron de cierre de ciclos procesó este grupo.
+   * Usado para idempotencia y evitar doble procesamiento si el cron se solapa.
+   */
+  lastProcessedAt: Date | null;
   /** Historial completo de roturas */
   breakHistory: IBreakHistory[];
 
@@ -258,6 +263,7 @@ const StreakGroupSchema = new Schema<IStreakGroup>(
 
     lastClaimedAt: { type: Date,   default: null },
     timesRoken:    { type: Number, default: 0, min: 0 },
+    lastProcessedAt: { type: Date, default: null },
     breakHistory:  { type: [BreakHistorySchema], default: [] },
 
     hallOfFame: { type: HallOfFameSchema, default: () => ({}) },
