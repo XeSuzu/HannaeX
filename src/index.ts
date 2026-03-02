@@ -150,6 +150,7 @@ const loadHandlers = () => {
     await client.login(client.config.token);
 
   } catch (err) {
+    console.error("💥 ERROR REAL:", err);
     HoshikoLogger.log({
       level: LogLevel.FATAL,
       context: "System/Startup",
