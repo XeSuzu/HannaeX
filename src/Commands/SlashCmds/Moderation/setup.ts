@@ -267,10 +267,22 @@ const command: SlashCommand = {
             channelCollector.on("collect", async (m: Message) => {
               await m.delete().catch(() => {});
 
-              const mentioned = m.mentions.channels.first() as TextChannel | undefined;
+              // Intento 1: mención válida
+              let mentioned = m.mentions.channels.first() as TextChannel | undefined;
+
+              // Intento 2: parsear <#ID> manualmente
+              if (!mentioned) {
+                const match = m.content.match(/<#(\d+)>/);
+                if (match) {
+                  mentioned = interaction.guild!.channels.cache.get(match[1]) as TextChannel | undefined;
+                }
+              }
 
               if (!mentioned || mentioned.type !== ChannelType.GuildText) {
-                await i.followUp({ content: "❌ Canal inválido. Operación cancelada.", flags: MessageFlags.Ephemeral });
+                await i.followUp({
+                  content: "❌ Canal inválido. Asegúrate de **seleccionar el canal de la lista** al escribir `#`.",
+                  flags: MessageFlags.Ephemeral,
+                });
                 return;
               }
 
