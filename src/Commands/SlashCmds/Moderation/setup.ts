@@ -249,9 +249,9 @@ const command: SlashCommand = {
               content:
                 "🕵️ **Activar Snipe**\n\n" +
                 "Necesito publicar un **aviso de privacidad en un canal público** para cumplir con los Términos de Servicio de Discord.\n\n" +
-                "Menciona el canal donde publicarlo (ej: <#" + interaction.channelId + ">).\n\n" +
-                "⚠️ El canal debe ser visible para **@everyone**.\n" +
-                "*Tienes 60 segundos para responder.*",
+                 "Escribe `#` y **selecciona el canal de la lista de Discord**.\n" +
+                 "⚠️ **No escribas el nombre como texto plano** — debe ser una mención válida.\n\n" +
+                 "⚠️ El canal debe ser visible para **@everyone**.\n" + "*Tienes 60 segundos para responder.*",
               flags: MessageFlags.Ephemeral,
             });
 
