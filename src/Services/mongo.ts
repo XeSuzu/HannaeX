@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const MONGO_URI = process.env.MONGO_URI;
+// const MONGO_URI = process.env.MONGO_URI;
 let connected = false;
 
 // 1. LISTENERS GLOBALES (Ojos que vigilan la conexión 24/7)
@@ -17,6 +17,7 @@ mongoose.connection.on("reconnected", () => {
 });
 
 export async function connectWithRetry(retries = 6, delayMs = 5000) {
+ const MONGO_URI = process.env.MONGO_URI;
   if (!MONGO_URI) {
     console.error("❌ MONGO_URI no definida. Revisa tu archivo .env");
     throw new Error("MONGO_URI missing");
