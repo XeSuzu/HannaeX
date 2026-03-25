@@ -1,220 +1,179 @@
+// src/Commands/SlashCmds/Setups/autojoin.ts
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  RoleSelectMenuBuilder,
-  StringSelectMenuBuilder,
-  ComponentType,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  PermissionFlagsBits,
   Role,
+  RoleSelectMenuBuilder,
+  SlashCommandBuilder,
+  StringSelectMenuBuilder,
 } from "discord.js";
-import ServerConfig from "../../../Models/serverConfig";
 import { SlashCommand } from "../../../Interfaces/Command";
+import ServerConfig from "../../../Models/serverConfig";
 
 const command: SlashCommand = {
   category: "Setups",
+  ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("setup-autojoin")
-    .setDescription("🤖 Dashboard: Configura los roles automáticos al entrar")
+    .setDescription(
+      "Configura los roles que se asignan automáticamente a los nuevos miembros.",
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
-
-    // 1. Cargar Configuración
     let settings = await ServerConfig.findOne({ guildId: interaction.guildId });
     if (!settings)
       settings = new ServerConfig({ guildId: interaction.guildId });
-
-    // Inicializar si no existe
     if (!settings.autoJoin) settings.autoJoin = { enabled: false, roles: [] };
 
-    // --- RENDERIZADOR DEL DASHBOARD ---
-    const renderDashboard = async () => {
-      // Verificar qué roles siguen existiendo en el servidor (limpieza visual)
-      const validRoles: Role[] = [];
-      const invalidIds: string[] = [];
+    const renderDashboard = async (isEnded = false) => {
+      const validRoles = (settings!.autoJoin.roles || [])
+        .map((id) => interaction.guild?.roles.cache.get(id))
+        .filter((r): r is Role => !!r);
 
-      for (const roleId of settings!.autoJoin.roles) {
-        const role = interaction.guild?.roles.cache.get(roleId);
-        if (role) validRoles.push(role);
-        else invalidIds.push(roleId);
-      }
-
-      // Si hay roles borrados, limpiar DB silenciosamente
-      if (invalidIds.length > 0) {
-        settings!.autoJoin.roles = settings!.autoJoin.roles.filter(
-          (id) => !invalidIds.includes(id),
-        );
-        await settings!.save();
-      }
-
-      const statusEmoji = settings!.autoJoin.enabled ? "🟢" : "🔴";
-      const statusText = settings!.autoJoin.enabled ? "ACTIVO" : "INACTIVO";
-      const rolesList =
-        validRoles.length > 0
-          ? validRoles.map((r) => `> 🛡️ ${r}`).join("\n")
-          : "> *No hay roles configurados.*";
+      const enabled = settings!.autoJoin.enabled;
 
       const embed = new EmbedBuilder()
-        .setTitle("🤖 Configuración de Auto-Join")
-        .setDescription(
-          "Los roles configurados aquí se otorgarán automáticamente a los usuarios nuevos cuando entren al servidor.",
-        )
-        .setColor(settings!.autoJoin.enabled ? "#57F287" : "#ED4245")
+        .setTitle("Roles de Auto-Join")
+        .setDescription("Roles que recibe un usario al entrar al servidor.")
+        .setThumbnail(interaction.guild?.iconURL({ size: 128 }) ?? null)
+        .setColor(enabled ? "#a8e6cf" : "#ffb3b3")
         .addFields(
           {
-            name: "Estado del Sistema",
-            value: `\` ${statusEmoji} ${statusText} \``,
+            name: "Estado",
+            value: enabled ? "🟢 Activa" : "🔴 Inactiva",
             inline: true,
           },
           {
-            name: `Roles Asignados (${validRoles.length})`,
-            value: rolesList,
-            inline: false,
+            name: "Roles configurados",
+            value:
+              validRoles.length > 0
+                ? `${validRoles.length}/10\n${validRoles.map((r) => `• ${r.name.toLowerCase()}`).join("\n")}`
+                : "0/10 — Ninguno aún.",
+            inline: true,
           },
         )
         .setFooter({
-          text: "Selecciona roles en el menú de abajo para agregar.",
-        });
+          text: isEnded ? "Cambios guardados." : "Hoshiko • Configuración",
+        })
+        .setTimestamp();
 
-      // COMPONENTES
-
-      // 1. Selector de Roles (Para AGREGAR)
       const rowAdd =
         new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
           new RoleSelectMenuBuilder()
             .setCustomId("autojoin_add")
-            .setPlaceholder("➕ Seleccionar roles para agregar...")
-            .setMinValues(1)
-            .setMaxValues(10),
+            .setPlaceholder("Añadir roles...")
+            .setMaxValues(5)
+            .setDisabled(isEnded),
         );
 
-      // 2. Selector de Eliminación (Solo si hay roles)
       const rows: any[] = [rowAdd];
 
       if (validRoles.length > 0) {
-        const rowRemove =
+        rows.push(
           new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
             new StringSelectMenuBuilder()
               .setCustomId("autojoin_remove")
-              .setPlaceholder("➖ Seleccionar roles para quitar...")
+              .setPlaceholder("Quitar un rol...")
+              .setDisabled(isEnded)
               .addOptions(
                 validRoles.map((r) => ({
-                  label: r.name,
+                  label: r.name.toLowerCase(),
                   value: r.id,
-                  emoji: "🗑️",
+                  emoji: "➖",
                 })),
               ),
-          );
-        rows.push(rowRemove);
+          ),
+        );
       }
 
-      // 3. Botón Toggle y Salir
-      const rowControls = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("autojoin_toggle")
-          .setLabel(
-            settings!.autoJoin.enabled
-              ? "Desactivar Sistema"
-              : "Activar Sistema",
-          )
-          .setStyle(
-            settings!.autoJoin.enabled
-              ? ButtonStyle.Danger
-              : ButtonStyle.Success,
-          ),
-        new ButtonBuilder()
-          .setCustomId("autojoin_close")
-          .setLabel("Guardar y Cerrar")
-          .setStyle(ButtonStyle.Secondary),
+      rows.push(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("autojoin_toggle")
+            .setLabel(enabled ? "Pausar" : "Activar")
+            .setEmoji(enabled ? "🌙" : "✨")
+            .setStyle(enabled ? ButtonStyle.Secondary : ButtonStyle.Success)
+            .setDisabled(isEnded),
+          new ButtonBuilder()
+            .setCustomId("autojoin_close")
+            .setLabel("Guardar y salir")
+            .setEmoji("💾")
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(isEnded),
+        ),
       );
-      rows.push(rowControls);
 
       return { embeds: [embed], components: rows };
     };
 
-    // ENVIAR MENSAJE INICIAL
-    const msg = await interaction.editReply(await renderDashboard());
+    await interaction.editReply(await renderDashboard());
 
-    // COLLECTOR
-    const collector = msg.createMessageComponentCollector({ time: 300000 }); // 5 min
+    const msg = await interaction.fetchReply();
+    const collector = msg.createMessageComponentCollector({ time: 300000 });
 
     collector.on("collect", async (i) => {
-      // A) AGREGAR ROLES
-      if (i.customId === "autojoin_add" && i.isRoleSelectMenu()) {
-        await i.deferUpdate();
-        const selectedIds = i.values;
-        const myRolePosition = i.guild?.members.me?.roles.highest.position || 0;
-        let addedCount = 0;
-        let errorHierarchy = false;
+      if (i.user.id !== interaction.user.id) {
+        return i.reply({
+          content: "este panel no es tuyo. 🐾",
+          ephemeral: true,
+        });
+      }
 
-        for (const roleId of selectedIds) {
-          const role = i.guild?.roles.cache.get(roleId);
-          // Validar Jerarquía y Duplicados
-          if (
-            role &&
-            role.position < myRolePosition &&
-            !settings!.autoJoin.roles.includes(roleId) &&
-            !role.managed
-          ) {
-            settings!.autoJoin.roles.push(roleId);
-            addedCount++;
-          } else if (role && role.position >= myRolePosition) {
-            errorHierarchy = true;
-          }
-        }
+      await i.deferUpdate();
 
-        if (addedCount > 0 && !settings!.autoJoin.enabled)
-          settings!.autoJoin.enabled = true; // Activar auto si agregamos
-        await settings!.save();
+      if (i.isRoleSelectMenu() && i.customId === "autojoin_add") {
+        const botPos = i.guild?.members.me?.roles.highest.position || 0;
+        const toAdd = i.values.filter((id) => {
+          const r = i.guild?.roles.cache.get(id);
+          return (
+            r &&
+            r.position < botPos &&
+            !r.managed &&
+            !settings!.autoJoin.roles.includes(id)
+          );
+        });
 
-        const response = await renderDashboard();
-        await i.editReply(response);
-
-        if (errorHierarchy)
+        if (toAdd.length < i.values.length) {
           await i.followUp({
             content:
-              "⚠️ Algunos roles no se agregaron porque son superiores a mi rol o son de bots.",
+              "Algunos roles estan fuera de mi alcance y los omiti nya. 🐾",
             ephemeral: true,
           });
+        }
+        settings!.autoJoin.roles.push(...toAdd);
       }
 
-      // B) QUITAR ROLES
-      if (i.customId === "autojoin_remove" && i.isStringSelectMenu()) {
-        await i.deferUpdate();
-        const toRemove = i.values;
+      if (i.isStringSelectMenu() && i.customId === "autojoin_remove") {
         settings!.autoJoin.roles = settings!.autoJoin.roles.filter(
-          (id) => !toRemove.includes(id),
+          (id) => !i.values.includes(id),
         );
-
-        if (settings!.autoJoin.roles.length === 0)
-          settings!.autoJoin.enabled = false;
-        await settings!.save();
-
-        await i.editReply(await renderDashboard());
       }
 
-      // C) TOGGLE ON/OFF
-      if (i.customId === "autojoin_toggle") {
-        await i.deferUpdate();
+      if (i.customId === "autojoin_toggle")
         settings!.autoJoin.enabled = !settings!.autoJoin.enabled;
-        await settings!.save();
-        await i.editReply(await renderDashboard());
-      }
+      if (i.customId === "autojoin_close") return collector.stop("manual");
 
-      // D) CERRAR
-      if (i.customId === "autojoin_close") {
-        await i.update({
-          content: "✅ **Configuración guardada.**",
+      await settings!.save();
+      await interaction.editReply(await renderDashboard());
+    });
+
+    collector.on("end", async (_, reason) => {
+      if (reason === "manual") {
+        await interaction.editReply({
+          content: "Configuracion Guardada. 🐾",
+          embeds: [],
           components: [],
         });
-        collector.stop();
+      } else {
+        await interaction.editReply(await renderDashboard(true));
       }
     });
   },
 };
+
 export default command;
