@@ -1,17 +1,17 @@
-import dotenv from "dotenv";
 import {
   Client,
   Collection,
   GatewayIntentBits,
-  Partials,
   Options,
+  Partials,
 } from "discord.js";
+import dotenv from "dotenv";
+import express, { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import express, { Request, Response } from "express";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
-import { loadAntiCrash } from "./Utils/antiCrash";
 import { connectWithRetry } from "./Services/mongo";
+import { loadAntiCrash } from "./Utils/antiCrash";
 import { startCronJobs } from "./scripts/cronJobs"; // ← MOVIDO AQUÍ
 
 const nodeEnv = process.env.NODE_ENV || "development";
@@ -19,7 +19,7 @@ const envPath = path.resolve(process.cwd(), `.env.${nodeEnv}`);
 dotenv.config({ path: envPath, override: true });
 console.log(`✅ .env.${nodeEnv} cargado desde: ${envPath}`);
 
-import { SlashCommand, PrefixCommand } from "./Interfaces/Command";
+import { PrefixCommand, SlashCommand } from "./Interfaces/Command";
 
 loadAntiCrash();
 
@@ -44,7 +44,7 @@ export class HoshikoClient extends Client<true> {
     BotId: process.env.BOT_ID || "",
     prefix: process.env.PREFIX || "!",
     guildIds: process.env.GUILD_ID
-      ? process.env.GUILD_ID.split(",").map(id => id.trim())
+      ? process.env.GUILD_ID.split(",").map((id) => id.trim())
       : [],
   };
 }
@@ -71,6 +71,7 @@ const client = new HoshikoClient({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
@@ -81,10 +82,11 @@ const loadHandlers = () => {
 
   const handlerFiles = fs
     .readdirSync(handlersDir)
-    .filter((file) =>
-      (file.endsWith(".js") || file.endsWith(".ts")) &&
-      !file.endsWith(".map.js") &&
-      !file.endsWith(".d.ts")
+    .filter(
+      (file) =>
+        (file.endsWith(".js") || file.endsWith(".ts")) &&
+        !file.endsWith(".map.js") &&
+        !file.endsWith(".d.ts"),
     );
 
   handlerFiles.forEach((file) => {
@@ -137,7 +139,6 @@ const loadHandlers = () => {
 
     await client.login(client.config.token);
     startCronJobs(client);
-
   } catch (err) {
     console.error("💥 ERROR REAL:", err);
     HoshikoLogger.log({
@@ -159,7 +160,11 @@ async function shutdown(signal: string) {
 
   try {
     client.destroy();
-    HoshikoLogger.log({ level: LogLevel.INFO, context: "System", message: "Cliente de Discord destruido." });
+    HoshikoLogger.log({
+      level: LogLevel.INFO,
+      context: "System",
+      message: "Cliente de Discord destruido.",
+    });
   } catch (e) {
     console.error("Error durante el cierre:", e);
   } finally {

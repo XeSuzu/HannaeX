@@ -41,22 +41,128 @@ export interface ImageResult {
 }
 
 // ========================
-// LISTA NEGRA DE TÉRMINOS
+// LISTA NEGRA DE TÉRMINOS (HashMap para mejor rendimiento)
 // ========================
-const BLACKLISTED_TERMS = [
-  "porn", "pornography", "hentai", "nsfw", "nude", "naked", "xxx",
-  "sex", "erotic", "explicit", "gore", "snuff", "rape", "loli",
-  "cp", "child porn",
-];
+// Términos que nunca se permiten en búsquedas (ni en canales NSFW)
+const BLACKLISTED_TERMS_SET = new Set([
+  // Contenido sexual explícito (variaciones comunes)
+  "porn",
+  "pornography",
+  "nsfw",
+  "nude",
+  "naked",
+  "xxx",
+  "sex",
+  "erotic",
+  "hentai",
+  "milf",
+  "fapping",
+  "pussy",
+  "dick",
+  "cock",
+  "vagina",
+  "asshole",
+  "buttplug",
+  "dildo",
+  // Contenido gráfico/violento
+  "gore",
+  "snuff",
+  "torture porn",
+  "real gore",
+  "guro",
+  // Contenido que involucra menores (CRÍTICO - sin excepciones)
+  "loli",
+  "shota",
+  "cp",
+  "child porn",
+  "child sexual abuse",
+  "underage",
+  "minors sexual",
+  "young looking nude",
+  "teen porn",
+  "pokemon porn",
+  "shaved",
+  "jailbait",
+  //bestiality y contenido no consensuado
+  "bestiality",
+  "zoophilia",
+  "rape",
+  "non-consensual",
+  // Drogas peligrosas
+  "how to make meth",
+  "how to make毒品",
+  "drug synthesis",
+  "how to make weed",
+  // Otros términos problemáticos
+  "doxxing",
+  "how to doxx",
+  "hitman",
+  "assassin for hire",
+]);
+
+// Términos que pueden malinterpretarse pero son legítimos en contexto
+const CONTEXTUAL_TERMS: Record<string, string[]> = {
+  sex: ["sex education", "safe sex", "sex chromosomes", "sex positions"],
+  ass: [
+    "assassin",
+    "assignment",
+    "asset",
+    "class",
+    "bass guitar",
+    "mass",
+    "pass",
+  ],
+  cock: ["cocktail", "peacock", "rooster", "stopcock"],
+  dick: ["dickens", "deck", "pick"],
+};
+
+/**
+ * Normaliza el texto para búsqueda (remueve caracteres especiales)
+ */
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ");
+}
 
 /**
  * Verifica si un query contiene términos prohibidos.
+ * Usa HashMap (Set) para O(1) por término.
  * @param query El término a verificar.
  * @returns true si el query es seguro, false si contiene términos prohibidos.
  */
 export function isQuerySafe(query: string): boolean {
-  const lowerQuery = query.toLowerCase();
-  return !BLACKLISTED_TERMS.some((term) => lowerQuery.includes(term));
+  const words = normalize(query).split(/\s+/);
+
+  for (const word of words) {
+    if (BLACKLISTED_TERMS_SET.has(word)) {
+      return false;
+    }
+  }
+
+  // Verificar términos contextuales (pueden tener falsos positivos)
+  for (const [term, safeContexts] of Object.entries(CONTEXTUAL_TERMS)) {
+    if (query.toLowerCase().includes(term)) {
+      // Si contiene el término problemático, verificar si está en contexto seguro
+      const isSafe = safeContexts.some((ctx) =>
+        query.toLowerCase().includes(ctx),
+      );
+      if (!isSafe) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Obtiene una lista de términos bloqueados (útil para debugging o logs)
+ */
+export function getBlacklistedTerms(): string[] {
+  return Array.from(BLACKLISTED_TERMS_SET);
 }
 
 // ========================

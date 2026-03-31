@@ -1,21 +1,21 @@
-import { Events, Message, EmbedBuilder, MessageFlags, PermissionsBitField } from "discord.js";
-import { HoshikoClient } from "../../index";
+import { EmbedBuilder, Events, Message, PermissionsBitField } from "discord.js";
 import { SettingsManager } from "../../Database/SettingsManager";
 import { Snipe } from "../../Models/Snipe";
 import AFK from "../../Models/afk";
+import { HoshikoClient } from "../../index";
 
 // Features
 import handleAfk from "../../Features/afkHandler";
-import handleMemes from "../../Features/memeHandler";
 import handleAi from "../../Features/aiHandler";
 import { handleCulture } from "../../Features/cultureHandler";
 import { handleLinkProtection } from "../../Features/linkProtector";
-
+import handleMemes from "../../Features/memeHandler";
+import { handleLevelXp } from "../../Features/levelHandler";
 // Security
+import { AutomodManager } from "../../Features/AutomodManager";
 import { Blacklist } from "../../Security/Defense/Blacklist";
 import { RateLimiter } from "../../Security/Defense/RateLimiter";
 import { Sanitizer } from "../../Security/Defense/Sanitizer";
-import { AutomodManager } from "../../Features/AutomodManager";
 
 // Handler para comando snipe de texto
 async function handleTextMessageSnipe(message: Message, args: string[]) {
@@ -24,7 +24,9 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
   // 1. Verificar si snipe está habilitado en el servidor
   const settings = await SettingsManager.getSettings(message.guildId);
   if (!settings?.securityModules?.snipe) {
-    await message.reply("❌ El comando snipe está desactivado en este servidor. Un administrador puede activarlo con `/setup`.");
+    await message.reply(
+      "❌ El comando snipe está desactivado en este servidor. Un administrador puede activarlo con `/setup`.",
+    );
     return;
   }
 
@@ -42,7 +44,7 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
     await message.reply(
       index === 0
         ? "Nyaa~ no hay mensajes borrados recientes en este canal. 🧹"
-        : `Solo tengo guardados **${doc?.snipes.length || 0}** mensajes borrados aquí.`
+        : `Solo tengo guardados **${doc?.snipes.length || 0}** mensajes borrados aquí.`,
     );
     return;
   }
@@ -72,7 +74,7 @@ async function handleTextMessageAfk(message: Message, args: string[]) {
 
   const reason = args.join(" ") || "Estoy ausente 🐾";
   let currentNickname = message.member.displayName;
-  
+
   if (currentNickname.startsWith("[AFK] ")) {
     currentNickname = currentNickname.replace("[AFK] ", "");
   }
@@ -83,8 +85,12 @@ async function handleTextMessageAfk(message: Message, args: string[]) {
   // Cambiar apodo si es posible
   if (message.member.id !== message.guild.ownerId) {
     const botMember = await message.guild.members.fetchMe();
-    const hasPerms = botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames);
-    const canChange = hasPerms && botMember.roles.highest.position > message.member.roles.highest.position;
+    const hasPerms = botMember.permissions.has(
+      PermissionsBitField.Flags.ManageNicknames,
+    );
+    const canChange =
+      hasPerms &&
+      botMember.roles.highest.position > message.member.roles.highest.position;
 
     if (canChange && !message.member.displayName.startsWith("[AFK] ")) {
       try {
@@ -156,7 +162,10 @@ export default {
 
       // Spam check
       if (message.member && settings?.securityModules?.antiSpam) {
-        const spamAction = await AutomodManager.checkSpam(message.guild, message.author.id);
+        const spamAction = await AutomodManager.checkSpam(
+          message.guild,
+          message.author.id,
+        );
         if (spamAction) {
           await AutomodManager.executeAction(
             message.guild,
@@ -164,7 +173,9 @@ export default {
             spamAction,
             "MessageSpam",
           );
-          await message.reply("🌸 ¡Oye! Vas muy rápido. Descansa un momento.").catch(() => null);
+          await message
+            .reply("🌸 ¡Oye! Vas muy rápido. Descansa un momento.")
+            .catch(() => null);
           return;
         }
       }
@@ -191,17 +202,19 @@ export default {
           const command =
             client.commands.get(commandName) ||
             client.slashCommands.get(commandName) ||
-            client.commands.find((cmd) => cmd.aliases && cmd.aliases.includes(commandName));
+            client.commands.find(
+              (cmd) => cmd.aliases && cmd.aliases.includes(commandName),
+            );
 
           if (command) {
             // Manejar comando snipe de texto específicamente
-            if (commandName === 'snipe') {
+            if (commandName === "snipe") {
               await handleTextMessageSnipe(message, args);
               return;
             }
 
             // Manejar comando afk de texto específicamente
-            if (commandName === 'afk') {
+            if (commandName === "afk") {
               await handleTextMessageAfk(message, args);
               return;
             }
@@ -213,8 +226,12 @@ export default {
                 await command.execute(message, args, client);
               }
             } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              console.error(`💥 Error en comando texto ${commandName}:`, errorMsg);
+              const errorMsg =
+                error instanceof Error ? error.message : String(error);
+              console.error(
+                `💥 Error en comando texto ${commandName}:`,
+                errorMsg,
+              );
             }
             return;
           } else {
@@ -224,7 +241,8 @@ export default {
           if (prefix.toLowerCase().includes("hoshi")) isHoshiCall = true;
         }
       } else {
-        if (message.content.toLowerCase().startsWith("hoshi")) isHoshiCall = true;
+        if (message.content.toLowerCase().startsWith("hoshi"))
+          isHoshiCall = true;
       }
 
       // Fase 4: features
@@ -232,6 +250,7 @@ export default {
       await handleCulture(message);
       if (await handleAfk(message)) return;
       if (await handleMemes(message)) return;
+      await handleLevelXp(message);
 
       // Fase 5: módulo IA
       const isAiEnabled = settings?.aiModule?.enabled !== false;
@@ -254,7 +273,12 @@ export default {
         !!message.content.match(/^(?:hoshi ask img|neko ask img)\s+(.+)/i) ||
         !!message.content.match(new RegExp(`^x(img|ximg)\\s+(.+)`, "i"));
 
-      const isDirect = isMentioned || isReplyingToMe || isHoshiCall || isImgCommand || isHoshiAsk;
+      const isDirect =
+        isMentioned ||
+        isReplyingToMe ||
+        isHoshiCall ||
+        isImgCommand ||
+        isHoshiAsk;
 
       if (isDirect) {
         await handleAi(message, client, true);
@@ -262,7 +286,6 @@ export default {
         // Espontáneo 2% probabilidad
         if (Math.random() < 0.02) await handleAi(message, client, false);
       }
-
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("💥 Error crítico en messageCreate:", errorMessage);
