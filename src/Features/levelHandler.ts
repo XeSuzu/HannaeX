@@ -1,4 +1,10 @@
 import { EmbedBuilder, GuildMember, Message, TextChannel } from "discord.js";
+import GlobalLevel, {
+  getAchievement,
+  getTierForLevel,
+  GLOBAL_TIERS,
+  globalTotalXpForLevel,
+} from "../Models/GlobalLevel";
 import LevelConfig from "../Models/LevelConfig";
 import LocalLevel from "../Models/LocalLevels";
 
@@ -15,18 +21,272 @@ export function totalXpForLevel(level: number): number {
 }
 
 // Verificar si es un nivel "importante" (milestone)
-function isMilestone(level: number): boolean {
+export function isMilestone(level: number): boolean {
   const milestones = [5, 10, 15, 20, 25, 30, 50, 75, 100];
   return milestones.includes(level);
 }
 
+// ============================================
+// MANEJO DE XP GLOBAL
+// ============================================
+async function handleGlobalXp(
+  message: Message,
+  localXpEarned: number,
+): Promise<void> {
+  const userId = message.author.id;
+  const now = new Date();
+
+  let globalProfile = await GlobalLevel.findOne({ userId });
+
+  if (!globalProfile) {
+    globalProfile = await GlobalLevel.create({
+      userId,
+      globalXp: 0,
+      globalLevel: 0,
+      totalMessages: 0,
+      totalVoiceMinutes: 0,
+      serversJoined: 1,
+      achievements: [],
+      currentTier: "mihon",
+      globalStreak: 0,
+      lastGlobalXpGain: now,
+      weeklyXp: 0,
+      weeklyMessages: 0,
+    });
+  }
+
+  // Calcular XP global (reducida compared a local)
+  const globalXpEarned = Math.max(1, Math.floor(localXpEarned * 0.3));
+
+  // Actualizar estadísticas
+  const newGlobalXp = globalProfile.globalXp + globalXpEarned;
+  let newGlobalLevel = globalProfile.globalLevel;
+
+  // Calcular nuevo nivel global
+  while (newGlobalXp >= globalTotalXpForLevel(newGlobalLevel + 1)) {
+    newGlobalLevel++;
+  }
+
+  const leveledUpGlobal = newGlobalLevel > globalProfile.globalLevel;
+  const oldGlobalLevel = globalProfile.globalLevel;
+
+  // Verificar nuevo tier
+  const oldTier = getTierForLevel(oldGlobalLevel);
+  const newTier = getTierForLevel(newGlobalLevel);
+  const tierUp = newTier.tier !== oldTier.tier;
+
+  // Reset weekly if needed
+  const currentWeekStart = new Date();
+  currentWeekStart.setHours(0, 0, 0, 0);
+  currentWeekStart.setDate(
+    currentWeekStart.getDate() - currentWeekStart.getDay(),
+  );
+
+  let weeklyXp = globalProfile.weeklyXp + globalXpEarned;
+  let weeklyMessages = globalProfile.weeklyMessages + 1;
+
+  if (globalProfile.weekStartDate < currentWeekStart) {
+    weeklyXp = globalXpEarned;
+    weeklyMessages = 1;
+  }
+
+  // Verificar logros KAWAI
+  const achievements = [...globalProfile.achievements];
+  const newAchievements = checkAchievements(
+    globalProfile,
+    message,
+    newGlobalLevel,
+  );
+
+  // Añadir nuevos logros únicos
+  for (const ach of newAchievements) {
+    if (!achievements.includes(ach)) {
+      achievements.push(ach);
+    }
+  }
+
+  // Actualizar perfil global
+  await GlobalLevel.updateOne(
+    { userId },
+    {
+      globalXp: newGlobalXp,
+      globalLevel: newGlobalLevel,
+      $inc: {
+        totalMessages: 1,
+      },
+      currentTier: newTier.tier,
+      lastGlobalXpGain: now,
+      weeklyXp,
+      weeklyMessages,
+      weekStartDate: currentWeekStart,
+      ...(newAchievements.length > 0 && { achievements }),
+    },
+  );
+
+  // Actualizar serversJoined si es la primera vez en este servidor
+  const localProfile = await LocalLevel.findOne({
+    userId,
+    guildId: message.guild?.id,
+  });
+  if (!localProfile) {
+    await GlobalLevel.updateOne({ userId }, { $inc: { serversJoined: 1 } });
+  }
+
+  // Anunciar nuevo logro (DM)
+  if (newAchievements.length > 0) {
+    await announceAchievements(message.author, newAchievements);
+  }
+
+  // Anunciar subida de nivel global si corresponde
+  if (leveledUpGlobal) {
+    await announceGlobalLevelUp(
+      message.author,
+      oldGlobalLevel,
+      newGlobalLevel,
+      newTier,
+    );
+  }
+
+  // Anunciar nuevo tier
+  if (tierUp) {
+    await announceGlobalTierUp(message.author, newTier);
+  }
+}
+
+function checkAchievements(
+  profile: any,
+  message: Message,
+  newLevel: number,
+): string[] {
+  const newAchievements: string[] = [];
+
+  // Logros por nivel
+  if (newLevel >= 1 && !profile.achievements.includes("first_level")) {
+    newAchievements.push("first_level");
+  }
+  if (newLevel >= 10 && !profile.achievements.includes("level_10")) {
+    newAchievements.push("level_10");
+  }
+  if (newLevel >= 50 && !profile.achievements.includes("level_50")) {
+    newAchievements.push("level_50");
+  }
+  if (newLevel >= 100 && !profile.achievements.includes("level_100")) {
+    newAchievements.push("level_100");
+  }
+
+  // Logros por mensajes
+  if (
+    profile.totalMessages + 1 >= 1000 &&
+    !profile.achievements.includes("messages_1k")
+  ) {
+    newAchievements.push("messages_1k");
+  }
+  if (
+    profile.totalMessages + 1 >= 10000 &&
+    !profile.achievements.includes("messages_10k")
+  ) {
+    newAchievements.push("messages_10k");
+  }
+
+  // Logros por servidores
+  if (message.guild && !profile.achievements.includes("multi_server")) {
+    newAchievements.push("multi_server");
+  }
+
+  return newAchievements;
+}
+
+async function announceAchievements(
+  user: any,
+  achievementIds: string[],
+): Promise<void> {
+  const channel = user.dmChannel ?? (await user.createDM().catch(() => null));
+  if (!channel) return;
+
+  for (const achId of achievementIds) {
+    const achievement = getAchievement(achId);
+    if (!achievement) continue;
+
+    const embed = new EmbedBuilder()
+      .setColor(achievement.color)
+      .setTitle(
+        `${achievement.emoji} ¡Logro Desbloqueado! ${achievement.emoji}`,
+      )
+      .setDescription(
+        `**${user.displayName}** ha conseguido:\n\n` +
+          `🌸 **${achievement.name}** (${achievement.nameEn})\n` +
+          `📝 ${achievement.description}`,
+      )
+      .setThumbnail(user.displayAvatarURL())
+      .setFooter({ text: "Hoshiko Global Levels ✨" })
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] }).catch(() => null);
+  }
+}
+
+async function announceGlobalLevelUp(
+  user: any,
+  oldLevel: number,
+  newLevel: number,
+  tier: (typeof GLOBAL_TIERS)[0],
+): Promise<void> {
+  const channel = user.dmChannel ?? (await user.createDM().catch(() => null));
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(tier.color)
+    .setTitle(`${tier.emoji} ¡Nivel Global: ${newLevel}! ${tier.emoji}`)
+    .setDescription(
+      `**${user.displayName}** ha alcanzado el **nivel ${newLevel}**!\n\n` +
+        `🏆 Tier actual: **${tier.name}** (${tier.nameJp}) ${tier.emoji}\n` +
+        `📝 "${tier.description}"`,
+    )
+    .setThumbnail(user.displayAvatarURL())
+    .addFields({
+      name: "🌸 ¡Sigue así!",
+      value: `Nivel \`${oldLevel}\` → \`${newLevel}\``,
+      inline: false,
+    })
+    .setFooter({ text: "Hoshiko Global Levels ✨" })
+    .setTimestamp();
+
+  await channel.send({ embeds: [embed] }).catch(() => null);
+}
+
+async function announceGlobalTierUp(
+  user: any,
+  tier: (typeof GLOBAL_TIERS)[0],
+): Promise<void> {
+  const channel = user.dmChannel ?? (await user.createDM().catch(() => null));
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(tier.color)
+    .setTitle(`${tier.emoji} ¡Nuevo Tier Desbloqueado! ${tier.emoji}`)
+    .setDescription(
+      `**${user.displayName}** ha alcanzado un nuevo tier:\n\n` +
+        `✨ **${tier.name}** ✨\n` +
+        `${tier.nameJp}\n\n` +
+        `📝 "${tier.description}"`,
+    )
+    .setThumbnail(user.displayAvatarURL())
+    .setFooter({ text: "Hoshiko Global Levels ✨" })
+    .setTimestamp();
+
+  await channel.send({ embeds: [embed] }).catch(() => null);
+}
+
+// ============================================
+// MANEJO DE XP LOCAL (POR SERVIDOR)
+// ============================================
 export async function handleLevelXp(message: Message): Promise<void> {
   if (!message.guild || message.author.bot) return;
 
   const config = await LevelConfig.findOne({ guildId: message.guild.id });
 
-  // Si el sistema está desactivado, salir
-  if (config && !config.enabled) return;
+  // Si el sistema NO está activado, salir
+  if (!config?.enabled) return;
 
   // Ignorar bots si está configurado
   if (config?.ignoreBots && message.author.bot) return;
@@ -68,7 +328,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const secondsSinceLast =
     (now.getTime() - profile.lastXpGain.getTime()) / 1000;
   if (secondsSinceLast < cooldownSecs) {
-    // igual contamos el mensaje
     await LocalLevel.updateOne(
       { userId: message.author.id, guildId: message.guild.id },
       { $inc: { messagesSent: 1 } },
@@ -97,7 +356,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const newXp = profile.xp + earned;
   let newLevel = profile.level;
 
-  // Calcular si subió de nivel
   while (newXp >= totalXpForLevel(newLevel + 1)) {
     newLevel++;
   }
@@ -115,6 +373,9 @@ export async function handleLevelXp(message: Message): Promise<void> {
     },
   );
 
+  // ── XP GLOBAL (siempre se gana) ──
+  await handleGlobalXp(message, earned);
+
   if (!leveledUp) return;
 
   // ── Asignar roles de nivel ──
@@ -129,39 +390,56 @@ export async function handleLevelXp(message: Message): Promise<void> {
   }
 
   // ── Anuncio de subida de nivel ──
-  const announceMode = config?.announceMode ?? "all";
+  const announceMode = config?.announceMode ?? "milestone";
 
-  // Silencioso = no anunciar
   if (announceMode === "silent") return;
-
-  // Milestone = solo niveles importantes
   if (announceMode === "milestone" && !isMilestone(newLevel)) return;
 
+  const milestone = isMilestone(newLevel);
+  const milestoneEmoji = milestone ? "⭐ " : "";
+  const celebrationEmoji = milestone ? "🎉" : "✨";
+
   const embed = new EmbedBuilder()
-    .setColor(0xffb7c5)
-    .setTitle("✨ ¡Subiste de nivel!")
-    .setDescription(
-      `**${message.author.displayName}** ha alcanzado el **nivel ${newLevel}** 🌸`,
+    .setColor(milestone ? 0xffd700 : 0xffb7c5)
+    .setAuthor({
+      name: `${celebrationEmoji} ¡${message.author.displayName} subió de nivel! ${milestoneEmoji}`,
+      iconURL: message.author.displayAvatarURL(),
+    })
+    .setTitle(
+      `${milestone ? "⭐ " : "🌸"} Nivel ${newLevel} ${milestone ? "⭐" : ""}`,
     )
     .setThumbnail(message.author.displayAvatarURL())
     .addFields(
       {
-        name: "Nivel",
-        value: `\`${oldLevel}\` → \`${newLevel}\``,
+        name: "📊 Progreso",
+        value: `Nivel \`${oldLevel}\` → \`${newLevel}\``,
         inline: true,
       },
-      { name: "XP Total", value: `\`${newXp}\``, inline: true },
+      {
+        name: "⚡ XP Total",
+        value: `\`${newXp.toLocaleString()}\` XP`,
+        inline: true,
+      },
+      {
+        name: milestone ? "🏆 ¡Felicidades!" : "💪 ¡Sigue así!",
+        value: milestone
+          ? `¡Llegaste a un nivel importante! 🎊`
+          : `XP ganada: **+${earned}**`,
+        inline: false,
+      },
     )
-    .setFooter({ text: "Hoshiko Levels 🐾" })
+    .setFooter({
+      text: milestone
+        ? `🎉 ¡${newLevel} es un nivel especial! • Hoshiko Levels 🌸`
+        : "Hoshiko Levels 🌸",
+    })
     .setTimestamp();
 
-  // DM
   if (config?.announceDM) {
     await message.author.send({ embeds: [embed] }).catch(() => null);
     return;
   }
 
-  // Canal configurado o canal actual
   const announceChannelId = config?.announceChannelId ?? message.channelId;
   const channel = message.guild.channels.cache.get(announceChannelId) as
     | TextChannel
@@ -177,7 +455,6 @@ async function assignLevelRoles(
   newLevel: number,
   guild: any,
 ): Promise<void> {
-  // Roles que ganó con este nivel
   const rolesGained = levelRoles.filter(
     (lr) => lr.level > oldLevel && lr.level <= newLevel,
   );
@@ -188,7 +465,6 @@ async function assignLevelRoles(
       if (role && !member.roles.cache.has(roleConfig.roleId)) {
         await member.roles.add(roleConfig.roleId);
 
-        // Enviar mensaje personalizado si existe
         if (roleConfig.message) {
           const channel =
             member.guild.systemChannel ??
@@ -211,7 +487,7 @@ async function assignLevelRoles(
   }
 }
 
-// Manejar XP por reacción (para voiceStateUpdate)
+// Manejar XP por voz
 export async function handleVoiceXp(
   member: any,
   config: {

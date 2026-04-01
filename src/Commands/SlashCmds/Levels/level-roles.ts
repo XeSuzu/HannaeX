@@ -11,12 +11,12 @@ import LocalLevel from "../../../Models/LocalLevels";
 export default {
   data: new SlashCommandBuilder()
     .setName("level-roles")
-    .setDescription("Gestiona los roles que se otorgan al subir de nivel")
+    .setDescription("🎖️ Gestiona los roles que se otorgan al subir de nivel")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addSubcommand((s) =>
       s
         .setName("add")
-        .setDescription("Asignar un rol a un nivel específico")
+        .setDescription("➕ Asignar un rol a un nivel específico")
         .addIntegerOption((o) =>
           o
             .setName("nivel")
@@ -42,7 +42,7 @@ export default {
     .addSubcommand((s) =>
       s
         .setName("remove")
-        .setDescription("Quitar la configuración de rol para un nivel")
+        .setDescription("➖ Quitar la configuración de rol para un nivel")
         .addIntegerOption((o) =>
           o
             .setName("nivel")
@@ -54,13 +54,13 @@ export default {
     .addSubcommand((s) =>
       s
         .setName("list")
-        .setDescription("Ver todos los roles de nivel configurados"),
+        .setDescription("📋 Ver todos los roles de nivel configurados"),
     )
     .addSubcommand((s) =>
       s
         .setName("give")
         .setDescription(
-          "Dar a un usuario todos los roles de nivel que le corresponden",
+          "🎁 Dar a un usuario todos los roles de nivel que le corresponden",
         )
         .addUserOption((o) =>
           o.setName("usuario").setDescription("Usuario").setRequired(true),
@@ -78,6 +78,9 @@ export default {
     let config = await LevelConfig.findOne({ guildId });
     if (!config) config = await LevelConfig.create({ guildId });
 
+    // Defer para dar tiempo a procesar
+    await interaction.deferReply();
+
     // ==================== ADD ====================
     if (sub === "add") {
       const level = interaction.options.getInteger("nivel", true);
@@ -87,8 +90,15 @@ export default {
       // Verificar si el bot puede asignar el rol
       if (role.position >= guild.members.me?.roles.highest.position!) {
         return interaction.editReply({
-          content:
-            "⚠️ No puedo asignar ese rol. Asegúrate de que esté **por debajo** de mi rol más alto.",
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xff6b6b)
+              .setTitle("⚠️ Permisos insuficientes")
+              .setDescription(
+                "No puedo asignar ese rol. Asegúrate de que esté **por debajo** de mi rol más alto.",
+              )
+              .setFooter({ text: "Hoshiko Levels 🌸" }),
+          ],
         });
       }
 
@@ -116,7 +126,22 @@ export default {
         : "";
 
       return interaction.editReply({
-        content: `✅ Al alcanzar el nivel **${level}** se asignará el rol ${role}${msgText}.`,
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x51cf66)
+            .setTitle("✅ Rol configurado")
+            .setDescription(
+              `Al alcanzar el nivel **${level}** se asignará el rol ${role}${msgText}`,
+            )
+            .addFields({
+              name: "💡 Tip",
+              value:
+                "Usa `/level-roles give @usuario` para asignar roles faltantes a un usuario.",
+              inline: false,
+            })
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp(),
+        ],
       });
     }
 
@@ -129,7 +154,15 @@ export default {
 
       if (existsIndex < 0) {
         return interaction.editReply({
-          content: `No hay ningún rol configurado para el nivel **${level}**.`,
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xffb7c5)
+              .setTitle("ℹ️ Sin configuración")
+              .setDescription(
+                `No hay ningún rol configurado para el nivel **${level}**.`,
+              )
+              .setFooter({ text: "Hoshiko Levels 🌸" }),
+          ],
         });
       }
 
@@ -137,7 +170,16 @@ export default {
       await config.save();
 
       return interaction.editReply({
-        content: `✅ Rol del nivel **${level}** eliminado.`,
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x51cf66)
+            .setTitle("✅ Rol eliminado")
+            .setDescription(
+              `La configuración del rol para el nivel **${level}** ha sido eliminada.`,
+            )
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp(),
+        ],
       });
     }
 
@@ -145,8 +187,17 @@ export default {
     if (sub === "list") {
       if (!config.levelRoles.length) {
         return interaction.editReply({
-          content:
-            "No hay roles de nivel configurados aún. Usa `/level-roles add` para agregar uno~",
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xffb7c5)
+              .setTitle("🎖️ Roles por Nivel")
+              .setDescription(
+                "No hay roles de nivel configurados aún.\n\n" +
+                  "💡 Usa `/level-roles add nivel:5 rol:@MiRol` para agregar uno~",
+              )
+              .setFooter({ text: "Hoshiko Levels 🌸" })
+              .setTimestamp(),
+          ],
         });
       }
 
@@ -157,7 +208,7 @@ export default {
           const role = guild.roles.cache.get(lr.roleId);
           const roleName = role ? role.name : "❌ Rol eliminado";
           const hasMessage = lr.message ? " 📝" : "";
-          return `Nivel **${lr.level}** → ${role ? `<@&${lr.roleId}>` : `\`${roleName}\``}${hasMessage}`;
+          return `**Nivel ${lr.level}** → ${role ? `<@&${lr.roleId}>` : `\`${roleName}\``}${hasMessage}`;
         }),
       );
 
@@ -166,11 +217,20 @@ export default {
         .setTitle("🎖️ Roles por Nivel")
         .setDescription(lines.join("\n"))
         .addFields({
+          name: "📋 Resumen",
+          value: `Total: **${config.levelRoles.length}** rol(es) configurado(s)`,
+          inline: false,
+        })
+        .addFields({
           name: "💡 Tips",
           value:
-            "• Usa `/level-roles add nivel:5 rol:@MiRol` para agregar\n• Agrega `mensaje:` para un anuncio personalizado\n• Usa `/level-roles give @usuario` para asignar roles faltantes",
+            "• Usa `/level-roles add nivel:5 rol:@MiRol` para agregar\n" +
+            "• Agrega `mensaje:` para un anuncio personalizado\n" +
+            "• Usa `/level-roles give @usuario` para asignar roles faltantes",
+          inline: false,
         })
-        .setFooter({ text: "Hoshiko Levels 🐾" });
+        .setFooter({ text: "Hoshiko Levels 🌸" })
+        .setTimestamp();
 
       return interaction.editReply({ embeds: [embed] });
     }
@@ -182,7 +242,13 @@ export default {
 
       if (!member) {
         return interaction.editReply({
-          content: "No encontré a ese usuario en el servidor.",
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xff6b6b)
+              .setTitle("❌ Usuario no encontrado")
+              .setDescription("No encontré a ese usuario en el servidor.")
+              .setFooter({ text: "Hoshiko Levels 🌸" }),
+          ],
         });
       }
 
@@ -201,21 +267,48 @@ export default {
 
       if (!rolesToGive.length) {
         return interaction.editReply({
-          content: `${user.tag} ya tiene todos los roles de nivel para su nivel actual (${userLevel}).`,
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xffb7c5)
+              .setTitle("ℹ️ Sin roles pendientes")
+              .setDescription(
+                `${user.tag} ya tiene todos los roles de nivel para su nivel actual (${userLevel}).`,
+              )
+              .setFooter({ text: "Hoshiko Levels 🌸" })
+              .setTimestamp(),
+          ],
         });
       }
 
       let given = 0;
+      const failedRoles: string[] = [];
+
       for (const lr of rolesToGive) {
         const role = guild.roles.cache.get(lr.roleId);
         if (role && role.position < guild.members.me?.roles.highest.position!) {
           await member.roles.add(lr.roleId).catch(() => null);
           given++;
+        } else {
+          failedRoles.push(role?.name || lr.roleId);
         }
       }
 
+      const failedText =
+        failedRoles.length > 0
+          ? `\n⚠️ No pude asignar: ${failedRoles.join(", ")}`
+          : "";
+
       return interaction.editReply({
-        content: `✅ Se asignaron **${given}** rol(es) de nivel a ${user.tag} (nivel ${userLevel}).`,
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x51cf66)
+            .setTitle("✅ Roles asignados")
+            .setDescription(
+              `Se asignaron **${given}** rol(es) de nivel a ${user.tag} (nivel ${userLevel}).${failedText}`,
+            )
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp(),
+        ],
       });
     }
   },

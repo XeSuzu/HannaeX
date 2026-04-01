@@ -1,12 +1,12 @@
+import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
   AttachmentBuilder,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
-import { HoshikoClient } from "../../../index";
 import path from "path";
+import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const fontPath = "./assets/fonts/";
@@ -44,8 +44,6 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
-
     const text = interaction.options.getString("texto", true);
     const attachment = interaction.options.getAttachment("imagen");
     const user = interaction.options.getUser("usuario") || interaction.user;
@@ -236,11 +234,19 @@ const command: SlashCommand = {
     ctx.stroke();
 
     // --- ENVÍO ---
-    const buffer = await canvas.encode("png");
+    const buffer = canvas.toBuffer("image/png");
     const file = new AttachmentBuilder(buffer, { name: "tweet.png" });
-    if (interaction.channel?.isTextBased())
-      await (interaction.channel as TextChannel).send({ files: [file] });
-    await interaction.editReply({ content: "✅ Tweet publicado." });
+
+    // Enviar el tweet al canal
+    if (interaction.channel?.isTextBased()) {
+      await (interaction.channel as TextChannel).send({
+        content: `🐦 Tweet de **${user.username}**`,
+        files: [file],
+      });
+    }
+
+    // Editar la respuesta diferida
+    await interaction.editReply({ content: "✅ **Tweet publicado!** 🐦" });
   },
 };
 

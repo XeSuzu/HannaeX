@@ -55,13 +55,13 @@ export interface ILevelConfig extends Document {
 
 const levelConfigSchema = new Schema<ILevelConfig>({
   guildId: { type: String, required: true, unique: true },
-  enabled: { type: Boolean, default: true },
+  enabled: { type: Boolean, default: false }, // ⚠️ Desactivado por defecto - debe activarse manualmente
   announceChannelId: { type: String, default: null },
   announceDM: { type: Boolean, default: false },
   announceMode: {
     type: String,
     enum: ["all", "milestone", "silent"],
-    default: "all",
+    default: "milestone", // Solo niveles importantes por defecto
   },
 
   // XP mensajes
@@ -70,8 +70,8 @@ const levelConfigSchema = new Schema<ILevelConfig>({
   xpMinLength: { type: Number, default: 5 }, // mínimo 5 caracteres
   xpMultiplier: { type: Number, default: 1.0 },
 
-  // XP voz
-  xpVoiceEnabled: { type: Boolean, default: true },
+  // XP voz (desactivada por defecto)
+  xpVoiceEnabled: { type: Boolean, default: false },
   xpPerMinuteVoice: { type: Number, default: 10 },
   xpVoiceMinMinutes: { type: Number, default: 1 },
 

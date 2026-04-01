@@ -1,12 +1,12 @@
+import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
   AttachmentBuilder,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
-import { HoshikoClient } from "../../../index";
 import path from "path";
+import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const fontPath = "./assets/fonts/";
@@ -63,8 +63,6 @@ const command: SlashCommand = {
     client: HoshikoClient,
   ) {
     if (interaction.options.getSubcommand() !== "instagram") return;
-
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     let text = interaction.options.getString("texto", true);
     const attachment = interaction.options.getAttachment("imagen");
@@ -237,17 +235,23 @@ const command: SlashCommand = {
       captionY + 45,
     );
 
-    const finalBuffer = await canvas.encode("png");
+    const finalBuffer = canvas.toBuffer("image/png");
     const file = new AttachmentBuilder(finalBuffer, {
-      name: "insta-fixed.png",
+      name: "insta-post.png",
     });
-    
-    // ✅ Se mantiene enviando la foto de forma pública al canal
-    if (interaction.channel && interaction.channel.isTextBased())
-      await (interaction.channel as TextChannel).send({ files: [file] });
-      
-    // ✅ Se edita la respuesta oculta avisando que ya se subió
-    await interaction.editReply({ content: "✅ Post publicado en el canal." });
+
+    // Enviar el post al canal
+    if (interaction.channel && interaction.channel.isTextBased()) {
+      await (interaction.channel as TextChannel).send({
+        content: `📸 Post de **${user.username}**`,
+        files: [file],
+      });
+    }
+
+    // Editar la respuesta diferida
+    await interaction.editReply({
+      content: "✅ **Post publicado en el canal!** 📸",
+    });
   },
 };
 

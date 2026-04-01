@@ -11,12 +11,12 @@ import LevelConfig from "../../../Models/LevelConfig";
 export default {
   data: new SlashCommandBuilder()
     .setName("setup-levels")
-    .setDescription("Configura el sistema de niveles del servidor")
+    .setDescription("⚙️ Configura el sistema de niveles del servidor")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 
     // Ver configuración
     .addSubcommand((s) =>
-      s.setName("view").setDescription("Ver toda la configuración actual"),
+      s.setName("view").setDescription("👁️ Ver toda la configuración actual"),
     )
 
     // Sistema general
@@ -27,18 +27,18 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("toggle")
-            .setDescription("Activar o desactivar el sistema de niveles")
+            .setDescription("🔘 Activar o desactivar el sistema de niveles")
             .addBooleanOption((o) =>
               o
                 .setName("activo")
-                .setDescription("true = activado")
+                .setDescription("true = activado, false = desactivado")
                 .setRequired(true),
             ),
         )
         .addSubcommand((s) =>
           s
             .setName("modo-anuncio")
-            .setDescription("Cómo anunciar las subidas de nivel")
+            .setDescription("📢 Cómo anunciar las subidas de nivel")
             .addStringOption((o) =>
               o
                 .setName("modo")
@@ -57,7 +57,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("dm")
-            .setDescription("Enviar anuncios por DM en vez de canal")
+            .setDescription("📨 Enviar anuncios por DM en vez de canal")
             .addBooleanOption((o) =>
               o
                 .setName("activo")
@@ -75,7 +75,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("base")
-            .setDescription("XP base ganada por mensaje")
+            .setDescription("💬 XP base ganada por mensaje")
             .addIntegerOption((o) =>
               o
                 .setName("cantidad")
@@ -88,7 +88,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("cooldown")
-            .setDescription("Tiempo entre ganancias de XP")
+            .setDescription("⏱️ Tiempo entre ganancias de XP")
             .addIntegerOption((o) =>
               o
                 .setName("segundos")
@@ -101,7 +101,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("min-longitud")
-            .setDescription("Mínimo de caracteres para ganar XP")
+            .setDescription("📏 Mínimo de caracteres para ganar XP")
             .addIntegerOption((o) =>
               o
                 .setName("caracteres")
@@ -114,7 +114,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("multiplicador")
-            .setDescription("Multiplicador global de XP (para eventos)")
+            .setDescription("🎁 Multiplicador global de XP (para eventos)")
             .addNumberOption((o) =>
               o
                 .setName("valor")
@@ -127,7 +127,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("mencion-bonus")
-            .setDescription("XP extra por mencionar a otros")
+            .setDescription("💭 XP extra por mencionar a otros")
             .addIntegerOption((o) =>
               o
                 .setName("xp")
@@ -147,7 +147,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("toggle")
-            .setDescription("Activar o desactivar XP por voz")
+            .setDescription("🔊 Activar o desactivar XP por voz")
             .addBooleanOption((o) =>
               o
                 .setName("activo")
@@ -158,7 +158,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("xp-minuto")
-            .setDescription("XP ganada por minuto en voz")
+            .setDescription("⚡ XP ganada por minuto en voz")
             .addIntegerOption((o) =>
               o
                 .setName("cantidad")
@@ -171,7 +171,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("min-minutos")
-            .setDescription("Minutos mínimos en voz para contar")
+            .setDescription("⏳ Minutos mínimos en voz para contar")
             .addIntegerOption((o) =>
               o
                 .setName("minutos")
@@ -191,7 +191,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("anuncio")
-            .setDescription("Canal donde se anuncian las subidas")
+            .setDescription("📢 Canal donde se anuncian las subidas")
             .addChannelOption((o) =>
               o
                 .setName("canal")
@@ -203,7 +203,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("ignorar")
-            .setDescription("Ignorar/des-ignorar un canal")
+            .setDescription("🚫 Ignorar/des-ignorar un canal")
             .addChannelOption((o) =>
               o
                 .setName("canal")
@@ -215,7 +215,7 @@ export default {
         .addSubcommand((s) =>
           s
             .setName("ignorar-rol")
-            .setDescription("Ignorar/des-ignorar un rol")
+            .setDescription("🚫 Ignorar/des-ignorar un rol")
             .addRoleOption((o) =>
               o
                 .setName("rol")
@@ -236,23 +236,36 @@ export default {
     let config = await LevelConfig.findOne({ guildId });
     if (!config) config = await LevelConfig.create({ guildId });
 
+    // Defer para dar tiempo a procesar
+    await interaction.deferReply();
+
     // ==================== VIEW ====================
     if (sub === "view") {
       const announceModeText = {
         all: "Todos los niveles",
         milestone: "Solo niveles importantes",
         silent: "Silencioso",
-      }[config.announceMode || "all"];
+      }[config.announceMode || "milestone"];
+
+      const systemStatus = config.enabled
+        ? "🟢 **Activado**"
+        : "🔴 **Desactivado**";
+      const voiceStatus = config.xpVoiceEnabled
+        ? "🟢 Activado"
+        : "🔴 Desactivado";
+      const dmStatus = config.announceDM ? "🟢 Activado" : "🔴 Desactivado";
+      const botsStatus = config.ignoreBots ? "🟢 Ignorados" : "🔴 Contados";
 
       const embed = new EmbedBuilder()
-        .setColor(0xffb7c5)
+        .setColor(config.enabled ? 0x51cf66 : 0xff6b6b)
         .setTitle("⚙️ Configuración de Niveles")
+        .setDescription(
+          `Estado del sistema: **${systemStatus}**\n` +
+            (config.enabled
+              ? "💡 Los usuarios están ganando XP activamente"
+              : "⚠️ Usa `/setup-levels sistema toggle activo:true` para activar"),
+        )
         .addFields(
-          {
-            name: "🌟 Sistema",
-            value: config.enabled ? "✅ Activado" : "❌ Desactivado",
-            inline: true,
-          },
           {
             name: "📢 Anuncios",
             value: announceModeText,
@@ -260,66 +273,81 @@ export default {
           },
           {
             name: "📨 DM",
-            value: config.announceDM ? "✅ Activado" : "❌ Desactivado",
+            value: dmStatus,
             inline: true,
           },
           {
             name: "💬 XP por mensaje",
-            value: `\`${config.xpPerMessage}\` XP • cd: \`${config.xpCooldown}s\` • min: \`${config.xpMinLength}\` chars`,
-            inline: false,
-          },
-          {
-            name: "🎁 Bonus menciones",
-            value: `\`+${config.xpMentionBonus}\` XP por mención (max \`${config.xpMentionMaxBonus}\`)`,
+            value:
+              `\`${config.xpPerMessage}\` XP\n` +
+              `cd: \`${config.xpCooldown}s\`\n` +
+              `min: \`${config.xpMinLength}\` chars`,
             inline: true,
           },
           {
-            name: "🔢 Multiplicador",
-            value: `\`x${config.xpMultiplier}\``,
+            name: "🎁 Bonus",
+            value:
+              `+${config.xpMentionBonus} XP/mención\n` +
+              `max: ${config.xpMentionMaxBonus} XP\n` +
+              `mult: x${config.xpMultiplier}`,
             inline: true,
           },
           {
             name: "🔊 XP por voz",
-            value: config.xpVoiceEnabled
-              ? `✅ \`${config.xpPerMinuteVoice}\` XP/min • min: \`${config.xpVoiceMinMinutes}\` min`
-              : "❌ Desactivado",
-            inline: false,
-          },
-          {
-            name: "📋 Canal de anuncio",
-            value: config.announceChannelId
-              ? `<#${config.announceChannelId}>`
-              : "Canal actual",
+            value:
+              voiceStatus +
+              "\n" +
+              (config.xpVoiceEnabled
+                ? `\`${config.xpPerMinuteVoice}\` XP/min\nmin: \`${config.xpVoiceMinMinutes}\` min`
+                : ""),
             inline: true,
           },
           {
-            name: "🚫 Canales ignorados",
-            value: config.ignoredChannels.length
-              ? config.ignoredChannels.map((c) => `<#${c}>`).join(", ")
-              : "Ninguno",
-            inline: false,
-          },
-          {
-            name: "🚫 Roles ignorados",
-            value: config.ignoredRoles.length
-              ? config.ignoredRoles.map((r) => `<@&${r}>`).join(", ")
-              : "Ninguno",
-            inline: false,
-          },
-          {
-            name: "🤖 Ignorar bots",
-            value: config.ignoreBots ? "✅ Sí" : "❌ No",
+            name: "🤖 Bots",
+            value: botsStatus,
             inline: true,
           },
-          {
-            name: "🎖️ Roles por nivel",
-            value: config.levelRoles.length
-              ? `${config.levelRoles.length} rol(es) configurado(s)`
-              : "Ninguno",
-            inline: true,
-          },
-        )
-        .setFooter({ text: "Usa /setup-levels sistema para más opciones 🐾" });
+        );
+
+      // Canal de anuncio
+      if (config.announceChannelId) {
+        embed.addFields({
+          name: "📢 Canal de anuncio",
+          value: `<#${config.announceChannelId}>`,
+          inline: false,
+        });
+      }
+
+      // Canales ignorados
+      if (config.ignoredChannels.length > 0) {
+        embed.addFields({
+          name: "🚫 Canales ignorados",
+          value: config.ignoredChannels.map((c) => `<#${c}>`).join(", "),
+          inline: false,
+        });
+      }
+
+      // Roles ignorados
+      if (config.ignoredRoles.length > 0) {
+        embed.addFields({
+          name: "🚫 Roles ignorados",
+          value: config.ignoredRoles.map((r) => `<@&${r}>`).join(", "),
+          inline: false,
+        });
+      }
+
+      // Roles por nivel
+      const levelRolesCount = config.levelRoles.length;
+      embed.addFields({
+        name: "🎖️ Roles por nivel",
+        value:
+          levelRolesCount > 0
+            ? `${levelRolesCount} rol(es) configurado(s)\nUsa \`/level-roles list\` para verlos`
+            : "Ninguno configurado",
+        inline: true,
+      });
+
+      embed.setFooter({ text: "Hoshiko Levels 🌸" }).setTimestamp();
 
       return interaction.editReply({ embeds: [embed] });
     }
@@ -333,9 +361,19 @@ export default {
           { enabled: activo },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Sistema de niveles ${activo ? "**activado**" : "**desactivado**"}.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(activo ? 0x51cf66 : 0xff6b6b)
+          .setTitle(activo ? "✅ Sistema activado" : "🔴 Sistema desactivado")
+          .setDescription(
+            activo
+              ? "El sistema de niveles está ahora **activo**. Los usuarios empezarán a ganar XP."
+              : "El sistema de niveles está ahora **desactivado**. Los usuarios no ganarán XP.",
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "modo-anuncio") {
@@ -348,14 +386,21 @@ export default {
           { announceMode: modo },
           { upsert: true },
         );
+
         const modosTexto: Record<string, string> = {
           all: "todos los niveles",
           milestone: "solo niveles importantes (5, 10, 15...)",
           silent: "silencioso (no se anuncia)",
         };
-        return interaction.editReply({
-          content: `✅ Modo de anuncio cambiado a: **${modosTexto[modo]}**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("📢 Modo de anuncio actualizado")
+          .setDescription(`Modo establecido: **${modosTexto[modo]}**`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "dm") {
@@ -365,9 +410,19 @@ export default {
           { announceDM: activo },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Anuncios por DM ${activo ? "**activados**" : "**desactivados**"}.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(activo ? 0x51cf66 : 0xff6b6b)
+          .setTitle(activo ? "📨 DM activados" : "📨 DM desactivados")
+          .setDescription(
+            activo
+              ? "Los anuncios de nivel se enviarán por **DM** al usuario."
+              : "Los anuncios de nivel se enviarán al **canal** configurado.",
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
     }
 
@@ -380,9 +435,15 @@ export default {
           { xpPerMessage: cantidad },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ XP por mensaje establecida a **${cantidad}**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("💬 XP por mensaje actualizada")
+          .setDescription(`Establecida a **${cantidad} XP** por mensaje`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "cooldown") {
@@ -392,9 +453,17 @@ export default {
           { xpCooldown: segundos },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Cooldown de XP establecido a **${segundos} segundos**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("⏱️ Cooldown actualizado")
+          .setDescription(
+            `Tiempo entre ganancias establecido a **${segundos} segundos**`,
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "min-longitud") {
@@ -404,9 +473,17 @@ export default {
           { xpMinLength: caracteres },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Mínimo de caracteres establecido a **${caracteres}**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("📏 Longitud mínima actualizada")
+          .setDescription(
+            `Mínimo de caracteres establecido a **${caracteres}**`,
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "multiplicador") {
@@ -416,9 +493,18 @@ export default {
           { xpMultiplier: valor },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Multiplicador establecido a **x${valor}**. Útil para eventos especiales~`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("🎁 Multiplicador actualizado")
+          .setDescription(
+            `Multiplicador establecido a **x${valor}**\n` +
+              `💡 Útil para eventos especiales~`,
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "mencion-bonus") {
@@ -428,9 +514,18 @@ export default {
           { xpMentionBonus: xp, xpMentionMaxBonus: xp * 5 },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Bonus por mención establecido a **+${xp} XP** (máximo ${xp * 5}).`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("💭 Bonus por mención actualizado")
+          .setDescription(
+            `Bonus establecido a **+${xp} XP** por mención\n` +
+              `Máximo: **${xp * 5} XP** por mensaje`,
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
     }
 
@@ -443,9 +538,21 @@ export default {
           { xpVoiceEnabled: activo },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ XP por voz ${activo ? "**activada**" : "**desactivada**"}.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(activo ? 0x51cf66 : 0xff6b6b)
+          .setTitle(
+            activo ? "🔊 XP por voz activada" : "🔇 XP por voz desactivada",
+          )
+          .setDescription(
+            activo
+              ? "Los usuarios ahora ganan XP por tiempo en canales de voz."
+              : "Los usuarios ya no ganarán XP por tiempo en voz.",
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "xp-minuto") {
@@ -455,9 +562,15 @@ export default {
           { xpPerMinuteVoice: cantidad },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ XP por minuto en voz establecida a **${cantidad}**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("⚡ XP por minuto actualizada")
+          .setDescription(`Establecida a **${cantidad} XP** por minuto en voz`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "min-minutos") {
@@ -467,9 +580,15 @@ export default {
           { xpVoiceMinMinutes: minutos },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Minutos mínimos en voz establecidos a **${minutos}**.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("⏳ Minutos mínimos actualizados")
+          .setDescription(`Establecido a **${minutos} minutos**`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
     }
 
@@ -482,9 +601,15 @@ export default {
           { announceChannelId: channel.id },
           { upsert: true },
         );
-        return interaction.editReply({
-          content: `✅ Canal de anuncios establecido a <#${channel.id}>.`,
-        });
+
+        const embed = new EmbedBuilder()
+          .setColor(0x51cf66)
+          .setTitle("📢 Canal de anuncio establecido")
+          .setDescription(`Anuncios de nivel se enviarán a <#${channel.id}>`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
       }
 
       if (sub === "ignorar") {
@@ -495,17 +620,34 @@ export default {
             { guildId },
             { $pull: { ignoredChannels: channel.id } },
           );
-          return interaction.editReply({
-            content: `✅ <#${channel.id}> ya no está ignorado.`,
-          });
+
+          const embed = new EmbedBuilder()
+            .setColor(0x51cf66)
+            .setTitle("✅ Canal des-ignorado")
+            .setDescription(
+              `<#${channel.id}> ya no está ignorado y los mensajes cuentan para XP.`,
+            )
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [embed] });
         } else {
           await LevelConfig.updateOne(
             { guildId },
-            { $push: { ignoredChannels: channel.id } },
+            { $addToSet: { ignoredChannels: channel.id } },
+            { upsert: true },
           );
-          return interaction.editReply({
-            content: `✅ <#${channel.id}> ahora está ignorado.`,
-          });
+
+          const embed = new EmbedBuilder()
+            .setColor(0xffb7c5)
+            .setTitle("🚫 Canal ignorado")
+            .setDescription(
+              `<#${channel.id}> ahora está ignorado y los mensajes **no** cuentan para XP.`,
+            )
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [embed] });
         }
       }
 
@@ -517,17 +659,32 @@ export default {
             { guildId },
             { $pull: { ignoredRoles: role.id } },
           );
-          return interaction.editReply({
-            content: `✅ El rol ${role.name} ya no está ignorado.`,
-          });
+
+          const embed = new EmbedBuilder()
+            .setColor(0x51cf66)
+            .setTitle("✅ Rol des-ignorado")
+            .setDescription(`Los usuarios con ${role} ya no están ignorados.`)
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [embed] });
         } else {
           await LevelConfig.updateOne(
             { guildId },
-            { $push: { ignoredRoles: role.id } },
+            { $addToSet: { ignoredRoles: role.id } },
+            { upsert: true },
           );
-          return interaction.editReply({
-            content: `✅ El rol ${role.name} ahora está ignorado.`,
-          });
+
+          const embed = new EmbedBuilder()
+            .setColor(0xffb7c5)
+            .setTitle("🚫 Rol ignorado")
+            .setDescription(
+              `Los usuarios con ${role} ahora están ignorados y no ganan XP.`,
+            )
+            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setTimestamp();
+
+          return interaction.editReply({ embeds: [embed] });
         }
       }
     }
