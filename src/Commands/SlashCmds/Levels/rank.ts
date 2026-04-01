@@ -84,9 +84,6 @@ export default {
     const target = interaction.options.getUser("usuario") ?? interaction.user;
     const showBanner = interaction.options.getBoolean("banner") ?? false;
 
-    // Defer para dar tiempo a procesar
-    await interaction.deferReply();
-
     const profile = await LocalLevel.findOne({
       userId: target.id,
       guildId: interaction.guildId!,

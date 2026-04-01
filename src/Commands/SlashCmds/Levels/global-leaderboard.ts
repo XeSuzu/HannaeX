@@ -27,8 +27,6 @@ export default {
     const perPage = 10;
     const skip = (page - 1) * perPage;
 
-    await interaction.deferReply();
-
     const totalUsers = await GlobalLevel.countDocuments({});
 
     if (totalUsers === 0) {

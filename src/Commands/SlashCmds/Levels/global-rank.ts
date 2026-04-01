@@ -29,8 +29,6 @@ export default {
   ) {
     const target = interaction.options.getUser("usuario") ?? interaction.user;
 
-    await interaction.deferReply();
-
     const globalProfile = await GlobalLevel.findOne({ userId: target.id });
 
     if (!globalProfile) {

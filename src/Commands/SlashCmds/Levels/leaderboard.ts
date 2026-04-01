@@ -27,9 +27,6 @@ export default {
     const perPage = 10;
     const skip = (page - 1) * perPage;
 
-    // Defer para dar tiempo a procesar
-    await interaction.deferReply();
-
     const totalUsers = await LocalLevel.countDocuments({
       guildId: interaction.guildId!,
     });

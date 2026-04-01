@@ -236,9 +236,6 @@ export default {
     let config = await LevelConfig.findOne({ guildId });
     if (!config) config = await LevelConfig.create({ guildId });
 
-    // Defer para dar tiempo a procesar
-    await interaction.deferReply();
-
     // ==================== VIEW ====================
     if (sub === "view") {
       const announceModeText = {

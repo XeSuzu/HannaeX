@@ -19,8 +19,6 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply();
-
     // Obtener el nivel global del usuario si existe
     const globalProfile = await GlobalLevel.findOne({
       userId: interaction.user.id,
