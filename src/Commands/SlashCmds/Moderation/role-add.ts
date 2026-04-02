@@ -12,20 +12,27 @@ export default {
     .setDescription("Añade un rol a un usuario")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addUserOption((o) =>
-      o.setName("usuario").setDescription("Usuario al que añadir el rol").setRequired(true)
+      o
+        .setName("usuario")
+        .setDescription("Usuario al que añadir el rol")
+        .setRequired(true),
     )
     .addRoleOption((o) =>
-      o.setName("rol").setDescription("Rol a añadir").setRequired(true)
+      o.setName("rol").setDescription("Rol a añadir").setRequired(true),
     ),
 
   async execute(
     interaction: ChatInputCommandInteraction,
-    client: HoshikoClient
+    client: HoshikoClient,
   ) {
-    const target = interaction.options.getMember("usuario");
+    const targetUser = interaction.options.getUser("usuario", true);
     const role = interaction.options.getRole("rol", true);
 
-    if (!target || typeof target.roles === "undefined") {
+    const target = await interaction.guild?.members
+      .fetch(targetUser.id)
+      .catch(() => null);
+
+    if (!target) {
       return interaction.editReply({
         content: "❌ No encontré ese usuario en el servidor.",
       });
@@ -41,8 +48,13 @@ export default {
     }
 
     // Verificar jerarquía del ejecutor
-    const executorMember = interaction.guild?.members.cache.get(interaction.user.id);
-    if (executorMember && role.position >= executorMember.roles.highest.position) {
+    const executorMember = interaction.guild?.members.cache.get(
+      interaction.user.id,
+    );
+    if (
+      executorMember &&
+      role.position >= executorMember.roles.highest.position
+    ) {
       return interaction.editReply({
         content: "❌ No puedes asignar un rol igual o superior al tuyo.",
       });
@@ -71,7 +83,7 @@ export default {
             name: "🎭 Rol",
             value: `<@&${role.id}>`,
             inline: true,
-          }
+          },
         )
         .setFooter({
           text: `Ejecutado por ${interaction.user.username}`,
