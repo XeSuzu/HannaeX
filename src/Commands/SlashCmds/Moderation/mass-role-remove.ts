@@ -6,37 +6,107 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 
-interface RoleResult {
-  id: string;
-  success: boolean;
-  error?: string;
+const BATCH_SIZE = 10;
+const BATCH_DELAY_MS = 1000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatTime(ms: number): string {
+  const totalSeconds = Math.ceil(ms / 1000);
+  if (totalSeconds < 60) return `~${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds > 0 ? `~${minutes}m ${seconds}s` : `~${minutes}m`;
+}
+
+function buildProgressEmbed(
+  roleName: string,
+  roleId: string,
+  total: number,
+  processed: number,
+  removed: number,
+  skipped: number,
+  failed: number,
+  done: boolean,
+  executor: { username: string; displayAvatarURL: () => string },
+  startedAt: number
+): EmbedBuilder {
+  const percent = total > 0 ? Math.floor((processed / total) * 100) : 0;
+  const bar = buildBar(percent);
+
+  // Estimación de tiempo
+  const elapsed = Date.now() - startedAt;
+  const remaining = processed > 0
+    ? Math.round((elapsed / processed) * (total - processed))
+    : Math.ceil(total / BATCH_SIZE) * BATCH_DELAY_MS;
+  const elapsedFormatted = formatTime(elapsed);
+  const remainingFormatted = formatTime(remaining);
+
+  const progressValue = done
+    ? `\`${bar}\` 100%\n\`${total}/${total}\` procesados\n⏱️ Tardó: ${elapsedFormatted}`
+    : `\`${bar}\` ${percent}%\n\`${processed}/${total}\` procesados\n⏱️ Transcurrido: ${elapsedFormatted} · Restante: ${remainingFormatted}`;
+
+  const embed = new EmbedBuilder()
+    .setColor(done ? 0xa8d8a8 : 0xffb7c5)
+    .setTitle(`🔧 MassRole Remove — ${roleName}`)
+    .setDescription(
+      done
+        ? `✅ Proceso completado para **${total}** miembro(s) con el rol.`
+        : `⏳ Procesando miembros con <@&${roleId}>...`
+    )
+    .addFields(
+      {
+        name: "📊 Progreso",
+        value: progressValue,
+        inline: false,
+      },
+      {
+        name: "📈 Resultados",
+        value: `\`\`\`
+✅ Removidos : ${removed}
+⏭️ Sin el rol : ${skipped}
+❌ Fallidos  : ${failed}
+\`\`\``,
+        inline: false,
+      },
+      {
+        name: "🎭 Rol",
+        value: `<@&${roleId}>`,
+        inline: true,
+      }
+    )
+    .setFooter({
+      text: `Ejecutado por ${executor.username}`,
+      iconURL: executor.displayAvatarURL(),
+    })
+    .setTimestamp();
+
+  return embed;
+}
+
+function buildBar(percent: number, length = 20): string {
+  const filled = Math.round((percent / 100) * length);
+  return "█".repeat(filled) + "░".repeat(length - filled);
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName("mass-role-remove")
-    .setDescription("Remueve un rol de múltiples usuarios")
+    .setDescription("Remueve un rol de todos los miembros que lo tengan")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addRoleOption((o) =>
-      o.setName("rol").setDescription("Rol a remover").setRequired(true),
-    )
-    .addStringOption((o) =>
-      o
-        .setName("usuarios")
-        .setDescription(
-          "Menciones o IDs separados por espacio o coma (opcional)",
-        )
-        .setRequired(false),
+      o.setName("rol").setDescription("Rol a remover").setRequired(true)
     ),
 
   async execute(
     interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
+    client: HoshikoClient
   ) {
     const role = interaction.options.getRole("rol", true);
-    const usersArg = interaction.options.getString("usuarios");
 
-    // Verificar que el bot pueda gestionar el rol
+    // Verificar jerarquía
     const botMember = interaction.guild?.members.me;
     if (!botMember || role.position >= botMember.roles.highest.position) {
       return interaction.editReply({
@@ -45,117 +115,110 @@ export default {
       });
     }
 
-    let members: string[] = [];
+    // Fetch completo de miembros
+    await interaction.editReply({
+      content: `⏳ Cargando todos los miembros del servidor...`,
+    });
 
-    if (usersArg) {
-      // Usuarios específicos
-      members = usersArg
-        .split(/[\s,]+/)
-        .map((s) => s.replace(/[<@!>]/g, "").trim())
-        .filter((s) => /^\d+$/.test(s));
-    } else {
-      // Remover de todos los miembros con ese rol
-      const roleMembers = await interaction.guild?.roles.fetch(role.id);
-      members = roleMembers?.members.map((m) => m.id) || [];
-    }
-
-    if (!members.length) {
+    const allMembers = await interaction.guild?.members.fetch();
+    if (!allMembers) {
       return interaction.editReply({
-        content: "❌ No encontré usuarios válidos para procesar.",
+        content: "❌ No pude obtener los miembros del servidor.",
       });
     }
 
-    if (members.length > 100) {
+    // Filtrar solo los que tienen el rol
+    const targets = allMembers
+      .filter((m) => m.roles.cache.has(role.id))
+      .map((m) => m);
+
+    if (targets.length === 0) {
       return interaction.editReply({
-        content: "❌ Máximo 100 usuarios a la vez.",
+        content: `❌ Ningún miembro tiene el rol **${role.name}**.`,
       });
     }
 
-    const loadingMsg = await interaction.editReply({
-      content: `⏳ Removiendo el rol **${role.name}** de **${members.length}** usuario(s)...`,
-    });
+    // Estado del proceso
+    let processed = 0;
+    let removed = 0;
+    let skipped = 0;
+    let failed = 0;
+    const total = targets.length;
+    const startedAt = Date.now();
 
-    // Procesamiento paralelo
-    const rolePromises = members.map(async (memberId): Promise<RoleResult> => {
-      try {
-        const member = await interaction.guild?.members
-          .fetch(memberId)
-          .catch(() => null);
-
-        if (!member || !member.roles.cache.has(role.id)) {
-          return { id: memberId, success: false, error: "Sin el rol" };
-        }
-
-        await member.roles.remove(role.id);
-        return { id: memberId, success: true };
-      } catch (err: any) {
-        return { id: memberId, success: false, error: err.message || "Error" };
-      }
-    });
-
-    const results = await Promise.all(rolePromises);
-
-    const success = results.filter((r) => r.success);
-    const skipped = results.filter(
-      (r) => !r.success && r.error === "Sin el rol",
-    );
-    const failed = results.filter(
-      (r) => !r.success && r.error !== "Sin el rol",
+    // Embed inicial
+    const progressEmbed = buildProgressEmbed(
+      role.name,
+      role.id,
+      total,
+      processed,
+      removed,
+      skipped,
+      failed,
+      false,
+      interaction.user,
+      startedAt
     );
 
-    const embed = new EmbedBuilder()
-      .setColor(0xffb7c5)
-      .setTitle(`🔧 MassRole Remove - ${role.name}`)
-      .setDescription(`Proceso completado para **${members.length}** usuarios`)
-      .addFields(
-        {
-          name: "📊 Estadísticas",
-          value: `\`\`\`
-✅ Removidos: ${success.length}
-⏭️ Sin el rol: ${skipped.length}
-❌ Fallidos: ${failed.length}
-\`\`\``,
-          inline: false,
-        },
-        {
-          name: "🎭 Rol removido",
-          value: `<@&${role.id}>`,
-          inline: true,
-        },
+    const msg = await interaction.editReply({ content: null, embeds: [progressEmbed] });
+
+    // Procesar en batches
+    for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+      const batch = targets.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(
+        batch.map(async (member) => {
+          try {
+            if (!member.roles.cache.has(role.id)) {
+              skipped++;
+            } else {
+              await member.roles.remove(role.id);
+              removed++;
+            }
+          } catch {
+            failed++;
+          } finally {
+            processed++;
+          }
+        })
       );
 
-    // Lista de removidos (máx 25)
-    if (success.length > 0 && success.length <= 25) {
-      embed.addFields({
-        name: `✅ Removidos (${success.length})`,
-        value: success.map((r) => `<@${r.id}>`).join(" "),
-        inline: false,
-      });
-    } else if (success.length > 25) {
-      embed.addFields({
-        name: `✅ Removidos (${success.length})`,
-        value: `Demasiados para mostrar~`,
-        inline: false,
-      });
+      // Actualizar embed con progreso
+      const updatedEmbed = buildProgressEmbed(
+        role.name,
+        role.id,
+        total,
+        processed,
+        removed,
+        skipped,
+        failed,
+        false,
+        interaction.user,
+        startedAt
+      );
+
+      await msg.edit({ embeds: [updatedEmbed] }).catch(() => null);
+
+      // Delay entre batches (excepto el último)
+      if (i + BATCH_SIZE < targets.length) {
+        await sleep(BATCH_DELAY_MS);
+      }
     }
 
-    // Lista de fallidos (máx 10)
-    if (failed.length > 0 && failed.length <= 10) {
-      const errorList = failed.map((r) => `<@${r.id}> → ${r.error}`).join("\n");
-      embed.addFields({
-        name: `❌ Errores (${failed.length})`,
-        value: errorList,
-        inline: false,
-      });
-    }
+    // Embed final
+    const finalEmbed = buildProgressEmbed(
+      role.name,
+      role.id,
+      total,
+      processed,
+      removed,
+      skipped,
+      failed,
+      true,
+      interaction.user,
+      startedAt
+    );
 
-    embed
-      .setFooter({
-        text: `Ejecutado por ${interaction.user.username}`,
-        iconURL: interaction.user.displayAvatarURL(),
-      })
-      .setTimestamp();
-
-    await loadingMsg.edit({ content: null, embeds: [embed] });
+    await msg.edit({ embeds: [finalEmbed] }).catch(() => null);
   },
 };
