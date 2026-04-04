@@ -17,7 +17,7 @@ const command: SlashCommand = {
   cooldown: 5,
   ephemeral: false,
   data: new SlashCommandBuilder()
-    .setName("mute")
+    .setName("tempmute")
     .setDescription("Silencia a un usuario por un tiempo determinado.")
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption((opt) =>
@@ -60,6 +60,10 @@ const command: SlashCommand = {
     }
 
     try {
+      const targetTag = target.user.tag;
+      const targetId = target.id;
+      const unmuteDate = new Date(Date.now() + duration);
+
       await target.timeout(duration, reason);
 
       await AutomodManager.recordManualAction(
@@ -67,37 +71,54 @@ const command: SlashCommand = {
         target,
         interaction.user,
         "mute",
-        `Mute manual por ${interaction.user.tag}: ${reason}`,
+        `Tempmute por ${interaction.user.tag}: ${reason} (${timeInput})`,
       );
 
       await HoshikoLogger.logAction(interaction.guild, "MUTE", {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
-        extra: `Duración: ${timeInput}`,
+        extra: `Temporal: ${timeInput} (hasta ${unmuteDate.toLocaleString()})`,
       });
 
       const embed = new EmbedBuilder()
-        .setTitle("🔇 Usuario Silenciado")
-        .setDescription(`Se ha aplicado un silencio a **${target.user.tag}**.`)
+        .setTitle("⏳ Silencio Temporal")
+        .setDescription(`**${targetTag}** ha sido silenciado temporalmente.`)
         .addFields(
-          { name: "⏳ Duración", value: `\`${timeInput}\``, inline: true },
-          { name: "📝 Motivo", value: reason, inline: true },
+          { name: "👤 Usuario", value: `<@${targetId}>`, inline: true },
           { name: "👮 Moderador", value: `<@${interaction.user.id}>`, inline: true },
-          { name: "🆔 IDs", value: `\`User:\` ${target.id}\n\`Mod:\` ${interaction.user.id}`, inline: false },
+          { name: "⏱️ Duración", value: `\`${timeInput}\``, inline: true },
+          { name: "📝 Motivo", value: reason, inline: false },
+          { name: "🕐 Seudesilencia", value: `<t:${Math.floor(unmuteDate.getTime() / 1000)}:F>`, inline: false },
+          { name: "🆔 IDs", value: `\`User:\` ${targetId}\n\`Mod:\` ${interaction.user.id}`, inline: false },
         )
         .setColor(0xffb6c1)
         .setThumbnail(target.displayAvatarURL())
         .setTimestamp()
-        .setFooter({ text: "Acción registrada en el historial" });
+        .setFooter({ text: "El usuario será desilenciado automáticamente" });
 
-      await interaction.editReply({ content: "✅ Silencio aplicado con éxito.", embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
 
-      if (interaction.channel && interaction.channel.isTextBased() && "send" in interaction.channel) {
-        await (interaction.channel as TextChannel).send({ embeds: [embed] });
-      }
+      const guild = interaction.guild;
+      const clientUser = interaction.client.user;
+
+      setTimeout(async () => {
+        try {
+          if (target.communicationDisabledUntilTimestamp && target.communicationDisabledUntilTimestamp > Date.now()) {
+            await target.timeout(null, "Tempmute expirado automáticamente");
+            await HoshikoLogger.logAction(guild, "UNWARN", {
+              user: target.user,
+              moderator: clientUser,
+              reason: "Tempmute expirado",
+              extra: `Duración original: ${timeInput}`,
+            });
+          }
+        } catch (err) {
+          console.error("❌ Error al desmutear automáticamente:", err);
+        }
+      }, duration);
     } catch (error) {
-      console.error("💥 Error en comando mute:", error);
+      console.error("💥 Error en comando tempmute:", error);
       await interaction.followUp({
         content: "🌸 Hubo un error al silenciar al usuario. Revisa mis permisos.",
         flags: MessageFlags.Ephemeral,

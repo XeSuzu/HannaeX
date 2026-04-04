@@ -4,14 +4,17 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   GuildMember,
+  MessageFlags,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoClient } from "../../../index";
 import { deleteWarning, IWarning } from "../../../Models/Warning";
+import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
 const command: SlashCommand = {
   category: "Moderation",
   cooldown: 5,
+  ephemeral: false,
   data: new SlashCommandBuilder()
     .setName("unwarn")
     .setDescription("Elimina una advertencia específica por su ID.")
@@ -32,19 +35,15 @@ const command: SlashCommand = {
   async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient): Promise<void> {
     if (!interaction.guild) return;
 
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
-
     try {
       const target = interaction.options.getMember("usuario") as GuildMember;
       const warnId = interaction.options.getString("id", true).trim();
 
       if (!target) {
-        await interaction.editReply("❌ No pude encontrar a ese usuario.");
+        await interaction.followUp({ content: "❌ No pude encontrar a ese usuario.", flags: MessageFlags.Ephemeral });
         return;
       }
 
-      // El ID que el usuario ve en /warnings son los últimos 6 chars del ObjectId
-      // Necesitamos buscar el warn completo para obtener el _id real
       const { getWarnings } = await import("../../../Models/Warning.js");
       const warnings = await getWarnings(interaction.guild.id, target.id);
       const match = warnings.find((w: IWarning) =>
@@ -52,16 +51,23 @@ const command: SlashCommand = {
       );
 
       if (!match) {
-        await interaction.editReply(`❌ No encontré un warn con ID \`${warnId}\` para ese usuario.`);
+        await interaction.followUp({ content: `❌ No encontré un warn con ID \`${warnId}\` para ese usuario.`, flags: MessageFlags.Ephemeral });
         return;
       }
 
       const deleted = await deleteWarning(interaction.guild.id, (match as any)._id.toString());
 
       if (!deleted) {
-        await interaction.editReply("❌ No se pudo eliminar el warn. Intenta de nuevo.");
+        await interaction.followUp({ content: "❌ No se pudo eliminar el warn. Intenta de nuevo.", flags: MessageFlags.Ephemeral });
         return;
       }
+
+      await HoshikoLogger.logAction(interaction.guild, "UNWARN", {
+        user: target.user,
+        moderator: interaction.user,
+        reason: `Warn eliminado: ${match.reason}`,
+        extra: `ID del warn: ${warnId}`,
+      });
 
       const embed = new EmbedBuilder()
         .setTitle("✨ Advertencia Eliminada")
@@ -70,6 +76,7 @@ const command: SlashCommand = {
           { name: "📝 Motivo original", value: match.reason, inline: false },
           { name: "👤 Usuario", value: `<@${target.id}>`, inline: true },
           { name: "👮 Moderador", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "🆔 IDs", value: `\`User:\` ${target.id}\n\`Mod:\` ${interaction.user.id}`, inline: false },
         )
         .setColor(0x00ff7f)
         .setThumbnail(target.displayAvatarURL())
@@ -78,7 +85,7 @@ const command: SlashCommand = {
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error("❌ Error en /unwarn:", error);
-      await interaction.editReply("😿 Hubo un error al eliminar la advertencia.");
+      await interaction.followUp({ content: "😿 Hubo un error al eliminar la advertencia.", flags: MessageFlags.Ephemeral });
     }
   },
 };

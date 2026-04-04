@@ -36,14 +36,15 @@ interface ICulture {
 }
 
 export interface ILogChannels {
+  all: string | null;         // Canal general ( fallback si no existe específico )
   modlog: string | null;       // Ban, kick, mute, warn (manual + automod)
   serverlog: string | null;    // Entradas/salidas, cambios de roles y canales
   confesslog: string | null;   // Confesiones reportadas (sensible)
   joinlog: string | null;      // Entradas de miembros + detección de alts
   messagelog: string | null;   // Mensajes editados/eliminados [PREMIUM]
   voicelog: string | null;     // Actividad de canales de voz [PREMIUM]
-  boostlog: string | null;     // Boosts del servidor [PREMIUM]
-  levellog: string | null;     // Subidas de nivel [PREMIUM]
+  boostlog: string | null;    // Boosts del servidor [PREMIUM]
+  levellog: string | null;    // Subidas de nivel [PREMIUM]
 }
 
 export interface IServerConfig extends Document {
@@ -172,14 +173,15 @@ const serverConfigSchema = new Schema<IServerConfig>({
 
   // ✅ Sistema de logs centralizado
   logChannels: {
-    modlog:     { type: String, default: null },
-    serverlog:  { type: String, default: null },
-    confesslog: { type: String, default: null },
-    joinlog:    { type: String, default: null },
-    messagelog: { type: String, default: null },
-    voicelog:   { type: String, default: null },
-    boostlog:   { type: String, default: null },
-    levellog:   { type: String, default: null },
+    all:       { type: String, default: null },
+    modlog:    { type: String, default: null },
+    serverlog: { type: String, default: null },
+    confesslog:{ type: String, default: null },
+    joinlog:   { type: String, default: null },
+    messagelog:{ type: String, default: null },
+    voicelog:  { type: String, default: null },
+    boostlog: { type: String, default: null },
+    levellog: { type: String, default: null },
   },
 
   aiMode: { type: String, enum: ["calmado", "libre"], default: "calmado" },

@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 import { SettingsManager } from "../../Database/SettingsManager";
 import { LocalStorage } from "./LocalStorage";
+import { IServerConfig, ILogChannels } from "../../Models/serverConfig";
 
 export enum LogLevel {
   INFO = "INFO",
@@ -54,6 +55,29 @@ const LOG_TYPE_CHANNEL: Record<LogType, string> = {
   VERIFICATION: "joinlog",
 };
 
+// ⚙️ Helper para resolución de canales de log
+// Primero busca específico → luego fallback a "all" → luego null
+export function resolveLogChannel(
+  settings: IServerConfig,
+  channelType: keyof ILogChannels
+): string | null {
+  const channels = settings.logChannels;
+  if (!channels) return null;
+
+  // 1. Buscar canal específico (modlog, serverlog, etc.)
+  if (channels[channelType]) return channels[channelType];
+
+  // 2. Fallback al canal general "all"
+  if (channels.all) return channels.all;
+
+  // 3. Fallback al campo deprecado (para migración)
+  if (channelType === "modlog" && (settings as any).modLogChannel) {
+    return (settings as any).modLogChannel;
+  }
+
+  return null;
+}
+
 export class HoshikoLogger {
   private static webhookClient: WebhookClient | null = null;
 
@@ -78,32 +102,29 @@ export class HoshikoLogger {
     VERIFICATION: 0x00ff00,
   };
 
-  /**
-   * Obtiene el canal de logs correspondiente al tipo de acción.
-   * Primero busca en logChannels, con fallback a modLogChannel (deprecado) para compatibilidad.
-   */
-  private static async getLogChannel(guild: Guild, logType: LogType): Promise<TextChannel | null> {
-    try {
-      const settings = await SettingsManager.getSettings(guild.id);
-      if (!settings) return null;
+/**
+    * Obtiene el canal de logs correspondiente al tipo de acción.
+    * Usa resolución híbrida: específico → all → null
+    */
+   private static async getLogChannel(guild: Guild, logType: LogType): Promise<TextChannel | null> {
+     try {
+       const settings = await SettingsManager.getSettings(guild.id);
+       if (!settings) return null;
 
-      const channelKey = LOG_TYPE_CHANNEL[logType];
-      const channelId = settings.logChannels?.[channelKey as keyof typeof settings.logChannels]
-        // Fallback al campo deprecado para servidores que aún no migraron
-        ?? settings.modLogChannel
-        ?? null;
+       const channelKey = LOG_TYPE_CHANNEL[logType];
+       const channelId = resolveLogChannel(settings, channelKey as keyof ILogChannels);
 
-      if (!channelId) return null;
+       if (!channelId) return null;
 
-      const channel = guild.channels.cache.get(channelId);
-      if (channel && channel.isTextBased()) return channel as TextChannel;
+       const channel = guild.channels.cache.get(channelId);
+       if (channel && channel.isTextBased()) return channel as TextChannel;
 
-      return null;
-    } catch (err) {
-      console.error("❌ Error obteniendo canal de logs:", err);
-      return null;
-    }
-  }
+       return null;
+     } catch (err) {
+       console.error("❌ Error obteniendo canal de logs:", err);
+       return null;
+     }
+   }
 
   static async logAction(
     guild: Guild,
@@ -177,30 +198,30 @@ export class HoshikoLogger {
     }
   }
 
-  /**
-   * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog")
-   * Útil para eventos que no son de moderación directa.
-   */
-  static async sendToChannel(
-    guild: Guild,
-    channelKey: string,
-    embed: EmbedBuilder
-  ): Promise<void> {
-    try {
-      const settings = await SettingsManager.getSettings(guild.id);
-      if (!settings) return;
+/**
+    * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog")
+    * Usa resolución híbrida: específico → all → null
+    */
+   static async sendToChannel(
+     guild: Guild,
+     channelKey: string,
+     embed: EmbedBuilder
+   ): Promise<void> {
+     try {
+       const settings = await SettingsManager.getSettings(guild.id);
+       if (!settings) return;
 
-      const channelId = settings.logChannels?.[channelKey as keyof typeof settings.logChannels] ?? null;
-      if (!channelId) return;
+       const channelId = resolveLogChannel(settings, channelKey as keyof ILogChannels);
+       if (!channelId) return;
 
-      const channel = guild.channels.cache.get(channelId);
-      if (!channel || !channel.isTextBased()) return;
+       const channel = guild.channels.cache.get(channelId);
+       if (!channel || !channel.isTextBased()) return;
 
-      await (channel as TextChannel).send({ embeds: [embed] }).catch(() => null);
-    } catch (err) {
-      console.error(`❌ Error enviando log a ${channelKey}:`, err);
-    }
-  }
+       await (channel as TextChannel).send({ embeds: [embed] }).catch(() => null);
+     } catch (err) {
+       console.error(`❌ Error enviando log a ${channelKey}:`, err);
+     }
+   }
 
   static async log(entry: Omit<LogEntry, "timestamp">) {
     const fullEntry: LogEntry = { ...entry, timestamp: new Date() };

@@ -19,10 +19,11 @@ import { SlashCommand } from "../../../Interfaces/Command";
 import { SettingsManager } from "../../../Database/SettingsManager";
 import { PremiumManager } from "../../../Database/PremiumManager";
 
-const FREE_LOGS = ["modlog", "serverlog", "confesslog", "joinlog"];
+const FREE_LOGS = ["all", "modlog", "serverlog", "confesslog", "joinlog"];
 const PREMIUM_LOGS = ["messagelog", "voicelog", "boostlog", "levellog"];
 
 const LOG_META: Record<string, { label: string; emoji: string; description: string }> = {
+  all:        { label: "General",           emoji: "📚",  description: "Canal general para todos los logs (fallback)" },
   modlog:     { label: "Moderación",         emoji: "⚖️",  description: "Ban, kick, mute, warn (manual + automod)" },
   serverlog:  { label: "Servidor",           emoji: "📋",  description: "Entradas/salidas, roles, canales" },
   confesslog: { label: "Confesiones",        emoji: "🔒",  description: "Confesiones reportadas (privado)" },
