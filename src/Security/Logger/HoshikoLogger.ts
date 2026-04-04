@@ -1,13 +1,13 @@
 import {
   EmbedBuilder,
   Guild,
-  User,
   TextChannel,
+  User,
   WebhookClient,
 } from "discord.js";
 import { SettingsManager } from "../../Database/SettingsManager";
+import { ILogChannels, IServerConfig } from "../../Models/serverConfig";
 import { LocalStorage } from "./LocalStorage";
-import { IServerConfig, ILogChannels } from "../../Models/serverConfig";
 
 export enum LogLevel {
   INFO = "INFO",
@@ -42,16 +42,16 @@ export type LogType =
 
 // Mapeo de LogType al canal correspondiente en logChannels
 const LOG_TYPE_CHANNEL: Record<LogType, string> = {
-  BAN:          "modlog",
-  KICK:         "modlog",
-  MUTE:         "modlog",
-  WARN:         "modlog",
-  UNWARN:       "modlog",
-  AUTOMOD:      "modlog",
-  CONFIG:       "serverlog",
-  SECURITY:     "modlog",
-  ANTI_ALT:     "joinlog",
-  ANTI_NUKE:    "modlog",
+  BAN: "modlog",
+  KICK: "modlog",
+  MUTE: "modlog",
+  WARN: "modlog",
+  UNWARN: "modlog",
+  AUTOMOD: "modlog",
+  CONFIG: "serverlog",
+  SECURITY: "modlog",
+  ANTI_ALT: "joinlog",
+  ANTI_NUKE: "modlog",
   VERIFICATION: "joinlog",
 };
 
@@ -59,7 +59,7 @@ const LOG_TYPE_CHANNEL: Record<LogType, string> = {
 // Primero busca específico → luego fallback a "all" → luego null
 export function resolveLogChannel(
   settings: IServerConfig,
-  channelType: keyof ILogChannels
+  channelType: keyof ILogChannels,
 ): string | null {
   const channels = settings.logChannels;
   if (!channels) return null;
@@ -83,48 +83,58 @@ export class HoshikoLogger {
 
   static {
     if (process.env.LOGS_WEBHOOK_URL) {
-      this.webhookClient = new WebhookClient({ url: process.env.LOGS_WEBHOOK_URL });
-      console.log("\x1b[32m[LOGGER]\x1b[0m Singleton Webhook enlazado y listo.");
+      this.webhookClient = new WebhookClient({
+        url: process.env.LOGS_WEBHOOK_URL,
+      });
+      console.log(
+        "\x1b[32m[LOGGER]\x1b[0m Singleton Webhook enlazado y listo.",
+      );
     }
   }
 
   private static readonly COLORS: Record<LogType, number> = {
-    BAN:          0xff0000,
-    KICK:         0xff5500,
-    MUTE:         0xffa500,
-    WARN:         0xffff00,
-    UNWARN:       0x00ff00,
-    AUTOMOD:      0xff69b4,
-    CONFIG:       0x0099ff,
-    SECURITY:     0x000000,
-    ANTI_ALT:     0xffa500,
-    ANTI_NUKE:    0xff0000,
+    BAN: 0xff0000,
+    KICK: 0xff5500,
+    MUTE: 0xffa500,
+    WARN: 0xffff00,
+    UNWARN: 0x00ff00,
+    AUTOMOD: 0xff69b4,
+    CONFIG: 0x0099ff,
+    SECURITY: 0x000000,
+    ANTI_ALT: 0xffa500,
+    ANTI_NUKE: 0xff0000,
     VERIFICATION: 0x00ff00,
   };
 
-/**
-    * Obtiene el canal de logs correspondiente al tipo de acción.
-    * Usa resolución híbrida: específico → all → null
-    */
-   private static async getLogChannel(guild: Guild, logType: LogType): Promise<TextChannel | null> {
-     try {
-       const settings = await SettingsManager.getSettings(guild.id);
-       if (!settings) return null;
+  /**
+   * Obtiene el canal de logs correspondiente al tipo de acción.
+   * Usa resolución híbrida: específico → all → null
+   */
+  private static async getLogChannel(
+    guild: Guild,
+    logType: LogType,
+  ): Promise<TextChannel | null> {
+    try {
+      const settings = await SettingsManager.getSettings(guild.id);
+      if (!settings) return null;
 
-       const channelKey = LOG_TYPE_CHANNEL[logType];
-       const channelId = resolveLogChannel(settings, channelKey as keyof ILogChannels);
+      const channelKey = LOG_TYPE_CHANNEL[logType];
+      const channelId = resolveLogChannel(
+        settings,
+        channelKey as keyof ILogChannels,
+      );
 
-       if (!channelId) return null;
+      if (!channelId) return null;
 
-       const channel = guild.channels.cache.get(channelId);
-       if (channel && channel.isTextBased()) return channel as TextChannel;
+      const channel = guild.channels.cache.get(channelId);
+      if (channel && channel.isTextBased()) return channel as TextChannel;
 
-       return null;
-     } catch (err) {
-       console.error("❌ Error obteniendo canal de logs:", err);
-       return null;
-     }
-   }
+      return null;
+    } catch (err) {
+      console.error("❌ Error obteniendo canal de logs:", err);
+      return null;
+    }
+  }
 
   static async logAction(
     guild: Guild,
@@ -134,7 +144,7 @@ export class HoshikoLogger {
       moderator?: User;
       reason: string;
       extra?: string;
-    }
+    },
   ) {
     const color = this.COLORS[type];
     const title = this.getTitle(type);
@@ -152,14 +162,22 @@ export class HoshikoLogger {
 
   private static getTitle(type: LogType): string {
     switch (type) {
-      case "BAN":      return "⛔ Usuario Baneado";
-      case "KICK":     return "👢 Usuario Expulsado";
-      case "MUTE":     return "😶 Usuario Silenciado";
-      case "WARN":     return "⚠️ Advertencia Emitida";
-      case "UNWARN":   return "😇 Sanción Retirada";
-      case "AUTOMOD":  return "🤖 Acción Automática";
-      case "CONFIG":   return "⚙️ Configuración Modificada";
-      default:         return "🛡️ Reporte de Seguridad";
+      case "BAN":
+        return "⛔ Usuario Baneado";
+      case "KICK":
+        return "👢 Usuario Expulsado";
+      case "MUTE":
+        return "😶 Usuario Silenciado";
+      case "WARN":
+        return "⚠️ Advertencia Emitida";
+      case "UNWARN":
+        return "😇 Sanción Retirada";
+      case "AUTOMOD":
+        return "🤖 Acción Automática";
+      case "CONFIG":
+        return "⚙️ Configuración Modificada";
+      default:
+        return "🛡️ Reporte de Seguridad";
     }
   }
 
@@ -167,7 +185,7 @@ export class HoshikoLogger {
     guild: Guild,
     type: LogType,
     description: string,
-    target?: User
+    target?: User,
   ) {
     try {
       const channel = await this.getLogChannel(guild, type);
@@ -181,7 +199,7 @@ export class HoshikoLogger {
         .setDescription(description)
         .setColor(color)
         .setTimestamp()
-        .setFooter({ text: "Hoshiko Sentinel 📡" });
+        .setFooter({ text: "Hoshiko Logger" });
 
       if (target) {
         embed.setThumbnail(target.displayAvatarURL());
@@ -198,43 +216,48 @@ export class HoshikoLogger {
     }
   }
 
-/**
-    * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog")
-    * Usa resolución híbrida: específico → all → null
-    */
-   static async sendToChannel(
-     guild: Guild,
-     channelKey: string,
-     embed: EmbedBuilder
-   ): Promise<void> {
-     try {
-       const settings = await SettingsManager.getSettings(guild.id);
-       if (!settings) return;
+  /**
+   * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog")
+   * Usa resolución híbrida: específico → all → null
+   */
+  static async sendToChannel(
+    guild: Guild,
+    channelKey: string,
+    embed: EmbedBuilder,
+  ): Promise<void> {
+    try {
+      const settings = await SettingsManager.getSettings(guild.id);
+      if (!settings) return;
 
-       const channelId = resolveLogChannel(settings, channelKey as keyof ILogChannels);
-       if (!channelId) return;
+      const channelId = resolveLogChannel(
+        settings,
+        channelKey as keyof ILogChannels,
+      );
+      if (!channelId) return;
 
-       const channel = guild.channels.cache.get(channelId);
-       if (!channel || !channel.isTextBased()) return;
+      const channel = guild.channels.cache.get(channelId);
+      if (!channel || !channel.isTextBased()) return;
 
-       await (channel as TextChannel).send({ embeds: [embed] }).catch(() => null);
-     } catch (err) {
-       console.error(`❌ Error enviando log a ${channelKey}:`, err);
-     }
-   }
+      await (channel as TextChannel)
+        .send({ embeds: [embed] })
+        .catch(() => null);
+    } catch (err) {
+      console.error(`❌ Error enviando log a ${channelKey}:`, err);
+    }
+  }
 
   static async log(entry: Omit<LogEntry, "timestamp">) {
     const fullEntry: LogEntry = { ...entry, timestamp: new Date() };
 
     const colors: Record<LogLevel, string> = {
-      [LogLevel.INFO]:    "\x1b[36m",
+      [LogLevel.INFO]: "\x1b[36m",
       [LogLevel.SUCCESS]: "\x1b[32m",
-      [LogLevel.WARN]:    "\x1b[33m",
-      [LogLevel.ERROR]:   "\x1b[31m",
-      [LogLevel.FATAL]:   "\x1b[35m",
+      [LogLevel.WARN]: "\x1b[33m",
+      [LogLevel.ERROR]: "\x1b[31m",
+      [LogLevel.FATAL]: "\x1b[35m",
     };
     console.log(
-      `${colors[entry.level] || ""}[${fullEntry.timestamp.toISOString()}] [${entry.level}] [${entry.context}]: ${entry.message}\x1b[0m`
+      `${colors[entry.level] || ""}[${fullEntry.timestamp.toISOString()}] [${entry.level}] [${entry.context}]: ${entry.message}\x1b[0m`,
     );
 
     try {
@@ -260,7 +283,7 @@ export class HoshikoLogger {
       .setColor(entry.level === LogLevel.FATAL ? 0xff0000 : 0xffa500)
       .addFields(
         { name: "Contexto", value: entry.context, inline: true },
-        { name: "Servidor ID", value: entry.guildId || "N/A", inline: true }
+        { name: "Servidor ID", value: entry.guildId || "N/A", inline: true },
       )
       .setFooter({ text: "Hoshiko Internal Monitor" })
       .setTimestamp(entry.timestamp);
