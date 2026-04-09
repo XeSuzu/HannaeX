@@ -1,13 +1,13 @@
 import {
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  SlashCommandBuilder,
   EmbedBuilder,
   GuildMember,
-  MessageFlags,
+  Message,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
 } from "discord.js";
-import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoClient } from "../../../index";
+import { SlashCommand } from "../../../Interfaces/Command";
 import { getWarnings } from "../../../Models/Warning";
 
 const command: SlashCommand = {
@@ -21,10 +21,13 @@ const command: SlashCommand = {
       opt
         .setName("usuario")
         .setDescription("Usuario a consultar.")
-        .setRequired(true)
+        .setRequired(true),
     ) as SlashCommandBuilder,
 
-  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient): Promise<void> {
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ): Promise<void> {
     if (!interaction.guild) return;
 
     // ❌ ELIMINADO: await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
@@ -41,7 +44,9 @@ const command: SlashCommand = {
       if (warnings.length === 0) {
         const embed = new EmbedBuilder()
           .setTitle("📋 Historial de Advertencias")
-          .setDescription(`**${target.user.tag}** no tiene advertencias registradas. ✨`)
+          .setDescription(
+            `**${target.user.tag}** no tiene advertencias registradas. ✨`,
+          )
           .setColor(0x00ff7f)
           .setThumbnail(target.displayAvatarURL())
           .setTimestamp();
@@ -52,7 +57,9 @@ const command: SlashCommand = {
 
       const embed = new EmbedBuilder()
         .setTitle("📋 Historial de Advertencias")
-        .setDescription(`**${target.user.tag}** tiene **${warnings.length}** advertencia(s).`)
+        .setDescription(
+          `**${target.user.tag}** tiene **${warnings.length}** advertencia(s).`,
+        )
         .setColor(0xffa500)
         .setThumbnail(target.displayAvatarURL())
         .setTimestamp()
@@ -70,14 +77,64 @@ const command: SlashCommand = {
       }
 
       if (warnings.length > 10) {
-        embed.setFooter({ text: `Mostrando 10 de ${warnings.length} advertencias. ID: ${target.id}` });
+        embed.setFooter({
+          text: `Mostrando 10 de ${warnings.length} advertencias. ID: ${target.id}`,
+        });
       }
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error("❌ Error en /warnings:", error);
-      await interaction.editReply("😿 Hubo un error al consultar las advertencias.");
+      await interaction.editReply(
+        "😿 Hubo un error al consultar las advertencias.",
+      );
     }
+  },
+
+  async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
+    if (!message.guild || !message.member) return;
+    if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers))
+      return message.reply("❌ No tienes permisos para ver advertencias.");
+
+    const target = message.mentions.members?.first();
+    if (!target)
+      return message.reply(
+        "❌ Menciona a un usuario. Ej: `x warnings @usuario`",
+      );
+
+    const warnings = await getWarnings(message.guild.id, target.id);
+
+    if (warnings.length === 0) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("📋 Historial de Advertencias")
+            .setDescription(`**${target.user.tag}** no tiene advertencias. ✨`)
+            .setColor(0x00ff7f)
+            .setTimestamp(),
+        ],
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Historial de Advertencias")
+      .setDescription(
+        `**${target.user.tag}** tiene **${warnings.length}** advertencia(s).`,
+      )
+      .setColor(0xffa500)
+      .setThumbnail(target.displayAvatarURL())
+      .setTimestamp();
+
+    for (const w of warnings.slice(0, 10)) {
+      const date = new Date(w.createdAt).toLocaleDateString("es-ES");
+      embed.addFields({
+        name: `⚠️ ${date}`,
+        value: `**Motivo:** ${w.reason}\n**Mod:** <@${w.moderatorId}>`,
+        inline: false,
+      });
+    }
+
+    await message.reply({ embeds: [embed] });
   },
 };
 

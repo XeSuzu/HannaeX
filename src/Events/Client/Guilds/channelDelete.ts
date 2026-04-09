@@ -1,4 +1,4 @@
-import { Events, Channel, DMChannel, GuildChannel } from "discord.js";
+import { DMChannel, EmbedBuilder, Events, GuildChannel } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import ServerConfig from "../../../Models/serverConfig";
 import {
@@ -9,44 +9,55 @@ import {
 export default {
   name: Events.ChannelDelete,
   async execute(channel: DMChannel | GuildChannel, client: HoshikoClient) {
-    // Ignoramos DMs
     if (channel.isDMBased()) return;
 
     try {
       const guildId = channel.guild.id;
       const settings = await ServerConfig.findOne({ guildId });
 
-      if (!settings || !settings.confessions || !settings.confessions.feeds)
-        return;
+      if (settings?.confessions?.feeds) {
+        const feedIndex = settings.confessions.feeds.findIndex(
+          (f) => f.channelId === channel.id,
+        );
 
-      // 1. Verificar si el canal borrado era un Feed configurado
-      const feedIndex = settings.confessions.feeds.findIndex(
-        (f) => f.channelId === channel.id,
-      );
+        if (feedIndex !== -1) {
+          const deletedFeed = settings.confessions.feeds[feedIndex];
+          settings.confessions.feeds.splice(feedIndex, 1);
 
-      // 2. Si era un Feed, lo eliminamos de la DB y liberamos el slot
-      if (feedIndex !== -1) {
-        const deletedFeed = settings.confessions.feeds[feedIndex];
+          if (settings.confessions.channelId === channel.id) {
+            settings.confessions.channelId = null;
+            settings.confessions.enabled = false;
+          }
 
-        // Eliminamos del array
-        settings.confessions.feeds.splice(feedIndex, 1);
+          settings.markModified("confessions");
+          await settings.save();
 
-        // Si era el canal principal (default), lo desvinculamos también
-        if (settings.confessions.channelId === channel.id) {
-          settings.confessions.channelId = null;
-          settings.confessions.enabled = false; // Desactivamos por seguridad
+          HoshikoLogger.log({
+            level: LogLevel.INFO,
+            context: "System/Cleanup",
+            message: `Canal Feed "${deletedFeed.title}" eliminado en ${channel.guild.name}. Slot liberado.`,
+          });
         }
-
-        settings.markModified("confessions");
-        await settings.save();
-
-        // 3. Log (Opcional)
-        HoshikoLogger.log({
-          level: LogLevel.INFO,
-          context: "System/Cleanup",
-          message: `Canal Feed "${deletedFeed.title}" eliminado en ${channel.guild.name}. Slot liberado.`,
-        });
       }
+
+      // Log al serverlog
+      const embed = new EmbedBuilder()
+        .setTitle("🗑️ Canal Eliminado")
+        .setColor(0xff6b6b)
+        .addFields(
+          { name: "Nombre", value: channel.name, inline: true },
+          { name: "Tipo", value: channel.type.toString(), inline: true },
+          {
+            name: "Categoría",
+            value: channel.parent?.name ?? "Sin categoría",
+            inline: true,
+          },
+          { name: "ID", value: `\`${channel.id}\``, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: "Hoshiko • Server Log" });
+
+      await HoshikoLogger.sendToChannel(channel.guild, "serverlog", embed);
     } catch (error) {
       console.error("Error en Auto-Cleanup de canales:", error);
     }

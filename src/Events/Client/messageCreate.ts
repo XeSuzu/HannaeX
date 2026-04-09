@@ -200,7 +200,6 @@ export default {
         if (commandName) {
           const command =
             client.commands.get(commandName) ||
-            client.slashCommands.get(commandName) ||
             client.commands.find(
               (cmd) => cmd.aliases && cmd.aliases.includes(commandName),
             );
