@@ -1,4 +1,4 @@
-import { Schema, model, Document } from "mongoose";
+import { Document, Schema, model } from "mongoose";
 
 interface ILevelRole {
   level: number;
@@ -36,15 +36,15 @@ interface ICulture {
 }
 
 export interface ILogChannels {
-  all: string | null;         // Canal general ( fallback si no existe específico )
-  modlog: string | null;       // Ban, kick, mute, warn (manual + automod)
-  serverlog: string | null;    // Entradas/salidas, cambios de roles y canales
-  confesslog: string | null;   // Confesiones reportadas (sensible)
-  joinlog: string | null;      // Entradas de miembros + detección de alts
-  messagelog: string | null;   // Mensajes editados/eliminados [PREMIUM]
-  voicelog: string | null;     // Actividad de canales de voz [PREMIUM]
-  boostlog: string | null;    // Boosts del servidor [PREMIUM]
-  levellog: string | null;    // Subidas de nivel [PREMIUM]
+  all: string | null; // Canal general ( fallback si no existe específico )
+  modlog: string | null; // Ban, kick, mute, warn (manual + automod)
+  serverlog: string | null; // Entradas/salidas, cambios de roles y canales
+  confesslog: string | null; // Confesiones reportadas (sensible)
+  joinlog: string | null; // Entradas de miembros + detección de alts
+  messagelog: string | null; // Mensajes editados/eliminados [PREMIUM]
+  voicelog: string | null; // Actividad de canales de voz [PREMIUM]
+  boostlog: string | null; // Boosts del servidor [PREMIUM]
+  levellog: string | null; // Subidas de nivel [PREMIUM]
 }
 
 export interface IServerConfig extends Document {
@@ -77,8 +77,6 @@ export interface IServerConfig extends Document {
     announceChannel: string | null;
     announceMessage: string;
   };
-
-  memeChannelId: string;
 
   // @deprecated — usar logChannels.modlog en su lugar
   modLogChannel?: string;
@@ -163,8 +161,6 @@ const serverConfigSchema = new Schema<IServerConfig>({
     },
   },
 
-  memeChannelId: { type: String, default: "" },
-
   // @deprecated — se mantiene para migración automática
   modLogChannel: { type: String, default: null },
 
@@ -173,13 +169,13 @@ const serverConfigSchema = new Schema<IServerConfig>({
 
   // ✅ Sistema de logs centralizado
   logChannels: {
-    all:       { type: String, default: null },
-    modlog:    { type: String, default: null },
+    all: { type: String, default: null },
+    modlog: { type: String, default: null },
     serverlog: { type: String, default: null },
-    confesslog:{ type: String, default: null },
-    joinlog:   { type: String, default: null },
-    messagelog:{ type: String, default: null },
-    voicelog:  { type: String, default: null },
+    confesslog: { type: String, default: null },
+    joinlog: { type: String, default: null },
+    messagelog: { type: String, default: null },
+    voicelog: { type: String, default: null },
     boostlog: { type: String, default: null },
     levellog: { type: String, default: null },
   },
@@ -196,8 +192,14 @@ const serverConfigSchema = new Schema<IServerConfig>({
     mode: {
       type: String,
       enum: [
-        "neko", "maid", "gymbro", "yandere",
-        "assistant", "custom", "tsundere", "borracha",
+        "neko",
+        "maid",
+        "gymbro",
+        "yandere",
+        "assistant",
+        "custom",
+        "tsundere",
+        "borracha",
       ],
       default: "neko",
     },
@@ -254,7 +256,7 @@ const serverConfigSchema = new Schema<IServerConfig>({
 serverConfigSchema.post("find", function (docs: IServerConfig[]) {
   for (const doc of docs) {
     if (doc.modLogChannel && !doc.logChannels?.modlog) {
-      doc.logChannels = doc.logChannels || {} as ILogChannels;
+      doc.logChannels = doc.logChannels || ({} as ILogChannels);
       doc.logChannels.modlog = doc.modLogChannel;
     }
   }
@@ -263,7 +265,7 @@ serverConfigSchema.post("find", function (docs: IServerConfig[]) {
 serverConfigSchema.post("findOne", function (doc: IServerConfig | null) {
   if (!doc) return;
   if (doc.modLogChannel && !doc.logChannels?.modlog) {
-    doc.logChannels = doc.logChannels || {} as ILogChannels;
+    doc.logChannels = doc.logChannels || ({} as ILogChannels);
     doc.logChannels.modlog = doc.modLogChannel;
   }
 });

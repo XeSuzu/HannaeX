@@ -1,5 +1,4 @@
-import { Events, MessageReaction, PartialUser, User } from "discord.js"; // 👈 Agregamos PermissionFlagsBits
-import Meme from "../../Database/meme";
+import { Events, MessageReaction, PartialUser, User } from "discord.js";
 import ActiveRole from "../../Models/ActiveRole";
 import ReactionConfig from "../../Models/ReactionConfig";
 import ServerConfig from "../../Models/serverConfig";
@@ -27,29 +26,6 @@ export default {
     // ⚙️ Carga de configuración
     const config = await ServerConfig.findOne({ guildId: guildId });
     const emojiName = reaction.emoji.name;
-
-    // =========================================================
-    // 1. LÓGICA MEMES
-    // =========================================================
-    if (config && message.channel.id === config.memeChannelId) {
-      const emojisConPuntos: { [key: string]: number } = { "👍": 1, "👎": -1 };
-      if (emojiName && emojisConPuntos[emojiName]) {
-        try {
-          await Meme.findOneAndUpdate(
-            { messageId: message.id, guildId: guildId },
-            {
-              $inc: { points: emojisConPuntos[emojiName] },
-              $setOnInsert: {
-                authorId: message.author?.id,
-                memeUrl: message.attachments.first()?.url,
-                channelId: message.channel.id,
-              },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true },
-          );
-        } catch (e) {}
-      }
-    }
 
     // =========================================================
     // 2. LÓGICA IA VISUAL

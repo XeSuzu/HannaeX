@@ -8,9 +8,8 @@ import { HoshikoClient } from "../../index";
 import handleAfk from "../../Features/afkHandler";
 import handleAi from "../../Features/aiHandler";
 import { handleCulture } from "../../Features/cultureHandler";
-import { handleLinkProtection } from "../../Features/linkProtector";
-import handleMemes from "../../Features/memeHandler";
 import { handleLevelXp } from "../../Features/levelHandler";
+import { handleLinkProtection } from "../../Features/linkProtector";
 // Security
 import { AutomodManager } from "../../Features/AutomodManager";
 import { Blacklist } from "../../Security/Defense/Blacklist";
@@ -249,7 +248,6 @@ export default {
       Sanitizer.clean(message.content);
       await handleCulture(message);
       if (await handleAfk(message)) return;
-      if (await handleMemes(message)) return;
       await handleLevelXp(message);
 
       // Fase 5: módulo IA
