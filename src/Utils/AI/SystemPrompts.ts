@@ -86,7 +86,7 @@ No intrusionés, pero podés aportar algo relevante como cualquier persona del g
         : "";
 
     return `
-⚠️ REGLA PRINCIPAL: El mensaje marcado como [MENSAJE ACTUAL] es TU ÚNICO interlocutor ahora.
+⚠️ REGLA PRINCIPAL: Solo respondés a "${ctx.currentUsername ?? "la persona que te habló"}", no a los démas usuarios del historial.
 No hables de otros usuarios del chat ni los saludes. Solo respondés a quien te habló.
 
 🚨 REGLAS IMPORTANTES 🚨

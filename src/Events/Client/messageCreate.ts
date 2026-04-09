@@ -239,7 +239,8 @@ export default {
           if (prefix.toLowerCase().includes("hoshi")) isHoshiCall = true;
         }
       } else {
-        if (message.content.toLowerCase().startsWith("hoshi"))
+        const lowerContent = message.content.toLowerCase();
+        if (lowerContent.startsWith("hoshi ") || lowerContent === "hoshi")
           isHoshiCall = true;
       }
 
@@ -253,7 +254,7 @@ export default {
       const isAiEnabled = settings?.aiModule?.enabled !== false;
       if (!isAiEnabled) return;
 
-      const isMentioned = message.mentions.has(client.user!.id);
+      const isMentioned = message.mentions.users.has(client.user!.id);
 
       let isReplyingToMe = false;
       if (message.reference) {

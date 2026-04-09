@@ -397,7 +397,7 @@ export default async (
           role: "user",
           parts: [
             {
-              text: `[MENSAJE ACTUAL - enviado por ${message.author.username}]: ${userMessage || "Mira esta imagen:"}`,
+              text: `${userMessage || "Mira esta imagen:"}`,
             },
             {
               inlineData: {
@@ -422,7 +422,7 @@ export default async (
         role: "user",
         parts: [
           {
-            text: `[MENSAJE ACTUAL - enviado por ${message.author.username}]: ${userMessage}`,
+            text: `${userMessage}`,
           },
         ],
       });
