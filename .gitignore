@@ -19,3 +19,4 @@ src/Tests/
 # Archivos locales
 reports.json
 tools/
+Tests/
