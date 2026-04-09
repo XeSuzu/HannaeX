@@ -260,7 +260,11 @@ export default {
         const repliedMsg = await message.channel.messages
           .fetch(message.reference.messageId!)
           .catch(() => null);
-        if (repliedMsg?.author.id === client.user!.id) {
+        if (
+          repliedMsg?.author.id === client.user!.id &&
+          !message.mentions.everyone &&
+          message.mentions.has(client.user!.id)
+        ) {
           isReplyingToMe = true;
         }
       }
