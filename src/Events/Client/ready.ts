@@ -1,6 +1,6 @@
 import { ActivityType, Events, Client } from "discord.js";
 import { HoshikoClient } from "../../index";
-import ActiveRole from "../../Database/Schemas/ActiveRole";
+import ActiveRole from "../../Models/ActiveRole";
 import { Logger } from "../../Utils/SystemLogger";
 import { HoshikoLogger, LogLevel } from "../../Security";
 
@@ -21,7 +21,7 @@ function startActivityRotator(client: HoshikoClient) {
 
       const totalUsers = client.guilds.cache.reduce(
         (acc, guild) => acc + guild.memberCount,
-        0
+        0,
       );
 
       const totalServers = client.guilds.cache.size;
@@ -114,9 +114,7 @@ export default {
 
         await Promise.allSettled(tasks);
 
-        console.log(
-          `   🧹 Roles temporales limpiados: ${expiredRoles.length}`
-        );
+        console.log(`   🧹 Roles temporales limpiados: ${expiredRoles.length}`);
       } catch (error) {
         await HoshikoLogger.log({
           level: LogLevel.ERROR,

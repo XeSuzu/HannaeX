@@ -1,11 +1,11 @@
 import {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
 } from "discord.js";
-import ViralSetup from "../../../Database/Schemas/ViralSetup";
 import { SlashCommand } from "../../../Interfaces/Command";
+import ViralSetup from "../../../Models/ViralSetup";
 
 const command: SlashCommand = {
   category: "Fun",
@@ -19,16 +19,28 @@ const command: SlashCommand = {
         .setName("crear")
         .setDescription("Crea una nueva regla de popularidad")
         .addStringOption((opt) =>
-          opt.setName("emoji").setDescription("El emoji a detectar").setRequired(true),
+          opt
+            .setName("emoji")
+            .setDescription("El emoji a detectar")
+            .setRequired(true),
         )
         .addIntegerOption((opt) =>
-          opt.setName("meta").setDescription("Cuantas reacciones se necesitan").setRequired(true),
+          opt
+            .setName("meta")
+            .setDescription("Cuantas reacciones se necesitan")
+            .setRequired(true),
         )
         .addRoleOption((opt) =>
-          opt.setName("premio").setDescription("Rol para el autor del mensaje").setRequired(true),
+          opt
+            .setName("premio")
+            .setDescription("Rol para el autor del mensaje")
+            .setRequired(true),
         )
         .addIntegerOption((opt) =>
-          opt.setName("tiempo").setDescription("Minutos de duración (0 = permanente)").setRequired(true),
+          opt
+            .setName("tiempo")
+            .setDescription("Minutos de duración (0 = permanente)")
+            .setRequired(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -39,7 +51,10 @@ const command: SlashCommand = {
         .setName("borrar")
         .setDescription("Borra una regla")
         .addStringOption((opt) =>
-          opt.setName("emoji").setDescription("El emoji de la regla a borrar").setRequired(true),
+          opt
+            .setName("emoji")
+            .setDescription("El emoji de la regla a borrar")
+            .setRequired(true),
         ),
     ),
 
@@ -80,7 +95,9 @@ const command: SlashCommand = {
 
       const description = rules
         .map((r) => {
-          const emojiDisplay = r.emoji.match(/^\d+$/) ? `<:emoji:${r.emoji}>` : r.emoji;
+          const emojiDisplay = r.emoji.match(/^\d+$/)
+            ? `<:emoji:${r.emoji}>`
+            : r.emoji;
           return `• **${emojiDisplay}** x${r.requiredCount} → Rol <@&${r.roleId}> (${r.durationMinutes}m)`;
         })
         .join("\n");
@@ -95,8 +112,13 @@ const command: SlashCommand = {
       const customEmojiMatch = rawEmoji.match(/<a?:.+:(\d+)>/);
       const emojiId = customEmojiMatch ? customEmojiMatch[1] : rawEmoji;
 
-      await ViralSetup.findOneAndDelete({ guildId: interaction.guildId, emoji: emojiId });
-      await interaction.editReply({ content: `🗑️ Regla para ${rawEmoji} eliminada.` });
+      await ViralSetup.findOneAndDelete({
+        guildId: interaction.guildId,
+        emoji: emojiId,
+      });
+      await interaction.editReply({
+        content: `🗑️ Regla para ${rawEmoji} eliminada.`,
+      });
     }
   },
 };

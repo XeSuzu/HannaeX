@@ -8,7 +8,6 @@ import {
 import { SettingsManager } from "../../Database/SettingsManager";
 import { ILogChannels, IServerConfig } from "../../Models/serverConfig";
 import { LocalStorage } from "./LocalStorage";
-
 export enum LogLevel {
   INFO = "INFO",
   SUCCESS = "SUCCESS",

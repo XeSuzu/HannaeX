@@ -1,23 +1,21 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const Suggestion = require("../../../Models/suggestion");
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommand } from "../../../Interfaces/Command";
+import Suggestion from "../../../Models/suggestion";
 
-module.exports = {
+const command: SlashCommand = {
+  category: "Privado",
+  cooldown: 5,
+  ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("ver-sugerencias")
-    .setDescription(
-      "Ve todas las sugerencias recibidas. (Solo para el dueño del bot)",
-    ),
+    .setDescription("Ve todas las sugerencias recibidas. (Solo para el dueño del bot)"),
 
-  async execute(interaction) {
-    // Asegúrate de que solo tú puedas usar este comando
+  async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.user.id !== process.env.BOT_OWNER_ID) {
-      return interaction.reply({
+      return interaction.editReply({
         content: "No tienes permiso para usar este comando.",
-        ephemeral: true,
       });
     }
-
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     try {
       const suggestions = await Suggestion.find().sort({ timestamp: -1 });
@@ -34,7 +32,6 @@ module.exports = {
 
       for (const sug of suggestions) {
         try {
-          // Aquí está el cambio importante: buscamos al usuario por su ID
           const user = await interaction.client.users.fetch(sug.userId);
           const userName = user ? user.tag : "Usuario Desconocido";
 
@@ -43,8 +40,7 @@ module.exports = {
             value: `> ${sug.suggestion}`,
             inline: false,
           });
-        } catch (err) {
-          console.error("Error al obtener usuario de la sugerencia:", err);
+        } catch {
           embed.addFields({
             name: "De: Usuario Desconocido",
             value: `> ${sug.suggestion}`,
@@ -55,10 +51,11 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error("Error al cargar las sugerencias:", error);
       await interaction.editReply({
         content: "Ocurrió un error al cargar las sugerencias.",
       });
     }
   },
 };
+
+export default command;

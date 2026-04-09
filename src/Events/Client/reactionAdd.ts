@@ -1,15 +1,9 @@
-import {
-  MessageReaction,
-  User,
-  PartialUser,
-  Events,
-  PermissionFlagsBits,
-} from "discord.js"; // 👈 Agregamos PermissionFlagsBits
+import { Events, MessageReaction, PartialUser, User } from "discord.js"; // 👈 Agregamos PermissionFlagsBits
 import Meme from "../../Database/meme";
+import ActiveRole from "../../Models/ActiveRole";
+import ReactionConfig from "../../Models/ReactionConfig";
 import ServerConfig from "../../Models/serverConfig";
-import ReactionConfig from "../../Database/Schemas/ReactionConfig";
-import ViralSetup from "../../Database/Schemas/ViralSetup";
-import ActiveRole from "../../Database/Schemas/ActiveRole";
+import ViralSetup from "../../Models/ViralSetup";
 
 export default {
   name: Events.MessageReactionAdd,

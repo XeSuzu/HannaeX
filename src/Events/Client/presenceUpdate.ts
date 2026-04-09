@@ -1,5 +1,5 @@
-import { Events, Presence, GuildMember } from "discord.js";
-import StatusConfig from "../Models/StatutsConfig";
+import { Events, Presence } from "discord.js";
+import StatusConfig from "../../Models/StatutsConfig";
 
 export default {
   name: Events.PresenceUpdate,
