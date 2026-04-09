@@ -8,7 +8,7 @@ import {
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import ms from "ms";
+import ms, { StringValue } from "ms";
 import { AutomodManager } from "../../../Features/AutomodManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
@@ -74,7 +74,7 @@ const command: SlashCommand = {
       return;
     }
 
-    const duration = ms(timeInput as any);
+    const duration = ms(timeInput as StringValue) as number;
     if (
       !duration ||
       typeof duration !== "number" ||
@@ -167,7 +167,7 @@ const command: SlashCommand = {
     if (target.permissions.has(PermissionFlagsBits.ModerateMembers))
       return message.reply("❌ No puedo silenciar a un miembro del staff.");
 
-    const duration = ms(timeInput as any);
+    const duration = ms(timeInput as StringValue) as number;
     if (!duration || duration < 5000 || duration > 2419200000)
       return message.reply(
         "❌ Tiempo no válido o fuera de rango (máx 28 días).",
