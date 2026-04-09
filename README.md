@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🌸 Hoshiko
+# Hoshiko
 
-**Un bot de Discord con moderación inteligente, interacciones sociales y magia de IA.**
+**Un bot de Discord con moderacion inteligente, interacciones sociales y magia de IA.**
 
 [![Discord.js](https://img.shields.io/badge/discord.js-v14-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.js.org)
 [![Node.js](https://img.shields.io/badge/node.js-20+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
@@ -13,143 +13,194 @@
 
 ---
 
-## ✨ ¿Qué es Hoshiko?
+## Que es Hoshiko?
 
-Hoshiko es un bot de Discord completo con personalidad kawaii, construido en TypeScript sobre Node.js. Combina moderación por puntos, interacciones sociales, un sistema de memes con ranking y respuestas de IA conversacional powered by Google Gemini.
+Hoshiko es un bot de Discord construido en TypeScript y Node.js. Combina moderacion por puntos, interacciones sociales, soporte de memes, comandos prefix y respuesta de IA conversacional con Google Gemini.
 
 ---
 
-## 🚀 Instalación
+## Instalacion rapida
 
 ### Requisitos
 
 - Node.js 20+
 - MongoDB (local o Atlas)
-- Una aplicación de Discord en el [Developer Portal](https://discord.com/developers/applications)
+- Una aplicacion en Discord Developer Portal
 - API Key de Google Gemini
 
-### 1. Clonar e instalar dependencias
+### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/hoshiko.git
-cd hoshiko
+git clone https://github.com/XeSuzu/HannaeX.git
+cd HannaeX
 npm ci
 ```
 
 ### 2. Configurar variables de entorno
 
-Crea un archivo `.env` en la raíz del proyecto:
+El proyecto carga variables desde `.env.${NODE_ENV}`.
+
+- `.env.development` -> desarrollo
+- `.env.staging` -> staging
+- `.env.production` -> produccion
+
+Si `NODE_ENV` no esta definido, el bot usa `development`.
+
+Ejemplo minimo para `.env.development`:
 
 ```env
-TOKEN=                  # Token del bot de Discord
-BOT_ID=                 # Application ID del bot
-GUILD_ID=               # ID(s) de servidor, separados por coma
-PREFIX=                 # Prefijo para comandos legacy (ej: !)
-MONGO_URI=              # URI de conexión a MongoDB
-GEMINI_API_KEY=         # API Key de Google Gemini
+PORT=8080
+TOKEN=
+BOT_ID=
+BOT_OWNER_ID=
+PREFIX=x
+DEFAULT_PREFIX=x
+GUILD_ID=
+GUILD_IDS=
+MONGO_URI=
+GEMINI_API_KEY=
 ```
 
-> **Nunca subas tu `.env` a un repositorio público.**
+> Nunca subas archivos de entorno a un repositorio publico.
 
 ### 3. Compilar y desplegar comandos
 
 ```bash
-# Compilar TypeScript
 npm run build
-
-# Registrar slash commands en Discord
-npm run deploy
+npm run deploy:dev
+npm run deploy:guild
+npm run deploy:global
 ```
 
-### 4. Iniciar el bot
+### 4. Ejecutar
 
 ```bash
-# Producción
 npm start
-
-# Desarrollo (hot reload)
 npm run dev
 ```
 
+- `npm start` ejecuta `dist/index.js`.
+- `npm run dev` ejecuta `src/index.ts` con `nodemon` y `ts-node`.
+
 ---
 
-## 🐳 Docker
+## Variables de entorno importantes
+
+Estas variables son usadas directamente por el codigo y las integraciones del bot:
+
+- `PORT`
+- `TOKEN`
+- `BOT_ID`
+- `BOT_OWNER_ID`
+- `PREFIX`
+- `DEFAULT_PREFIX`
+- `GUILD_ID`
+- `GUILD_IDS`
+- `MONGO_URI`
+- `GEMINI_API_KEY`
+- `GENIUS_API_KEY`
+- `GOOGLE_SEARCH_API_KEY`
+- `SEARCH_ENGINE_ID`
+- `SERPER_API_KEY`
+- `SAY_LOGS_WEBHOOK_URL`
+- `LOG_WEBHOOK_COMMANDS`
+- `LOG_WEBHOOK_SYSTEM`
+- `LOG_WEBHOOK_SECURITY`
+- `SUGGESTION_WEBHOOK_URL`
+- `REPORT_WEBHOOK_URL`
+- `ERROR_WEBHOOK_URL`
+- `LOGS_WEBHOOK_URL`
+- `BOT_STAFF_IDS`
+- `SUPPORT_SERVER_INVITE`
+- `BANNER_URL`
+
+> Algunos valores son opcionales segun las funcionalidades que uses.
+
+---
+
+## Deployment y entornos
+
+Para un proyecto privado y global, el repositorio distingue tres ambientes:
+
+- `development` -> `.env.development`
+- `staging` -> `.env.staging`
+- `production` -> `.env.production`
+
+Cada ambiente debe tener sus propios secretos y configuraciones.
+
+### Flujo recomendado
+
+1. Desarrolla en una rama de feature local.
+2. Prueba cambios en `development` con `npm run dev`.
+3. Despliega a `staging` y valida antes de produccion.
+4. Actualiza produccion con `npm run start:prod`.
+
+### Comandos de despliegue
+
+| Comando                 | Uso |
+| ----------------------- | --- |
+| `npm run deploy:dev`    | Deploy de slash commands a desarrollo |
+| `npm run deploy:guild`  | Deploy de slash commands a staging |
+| `npm run deploy:global` | Deploy global de slash commands |
+| `npm run start:staging` | Reinicia staging en PM2 |
+| `npm run start:prod`    | Reinicia produccion en PM2 |
+
+---
+
+## Arquitectura del proyecto
+
+El codigo se organiza en modulos claros:
+
+- `src/index.ts` -> arranque, carga de entorno, MongoDB, servidor Express y login de Discord.
+- `src/Handlers/` -> carga de comandos y eventos.
+- `src/Commands/` -> comandos slash y prefix.
+- `src/Services/` -> integraciones con Gemini, MongoDB, busqueda y APIs externas.
+- `src/Features/` -> moderacion, IA, memes, automod y mas.
+- `src/Security/` -> logger, monitorizacion y manejo de fallos.
+- `src/Utils/` -> helpers y utilidades generales.
+
+Para mas detalle operativo, consulta `Hoshiko_Dev.md`.
+
+---
+
+## Seguridad y buenas practicas
+
+- No subas archivos `.env*` al repositorio.
+- Protege los secretos en staging y produccion.
+- Verifica `NODE_ENV` antes de ejecutar el bot.
+- Revisa los logs de PM2 con `npm run logs:staging` o `npm run logs:prod`.
+- Mantiene dependencias y permisos de Discord actualizados.
+
+---
+
+## Docker
 
 ```bash
 docker build -t hoshiko .
-docker run --env-file .env hoshiko
+docker run --env-file .env.development hoshiko
 ```
 
 ---
 
-## 📋 Comandos
+## Scripts utiles
 
-### 🛡️ Moderación
-
-| Comando | Descripción |
-|---|---|
-| `/strike <usuario> [puntos] [razón]` | Añade una advertencia a un usuario |
-| `/strikes <usuario> [clear]` | Consulta o limpia el historial de strikes |
-| `/config-strikes view` | Muestra la configuración de acciones automáticas |
-| `/config-strikes add <puntos> <acción> [duración]` | Añade una regla automática (timeout / kick / ban) |
-| `/config-strikes remove <puntos>` | Elimina una regla automática |
-| `/config-strikes set-log-channel <canal>` | Define el canal de logs de moderación |
-| `/mute <usuario>` | Silencia permanentemente a un usuario |
-| `/unmute <usuario>` | Reactiva a un usuario silenciado |
-| `/tempmute <usuario> <duración>` | Silencio temporal con desmuteo automático |
-
-### 🐾 Memes
-
-| Comando | Descripción |
-|---|---|
-| `/setup-memes <canal>` | Configura el canal de memes del servidor |
-| `/meme-top` | Muestra el meme más votado del canal configurado |
-| `/memes-top` | Top 10 de usuarios por reputación de memes |
-| `/mi-reputacion` | Tu meme más votado y tu reputación total |
-
-### 💞 Interacciones
-
-| Comando | Descripción |
-|---|---|
-| `/hug <usuario>` | Abraza a alguien con respuesta kawaii |
-| `/kiss <usuario>` | Beso interactivo con botones |
-| `/afk [razón]` | Activa el modo AFK con mensaje personalizado |
-
-### 📚 Información
-
-| Comando | Descripción |
-|---|---|
-| `/userinfo [usuario]` | Muestra datos completos de un usuario |
-| `/avatar [usuario]` | Visualiza el avatar en alta resolución |
-| `/serverinfo` | Estadísticas del servidor |
-| `/info` | Información del bot y su creador |
-| `/ping` | Latencia del bot |
-| `/help` | Lista de comandos disponibles |
+| Comando                 | Descripcion |
+| ----------------------- | --- |
+| `npm run dev`           | Ejecuta en local con hot reload |
+| `npm run build`         | Compila TypeScript -> `dist/` |
+| `npm run deploy:guild`  | Deploy de comandos en staging |
+| `npm run deploy:dev`    | Deploy de comandos en desarrollo |
+| `npm run deploy:global` | Deploy global de slash commands |
+| `npm run start:staging` | Inicia el proceso PM2 de staging |
+| `npm run start:prod`    | Inicia el proceso PM2 de produccion |
+| `npm run logs:staging`  | Ver logs de staging |
+| `npm run logs:prod`     | Ver logs de produccion |
+| `npm run monit`         | Mostrar monitor PM2 |
 
 ---
 
-## ⚙️ Sistema de Strikes
+## Licencia
 
-Hoshiko incluye un sistema de moderación por puntos. Al añadir strikes con `/strike`, el bot notifica al usuario por DM y registra el moderador responsable y la razón.
-
-Con `/config-strikes add` puedes definir acciones automáticas que se disparan al alcanzar un umbral de puntos:
-
-```
-/config-strikes add points:5 action:timeout duration:1h
-/config-strikes add points:10 action:kick
-/config-strikes add points:15 action:ban
-```
-
----
-
-## 🤖 IA con Gemini
-
-Mencionando al bot en cualquier canal, Hoshiko responderá usando Google Gemini con memoria de las últimas interacciones para mantener coherencia en la conversación.
-
----
-
-## 📜 Licencia
-
-Proyecto privado. No distribuir sin autorización del autor.
+Proyecto privado. No distribuir sin autorizacion del autor.
 
 **Creado por [v.sxn]**
