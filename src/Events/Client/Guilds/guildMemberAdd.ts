@@ -1,18 +1,24 @@
 import {
-  Events,
-  GuildMember,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
+  Events,
+  GuildMember,
 } from "discord.js";
 import { SettingsManager } from "../../../Database/SettingsManager";
-import { HoshikoLogger, LogLevel } from "../../../Security/Logger/HoshikoLogger";
+import { SentinelNetwork } from "../../../Features/sentinelNetwork";
+import {
+  HoshikoLogger,
+  LogLevel,
+} from "../../../Security/Logger/HoshikoLogger";
 
 export default {
   name: Events.GuildMemberAdd,
   async execute(member: GuildMember, client: any): Promise<void> {
     if (member.user.bot) return;
+
+    await SentinelNetwork.checkMember(member);
 
     const settings = await SettingsManager.getSettings(member.guild.id);
     if (!settings) return;
@@ -29,7 +35,7 @@ export default {
           const verifyEmbed = new EmbedBuilder()
             .setTitle("🌸 Verificación de Seguridad")
             .setDescription(
-              `¡Hola! Tu cuenta es muy reciente (${ageInHours}h). Para evitar ataques, necesitamos que confirmes que eres humano.`
+              `¡Hola! Tu cuenta es muy reciente (${ageInHours}h). Para evitar ataques, necesitamos que confirmes que eres humano.`,
             )
             .setColor(0xffa500)
             .setFooter({ text: "Hoshiko Sentinel • Seguridad Activa" });
@@ -38,10 +44,12 @@ export default {
             new ButtonBuilder()
               .setCustomId(`verify_alt_${member.id}`)
               .setLabel("¡Soy Humano! ✨")
-              .setStyle(ButtonStyle.Success)
+              .setStyle(ButtonStyle.Success),
           );
 
-          const dm = await member.send({ embeds: [verifyEmbed], components: [row] }).catch(() => null);
+          const dm = await member
+            .send({ embeds: [verifyEmbed], components: [row] })
+            .catch(() => null);
 
           if (!dm) {
             HoshikoLogger.log({
@@ -57,7 +65,7 @@ export default {
             member.guild,
             "ANTI_ALT",
             `El usuario **${member.user.tag}** tiene una cuenta de solo **${ageInHours}h**. Se solicitó verificación.`,
-            member.user
+            member.user,
           );
         } catch (err) {
           console.error("❌ Error en Anti-Alt:", err);
@@ -66,7 +74,8 @@ export default {
     }
 
     // ─── 2. AUTO-JOIN ────────────────────────────────────────────────────────
-    if (!settings.autoJoin?.enabled || settings.autoJoin.roles.length === 0) return;
+    if (!settings.autoJoin?.enabled || settings.autoJoin.roles.length === 0)
+      return;
 
     const rolesToGive: string[] = [];
     const rolesGivenNames: string[] = [];
@@ -91,7 +100,8 @@ export default {
       if (rolesToGive.length > 0) {
         await member.roles.add(rolesToGive, "🤖 Hoshiko Auto-Join");
       } else {
-        errorOccurred = "No pude dar ningún rol. Verifica que mi rol esté por encima de los roles a asignar.";
+        errorOccurred =
+          "No pude dar ningún rol. Verifica que mi rol esté por encima de los roles a asignar.";
       }
     } catch (error: any) {
       console.error(`❌ Error en Auto-Join (${member.guild.name}):`, error);
@@ -100,9 +110,10 @@ export default {
 
     // Log Auto-Join al canal joinlog
     if (rolesGivenNames.length > 0 || errorOccurred) {
-      const logEmbed = new EmbedBuilder()
-        .setTimestamp()
-        .setFooter({ text: "Auto-Join • Hoshiko", iconURL: member.user.displayAvatarURL() });
+      const logEmbed = new EmbedBuilder().setTimestamp().setFooter({
+        text: "Auto-Join • Hoshiko",
+        iconURL: member.user.displayAvatarURL(),
+      });
 
       if (errorOccurred) {
         logEmbed
@@ -114,7 +125,9 @@ export default {
         logEmbed
           .setTitle("✅ Roles Asignados")
           .setColor(0x00ff00)
-          .setDescription(`**${member.user.tag}** recibió roles automáticamente.`)
+          .setDescription(
+            `**${member.user.tag}** recibió roles automáticamente.`,
+          )
           .addFields({
             name: "Roles",
             value: rolesGivenNames.map((r) => `\`@${r}\``).join(", "),
