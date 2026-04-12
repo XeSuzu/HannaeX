@@ -2,6 +2,15 @@ import { EmbedBuilder, Events, Message, PermissionsBitField } from "discord.js";
 import { SettingsManager } from "../../Database/SettingsManager";
 import { Snipe } from "../../Models/Snipe";
 import AFK from "../../Models/afk";
+import {
+  checkReplyingToBot,
+  hasCommandArguments,
+  isCommandPassthrough,
+  isHoshiAsk,
+  isHoshiPrefix,
+  isImgCommand,
+  isMentionTrigger,
+} from "../../Utils/triggerConditions";
 import { HoshikoClient } from "../../index";
 
 // Features
@@ -56,7 +65,6 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
     .setTimestamp(msg.deletedAt);
 
   if (msg.image) embed.setImage(msg.image);
-
   await message.reply({ embeds: [embed] });
 }
 
@@ -179,16 +187,33 @@ export default {
 
       if (settings && (await handleLinkProtection(message, settings))) return;
 
-      // Fase 3: detección y ejecución de comandos prefix
+      // ─── Fase 3: Detección de prefix y comandos ───────────────────────────
       const currentPrefix = settings?.prefix || "x";
       const validPrefixes = [currentPrefix, "x", "hoshi ", "Hoshi ", "h! "];
       const prefix = validPrefixes.find((p) => message.content.startsWith(p));
 
-      if (prefix) {
-        const args = message.content.slice(prefix.length).trim().split(/ +/g);
-        const commandName = args.shift()?.toLowerCase();
+      let isHoshiCall = false;
 
-        if (commandName) {
+      if (prefix) {
+        const contentAfterPrefix = message.content.slice(prefix.length).trim();
+        if (!contentAfterPrefix) return;
+
+        const args = contentAfterPrefix.split(/ +/g);
+        const commandName = args.shift()?.toLowerCase();
+        if (!commandName) return;
+
+        const prefixIsHoshi = isHoshiPrefix(prefix);
+
+        // Si el prefix es hoshi y el comando es passthrough (ask/img) con args → IA
+        if (
+          prefixIsHoshi &&
+          isCommandPassthrough(commandName) &&
+          hasCommandArguments(message, prefix.length, commandName)
+        ) {
+          isHoshiCall = true;
+          // no hacer return — cae a Fase 4 y 5
+        } else {
+          // Buscar comando registrado
           const command =
             client.commands.get(commandName) ||
             client.commands.find(
@@ -213,59 +238,54 @@ export default {
             } catch (error) {
               const errorMsg =
                 error instanceof Error ? error.message : String(error);
-              console.error(`💥 Error en comando texto ${commandName}:`, errorMsg);
+              console.error(
+                `💥 Error en comando texto ${commandName}:`,
+                errorMsg,
+              );
             }
             return;
           }
+          // Comando no encontrado → ignorar silenciosamente
+          return;
         }
-        // prefix detectado pero sin comando válido → no hacer nada más
-        return;
+      } else {
+        // Sin prefix — solo "hoshi ask" o "hoshi img" activan la IA
+        const lowerContent = message.content.toLowerCase();
+        if (
+          lowerContent.startsWith("hoshi ask ") ||
+          lowerContent.startsWith("hoshi img ")
+        ) {
+          isHoshiCall = true;
+        }
       }
 
-      // Fase 4: features (solo si no hubo prefix)
+      // ─── Fase 4: Features (solo si no hay prefix de comando) ─────────────
       Sanitizer.clean(message.content);
       await handleCulture(message);
-      if (await handleAfk(message)) return;
+      if (!isHoshiCall && (await handleAfk(message))) return;
       await handleLevelXp(message);
 
-      // Fase 5: módulo IA
-      // Condiciones EXACTAS para activar la IA:
-      // 1. "hoshi ask [mensaje]"
-      // 2. "@hoshiko [mensaje]" con texto real
-      // 3. reply a respuesta del bot + "hoshi ask [mensaje]"
+      // ─── Fase 5: Módulo IA ────────────────────────────────────────────────
       const isAiEnabled = settings?.aiModule?.enabled !== false;
       if (!isAiEnabled) return;
 
-      const lowerContent = message.content.toLowerCase();
+      const isMentioned = isMentionTrigger(message, client);
+      const isReplyingToMe = await checkReplyingToBot(message, client);
+      const isImgTrigger = isImgCommand(message);
+      const isAskTrigger = isHoshiAsk(message);
 
-      // Caso 1 y 3: hoshi ask con texto real
-      const isHoshiAsk =
-        lowerContent.startsWith("hoshi ask ") &&
-        message.content.slice("hoshi ask ".length).trim().length > 0;
-
-      // Caso 2: mención directa con texto después
-      const mentionTag = `<@${client.user!.id}>`;
-      const isMentionedWithText =
-        message.mentions.users.has(client.user!.id) &&
-        message.content.replace(mentionTag, "").trim().length > 0;
-
-      // Caso 3: reply a bot + hoshi ask
-      let isReplyWithHoshiAsk = false;
-      if (message.reference && isHoshiAsk) {
-        const repliedMsg = await message.channel.messages
-          .fetch(message.reference.messageId!)
-          .catch(() => null);
-        if (repliedMsg?.author.id === client.user!.id) {
-          isReplyWithHoshiAsk = true;
-        }
-      }
-
-      const isDirect = isHoshiAsk || isMentionedWithText || isReplyWithHoshiAsk;
+      const isDirect =
+        isMentioned ||
+        isReplyingToMe ||
+        isHoshiCall ||
+        isImgTrigger ||
+        isAskTrigger;
 
       if (isDirect) {
         await handleAi(message, client, true);
+      } else {
+        if (Math.random() < 0.02) await handleAi(message, client, false);
       }
-      // Sin modo espontáneo — la IA solo responde si se le llama explícitamente
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("💥 Error crítico en messageCreate:", errorMessage);
