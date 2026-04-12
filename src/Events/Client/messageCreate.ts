@@ -16,11 +16,9 @@ import { Blacklist } from "../../Security/Defense/Blacklist";
 import { RateLimiter } from "../../Security/Defense/RateLimiter";
 import { Sanitizer } from "../../Security/Defense/Sanitizer";
 
-// Handler para comando snipe de texto
 async function handleTextMessageSnipe(message: Message, args: string[]) {
   if (!message.guildId) return;
 
-  // 1. Verificar si snipe está habilitado en el servidor
   const settings = await SettingsManager.getSettings(message.guildId);
   if (!settings?.securityModules?.snipe) {
     await message.reply(
@@ -29,7 +27,6 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
     return;
   }
 
-  // 2. Buscar mensaje borrado
   const position = args[0] ? parseInt(args[0]) : 1;
   if (isNaN(position) || position < 1 || position > 10) {
     await message.reply("❌ El número debe ser entre 1 y 10.");
@@ -48,7 +45,6 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
     return;
   }
 
-  // 3. Construir y enviar la respuesta pública
   const msg = doc.snipes[index];
   const embed = new EmbedBuilder()
     .setColor("Random")
@@ -64,7 +60,6 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
   await message.reply({ embeds: [embed] });
 }
 
-// Handler para comando AFK de texto
 async function handleTextMessageAfk(message: Message, args: string[]) {
   if (!message.guild || !message.member) {
     await message.reply("❌ Este comando solo funciona en un servidor.");
@@ -81,7 +76,6 @@ async function handleTextMessageAfk(message: Message, args: string[]) {
   const originalNickname = currentNickname;
   let nicknameChanged = false;
 
-  // Cambiar apodo si es posible
   if (message.member.id !== message.guild.ownerId) {
     const botMember = await message.guild.members.fetchMe();
     const hasPerms = botMember.permissions.has(
@@ -102,7 +96,6 @@ async function handleTextMessageAfk(message: Message, args: string[]) {
     }
   }
 
-  // Guardar en base de datos
   try {
     await AFK.findOneAndUpdate(
       { userId: message.author.id, guildId: message.guild.id },
@@ -186,12 +179,10 @@ export default {
 
       if (settings && (await handleLinkProtection(message, settings))) return;
 
-      // Fase 3: detección y ejecución de comandos
+      // Fase 3: detección y ejecución de comandos prefix
       const currentPrefix = settings?.prefix || "x";
       const validPrefixes = [currentPrefix, "x", "hoshi ", "Hoshi ", "h! "];
       const prefix = validPrefixes.find((p) => message.content.startsWith(p));
-
-      let isHoshiCall = false;
 
       if (prefix) {
         const args = message.content.slice(prefix.length).trim().split(/ +/g);
@@ -205,18 +196,14 @@ export default {
             );
 
           if (command) {
-            // Manejar comando snipe de texto específicamente
             if (commandName === "snipe") {
               await handleTextMessageSnipe(message, args);
               return;
             }
-
-            // Manejar comando afk de texto específicamente
             if (commandName === "afk") {
               await handleTextMessageAfk(message, args);
               return;
             }
-
             try {
               if (command.prefixRun) {
                 await command.prefixRun(client, message, args);
@@ -226,68 +213,59 @@ export default {
             } catch (error) {
               const errorMsg =
                 error instanceof Error ? error.message : String(error);
-              console.error(
-                `💥 Error en comando texto ${commandName}:`,
-                errorMsg,
-              );
+              console.error(`💥 Error en comando texto ${commandName}:`, errorMsg);
             }
             return;
-          } else {
-            if (prefix.toLowerCase().includes("hoshi")) isHoshiCall = true;
           }
-        } else {
-          if (prefix.toLowerCase().includes("hoshi")) isHoshiCall = true;
         }
-      } else {
-        const lowerContent = message.content.toLowerCase();
-        if (lowerContent.startsWith("hoshi ") || lowerContent === "hoshi")
-          isHoshiCall = true;
+        // prefix detectado pero sin comando válido → no hacer nada más
+        return;
       }
 
-      // Fase 4: features
+      // Fase 4: features (solo si no hubo prefix)
       Sanitizer.clean(message.content);
       await handleCulture(message);
       if (await handleAfk(message)) return;
       await handleLevelXp(message);
 
       // Fase 5: módulo IA
+      // Condiciones EXACTAS para activar la IA:
+      // 1. "hoshi ask [mensaje]"
+      // 2. "@hoshiko [mensaje]" con texto real
+      // 3. reply a respuesta del bot + "hoshi ask [mensaje]"
       const isAiEnabled = settings?.aiModule?.enabled !== false;
       if (!isAiEnabled) return;
 
-      const isMentioned = message.mentions.users.has(client.user!.id);
+      const lowerContent = message.content.toLowerCase();
 
-      let isReplyingToMe = false;
-      if (message.reference) {
+      // Caso 1 y 3: hoshi ask con texto real
+      const isHoshiAsk =
+        lowerContent.startsWith("hoshi ask ") &&
+        message.content.slice("hoshi ask ".length).trim().length > 0;
+
+      // Caso 2: mención directa con texto después
+      const mentionTag = `<@${client.user!.id}>`;
+      const isMentionedWithText =
+        message.mentions.users.has(client.user!.id) &&
+        message.content.replace(mentionTag, "").trim().length > 0;
+
+      // Caso 3: reply a bot + hoshi ask
+      let isReplyWithHoshiAsk = false;
+      if (message.reference && isHoshiAsk) {
         const repliedMsg = await message.channel.messages
           .fetch(message.reference.messageId!)
           .catch(() => null);
-        if (
-          repliedMsg?.author.id === client.user!.id &&
-          !message.mentions.everyone &&
-          message.mentions.has(client.user!.id)
-        ) {
-          isReplyingToMe = true;
+        if (repliedMsg?.author.id === client.user!.id) {
+          isReplyWithHoshiAsk = true;
         }
       }
 
-      const isHoshiAsk = message.content.toLowerCase().startsWith("hoshi ask ");
-      const isImgCommand =
-        !!message.content.match(/^(?:hoshi ask img|neko ask img)\s+(.+)/i) ||
-        !!message.content.match(new RegExp(`^x(img|ximg)\\s+(.+)`, "i"));
-
-      const isDirect =
-        isMentioned ||
-        isReplyingToMe ||
-        isHoshiCall ||
-        isImgCommand ||
-        isHoshiAsk;
+      const isDirect = isHoshiAsk || isMentionedWithText || isReplyWithHoshiAsk;
 
       if (isDirect) {
         await handleAi(message, client, true);
-      } else {
-        // Espontáneo 2% probabilidad
-        if (Math.random() < 0.02) await handleAi(message, client, false);
       }
+      // Sin modo espontáneo — la IA solo responde si se le llama explícitamente
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("💥 Error crítico en messageCreate:", errorMessage);
