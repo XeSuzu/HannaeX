@@ -204,6 +204,16 @@ export default {
 
         const prefixIsHoshi = isHoshiPrefix(prefix);
 
+        // Comandos especiales — se manejan antes de buscar en el registro
+        if (commandName === "snipe") {
+          await handleTextMessageSnipe(message, args);
+          return;
+        }
+        if (commandName === "afk") {
+          await handleTextMessageAfk(message, args);
+          return;
+        }
+
         // Si el prefix es hoshi y el comando es passthrough (ask/img) con args → IA
         if (
           prefixIsHoshi &&
@@ -211,9 +221,7 @@ export default {
           hasCommandArguments(message, prefix.length, commandName)
         ) {
           isHoshiCall = true;
-          // no hacer return — cae a Fase 4 y 5
         } else {
-          // Buscar comando registrado
           const command =
             client.commands.get(commandName) ||
             client.commands.find(
@@ -221,14 +229,6 @@ export default {
             );
 
           if (command) {
-            if (commandName === "snipe") {
-              await handleTextMessageSnipe(message, args);
-              return;
-            }
-            if (commandName === "afk") {
-              await handleTextMessageAfk(message, args);
-              return;
-            }
             try {
               if (command.prefixRun) {
                 await command.prefixRun(client, message, args);
@@ -245,7 +245,7 @@ export default {
             }
             return;
           }
-          // Comando no encontrado → ignorar silenciosamente
+          // Comando no encontrado → ignorar
           return;
         }
       } else {
