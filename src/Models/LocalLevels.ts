@@ -1,4 +1,4 @@
-import { Schema, model, Document } from "mongoose";
+import { Document, Schema, model } from "mongoose";
 
 export interface ILocalLevel extends Document {
   userId: string;
@@ -14,6 +14,8 @@ export interface ILocalLevel extends Document {
   messagesSent: number;
 
   lastXpGain: Date;
+  abuseCooldownUntil?: Date; // Cooldown por abuso general
+  lastAbuseWarning?: Date; // Última advertencia por abuso
 }
 
 const localLevelSchema = new Schema<ILocalLevel>({
@@ -26,6 +28,8 @@ const localLevelSchema = new Schema<ILocalLevel>({
   messagesSent: { type: Number, default: 0 },
 
   lastXpGain: { type: Date, default: Date.now },
+  abuseCooldownUntil: { type: Date },
+  lastAbuseWarning: { type: Date },
 });
 
 localLevelSchema.index({ userId: 1, guildId: 1 }, { unique: true });

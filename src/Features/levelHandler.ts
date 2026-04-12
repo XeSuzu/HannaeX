@@ -32,6 +32,7 @@ export function isMilestone(level: number): boolean {
 async function handleGlobalXp(
   message: Message,
   localXpEarned: number,
+  isAbuse: boolean = false,
 ): Promise<void> {
   const userId = message.author.id;
   const now = new Date();
@@ -56,7 +57,17 @@ async function handleGlobalXp(
   }
 
   // Calcular XP global (reducida compared a local)
-  const globalXpEarned = Math.max(1, Math.floor(localXpEarned * 0.3));
+  let globalXpEarned = Math.max(1, Math.floor(localXpEarned * 0.3));
+
+  // Si hay abuso, aplicar cooldown global y no ganar XP
+  if (isAbuse) {
+    const cooldownUntil = new Date(now.getTime() + 5 * 60 * 1000);
+    await GlobalLevel.updateOne(
+      { userId },
+      { abuseCooldownUntil: cooldownUntil },
+    );
+    globalXpEarned = 0; // No ganar XP global por abuso
+  }
 
   // Actualizar estadísticas
   const newGlobalXp = globalProfile.globalXp + globalXpEarned;
@@ -335,15 +346,47 @@ export async function handleLevelXp(message: Message): Promise<void> {
     return;
   }
 
-  // XP base + bonus por menciones
+  // Detectar abuso general: menciones inválidas o mensajes muy rápidos
+  const totalMentions = message.mentions.users.size;
+  const validMentions = message.mentions.users.filter(
+    (u) => !u.bot && u.id !== message.author.id,
+  ).size;
+  const isAbuse =
+    totalMentions > validMentions || secondsSinceLast < cooldownSecs / 2;
+
+  // Verificar cooldown por abuso
+  const isInAbuseCooldown =
+    profile.abuseCooldownUntil && now < profile.abuseCooldownUntil;
+
+  // Si hay abuso y no en cooldown, enviar mensaje y aplicar cooldown
+  if (isAbuse && !isInAbuseCooldown) {
+    // Enviar mensaje general en el canal
+    await (message.channel as TextChannel)
+      .send(
+        `🐾 Oye ${message.author.username}, vas muy rápido con eso. Relájate un poco y disfruta el chat.`,
+      )
+      .catch(() => {});
+
+    // Aplicar cooldown de 5 minutos
+    const cooldownUntil = new Date(now.getTime() + 5 * 60 * 1000);
+    await LocalLevel.updateOne(
+      { userId: message.author.id, guildId: message.guild.id },
+      { abuseCooldownUntil: cooldownUntil, lastAbuseWarning: now },
+    );
+  }
+
+  // XP base + bonus por menciones (solo si no en cooldown de abuso)
   let earned = Math.floor(baseXp + Math.random() * baseXp * 0.5);
 
-  // Bonus por menciones
-  if (config?.xpMentionBonus && config.xpMentionBonus > 0) {
-    const mentions = message.mentions.users.size;
-    if (mentions > 0) {
+  // Bonus por menciones válidas (solo si no en cooldown de abuso)
+  if (
+    config?.xpMentionBonus &&
+    config.xpMentionBonus > 0 &&
+    !isInAbuseCooldown
+  ) {
+    if (validMentions > 0) {
       const mentionBonus = Math.min(
-        mentions * config.xpMentionBonus,
+        validMentions * config.xpMentionBonus,
         config.xpMentionMaxBonus ?? 25,
       );
       earned += Math.floor(mentionBonus);
@@ -373,8 +416,8 @@ export async function handleLevelXp(message: Message): Promise<void> {
     },
   );
 
-  // ── XP GLOBAL (siempre se gana) ──
-  await handleGlobalXp(message, earned);
+  // ── XP GLOBAL (siempre se gana, pero reducido por abuso) ──
+  await handleGlobalXp(message, earned, isAbuse);
 
   if (!leveledUp) return;
 

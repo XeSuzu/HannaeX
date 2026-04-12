@@ -32,6 +32,10 @@ export interface IGlobalLevel extends Document {
   weeklyMessages: number;
   weekStartDate: Date;
 
+  // Abuso
+  abuseCooldownUntil?: Date;
+  lastAbuseWarning?: Date;
+
   // Actualizado por última vez
   updatedAt: Date;
 }
@@ -285,6 +289,8 @@ const globalLevelSchema = new Schema<IGlobalLevel>({
       return now;
     },
   },
+  abuseCooldownUntil: { type: Date },
+  lastAbuseWarning: { type: Date },
   updatedAt: { type: Date, default: Date.now },
 });
 
