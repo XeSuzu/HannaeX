@@ -1,15 +1,5 @@
-// ============================================
-// GENERADOR DE BANNERS CON @napi-rs/canvas
-// ============================================
-
 import { AttachmentBuilder } from "discord.js";
 import path from "path";
-import {
-  getAchievement,
-  getTierForLevel,
-  GLOBAL_TIERS,
-  IGlobalLevel,
-} from "../Models/GlobalLevel";
 
 let canvasLib: any = null;
 
@@ -26,20 +16,51 @@ const BG_PATH = path.join(
 
 const FONT_DIR = path.join(process.cwd(), "src/assets/fonts/");
 
-const BANNER_CONFIG = { width: 900, height: 300 };
+const BANNER = {
+  width: 900,
+  height: 300,
+};
+
+const LAYOUT = {
+  avatarX: 88,
+  avatarY: 150,
+  avatarRadius: 72,
+
+  contentX: 180,
+  contentRight: 760,
+
+  usernameY: 92,
+  levelY: 130,
+
+  barY: 162,
+  barHeight: 24,
+  barRadius: 12,
+
+  xpY: 205,
+
+  rightPanelX: 770,
+  rightPanelY: 38,
+  rightPanelWidth: 108,
+  rightPanelHeight: 120,
+  rightPanelRadius: 18,
+};
 
 const COLORS = {
   white: "#FFFFFF",
-  lavender: "#E8D5FF",
+  textSoft: "#E8D5FF",
+  textMuted: "rgba(232,213,255,0.9)",
   purple: "#C084FC",
-  overlayBg: "rgba(20,10,40,0.55)",
-  progressBg: "rgba(255,255,255,0.2)",
+  overlayTop: "rgba(14, 8, 26, 0.22)",
+  overlayBottom: "rgba(24, 10, 44, 0.52)",
+  leftShade: "rgba(10, 8, 20, 0.38)",
+  progressBg: "rgba(255,255,255,0.18)",
+  progressStroke: "rgba(255,255,255,0.08)",
   gold: "#FFD700",
-  black: "#000000",
-  gray: "#808080",
-  sakuraPink: "#FFB7C5",
-  sakuraDark: "#FF69B4",
-  sakuraLight: "#FFF0F5",
+  goldSoft: "rgba(255,215,0,0.18)",
+  cardGlass: "rgba(255,255,255,0.08)",
+  cardStroke: "rgba(255,255,255,0.12)",
+  shadow: "rgba(0,0,0,0.35)",
+  avatarRing: "#E8D5FF",
 };
 
 export interface RankBannerData {
@@ -50,6 +71,13 @@ export interface RankBannerData {
   xpNeeded: number;
   progressPercent: number;
   rank: number;
+}
+
+let fontsRegistered = false;
+let cachedBg: any = null;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function roundRect(
@@ -73,6 +101,241 @@ function roundRect(
   ctx.closePath();
 }
 
+function registerFonts(GlobalFonts: any) {
+  if (fontsRegistered) return;
+
+  const fontCandidates = [
+    { file: "Nunito-Bold.ttf", family: "Banner Nunito Bold" },
+    { file: "Nunito-Regular.ttf", family: "Banner Nunito" },
+
+    // Opcionales si los agregas luego:
+    { file: "NotoSans-Regular.ttf", family: "Banner Noto" },
+    { file: "NotoColorEmoji.ttf", family: "Banner Emoji" },
+  ];
+
+  for (const font of fontCandidates) {
+    try {
+      GlobalFonts.registerFromPath(path.join(FONT_DIR, font.file), font.family);
+    } catch (error) {
+      console.warn(`[LevelBanners] Fuente no disponible: ${font.file}`);
+    }
+  }
+
+  fontsRegistered = true;
+}
+
+function getFont(size: number, weight: "normal" | "bold" = "normal") {
+  const familyStack =
+    '"Banner Nunito", "Banner Nunito Bold", "Banner Noto", "Banner Emoji", sans-serif';
+  return `${weight} ${size}px ${familyStack}`;
+}
+
+function fitText(
+  ctx: any,
+  text: string,
+  maxWidth: number,
+  startSize: number,
+  minSize = 18,
+  weight: "normal" | "bold" = "bold",
+) {
+  let size = startSize;
+
+  while (size >= minSize) {
+    ctx.font = getFont(size, weight);
+    if (ctx.measureText(text).width <= maxWidth)
+      return { font: ctx.font, size };
+    size -= 2;
+  }
+
+  ctx.font = getFont(minSize, weight);
+
+  let safe = text;
+  while (safe.length > 0 && ctx.measureText(`${safe}…`).width > maxWidth) {
+    safe = safe.slice(0, -1);
+  }
+
+  return {
+    font: ctx.font,
+    size: minSize,
+    text: safe.length > 0 ? `${safe}…` : "User",
+  };
+}
+
+function drawTextShadow(ctx: any) {
+  ctx.shadowColor = COLORS.shadow;
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 2;
+}
+
+function clearShadow(ctx: any) {
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
+
+async function getBackground(loadImage: any) {
+  if (!cachedBg) {
+    cachedBg = await loadImage(BG_PATH);
+  }
+  return cachedBg;
+}
+
+function drawBackground(ctx: any, bg: any) {
+  ctx.drawImage(bg, 0, 0, BANNER.width, BANNER.height);
+
+  const overlay = ctx.createLinearGradient(0, 0, 0, BANNER.height);
+  overlay.addColorStop(0, COLORS.overlayTop);
+  overlay.addColorStop(1, COLORS.overlayBottom);
+  ctx.fillStyle = overlay;
+  ctx.fillRect(0, 0, BANNER.width, BANNER.height);
+
+  const leftGradient = ctx.createLinearGradient(0, 0, 480, 0);
+  leftGradient.addColorStop(0, COLORS.leftShade);
+  leftGradient.addColorStop(1, "rgba(10,8,20,0)");
+  ctx.fillStyle = leftGradient;
+  ctx.fillRect(0, 0, 480, BANNER.height);
+}
+
+function drawAvatar(ctx: any, avatarImg: any) {
+  const { avatarX, avatarY, avatarRadius } = LAYOUT;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarRadius + 5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(232,213,255,0.95)";
+  ctx.fill();
+  clearShadow(ctx);
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(
+    avatarImg,
+    avatarX - avatarRadius,
+    avatarY - avatarRadius,
+    avatarRadius * 2,
+    avatarRadius * 2,
+  );
+  ctx.restore();
+}
+
+function drawRightPanel(ctx: any, rank: number) {
+  const {
+    rightPanelX,
+    rightPanelY,
+    rightPanelWidth,
+    rightPanelHeight,
+    rightPanelRadius,
+  } = LAYOUT;
+
+  ctx.save();
+  roundRect(
+    ctx,
+    rightPanelX,
+    rightPanelY,
+    rightPanelWidth,
+    rightPanelHeight,
+    rightPanelRadius,
+  );
+  ctx.fillStyle = COLORS.cardGlass;
+  ctx.fill();
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = COLORS.cardStroke;
+  ctx.stroke();
+
+  ctx.shadowColor = COLORS.goldSoft;
+  ctx.shadowBlur = 22;
+  roundRect(
+    ctx,
+    rightPanelX,
+    rightPanelY,
+    rightPanelWidth,
+    rightPanelHeight,
+    rightPanelRadius,
+  );
+  ctx.strokeStyle = "rgba(255,215,0,0.10)";
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = "center";
+
+  drawTextShadow(ctx);
+  ctx.fillStyle = COLORS.gold;
+  ctx.font = getFont(40, "bold");
+  ctx.fillText(`#${rank}`, rightPanelX + rightPanelWidth / 2, rightPanelY + 46);
+
+  ctx.fillStyle = COLORS.textSoft;
+  ctx.font = getFont(16, "normal");
+  ctx.fillText("en el", rightPanelX + rightPanelWidth / 2, rightPanelY + 74);
+  ctx.fillText("servidor", rightPanelX + rightPanelWidth / 2, rightPanelY + 94);
+  clearShadow(ctx);
+
+  ctx.textAlign = "left";
+}
+
+function drawUserInfo(ctx: any, data: RankBannerData) {
+  const availableWidth = LAYOUT.contentRight - LAYOUT.contentX - 18;
+
+  const fitted = fitText(ctx, data.username, availableWidth, 34, 20, "bold");
+  const usernameText = fitted.text ?? data.username;
+
+  drawTextShadow(ctx);
+  ctx.fillStyle = COLORS.white;
+  ctx.font = fitted.font;
+  ctx.textAlign = "left";
+  ctx.fillText(usernameText, LAYOUT.contentX, LAYOUT.usernameY);
+
+  ctx.fillStyle = COLORS.textSoft;
+  ctx.font = getFont(24, "normal");
+  ctx.fillText(`Nivel ${data.level}`, LAYOUT.contentX, LAYOUT.levelY);
+  clearShadow(ctx);
+}
+
+function drawProgress(ctx: any, data: RankBannerData) {
+  const barX = LAYOUT.contentX;
+  const barY = LAYOUT.barY;
+  const barWidth = LAYOUT.rightPanelX - LAYOUT.contentX - 28;
+  const barHeight = LAYOUT.barHeight;
+  const barRadius = LAYOUT.barRadius;
+
+  roundRect(ctx, barX, barY, barWidth, barHeight, barRadius);
+  ctx.fillStyle = COLORS.progressBg;
+  ctx.fill();
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = COLORS.progressStroke;
+  ctx.stroke();
+
+  const safePercent = clamp(data.progressPercent, 0, 100);
+  const fillWidth = Math.floor((safePercent / 100) * barWidth);
+
+  if (fillWidth > 0) {
+    const gradient = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
+    gradient.addColorStop(0, "#A855F7");
+    gradient.addColorStop(1, "#E879F9");
+
+    ctx.save();
+    roundRect(ctx, barX, barY, fillWidth, barHeight, barRadius);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.font = getFont(18, "normal");
+  ctx.textAlign = "left";
+  ctx.fillText(
+    `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP  (${safePercent}%)`,
+    barX,
+    LAYOUT.xpY,
+  );
+}
+
 export async function generateRankBanner(
   data: RankBannerData,
 ): Promise<AttachmentBuilder | null> {
@@ -81,109 +344,31 @@ export async function generateRankBanner(
   try {
     const { createCanvas, loadImage, GlobalFonts } = canvasLib;
 
-    try {
-      GlobalFonts.registerFromPath(
-        path.join(FONT_DIR, "Nunito-Bold.ttf"),
-        "Nunito Bold",
-      );
-      GlobalFonts.registerFromPath(
-        path.join(FONT_DIR, "Nunito-Regular.ttf"),
-        "Nunito Regular",
-      );
-    } catch (e) {}
+    registerFonts(GlobalFonts);
 
-    const { width, height } = BANNER_CONFIG;
-    const canvas = createCanvas(width, height);
+    const safeData: RankBannerData = {
+      ...data,
+      username: data.username?.trim() || "Usuario",
+      level: Math.max(0, data.level ?? 0),
+      xpCurrent: Math.max(0, data.xpCurrent ?? 0),
+      xpNeeded: Math.max(1, data.xpNeeded ?? 1),
+      progressPercent: clamp(data.progressPercent ?? 0, 0, 100),
+      rank: Math.max(1, data.rank ?? 1),
+    };
+
+    const canvas = createCanvas(BANNER.width, BANNER.height);
     const ctx = canvas.getContext("2d");
 
-    // Fondo
-    const bg = await loadImage(BG_PATH);
-    ctx.drawImage(bg, 0, 0, width, height);
+    const [bg, avatarImg] = await Promise.all([
+      getBackground(loadImage),
+      loadImage(safeData.avatarBuffer),
+    ]);
 
-    // Overlay
-    ctx.fillStyle = COLORS.overlayBg;
-    ctx.fillRect(0, 0, width, height);
-
-    // Avatar
-    const avatarX = 70;
-    const avatarY = height / 2;
-    const avatarRadius = 65;
-
-    const avatarImg = await loadImage(data.avatarBuffer);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(avatarX, avatarY, avatarRadius + 4, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS.lavender;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(
-      avatarImg,
-      avatarX - avatarRadius,
-      avatarY - avatarRadius,
-      avatarRadius * 2,
-      avatarRadius * 2,
-    );
-    ctx.restore();
-
-    // Username
-    const textX = 165;
-    ctx.fillStyle = COLORS.white;
-    ctx.font = `bold 34px "Nunito Bold", sans-serif`;
-    ctx.textAlign = "left";
-    ctx.fillText(data.username, textX, 90);
-
-    // Nivel
-    ctx.fillStyle = COLORS.lavender;
-    ctx.font = `26px "Nunito Regular", sans-serif`;
-    ctx.fillText(`Nivel ${data.level}`, textX, 130);
-
-    // Barra de progreso
-    const barX = textX;
-    const barY = 158;
-    const barWidth = 560;
-    const barHeight = 22;
-    const barRadius = 11;
-
-    ctx.fillStyle = COLORS.progressBg;
-    roundRect(ctx, barX, barY, barWidth, barHeight, barRadius);
-    ctx.fill();
-
-    const fillWidth = Math.max(
-      barRadius * 2,
-      Math.floor((data.progressPercent / 100) * barWidth),
-    );
-    const gradient = ctx.createLinearGradient(barX, 0, barX + fillWidth, 0);
-    gradient.addColorStop(0, "#A855F7");
-    gradient.addColorStop(1, "#E879F9");
-    ctx.fillStyle = gradient;
-    roundRect(ctx, barX, barY, fillWidth, barHeight, barRadius);
-    ctx.fill();
-
-    // XP info
-    ctx.fillStyle = COLORS.lavender;
-    ctx.font = `18px "Nunito Regular", sans-serif`;
-    ctx.fillText(
-      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP  (${data.progressPercent}%)`,
-      barX,
-      205,
-    );
-
-    // Rank
-    ctx.fillStyle = COLORS.gold;
-    ctx.font = `bold 38px "Nunito Bold", sans-serif`;
-    ctx.textAlign = "right";
-    ctx.fillText(`#${data.rank}`, width - 40, 70);
-
-    ctx.fillStyle = COLORS.lavender;
-    ctx.font = `16px "Nunito Regular", sans-serif`;
-    ctx.fillText("en el servidor", width - 40, 95);
+    drawBackground(ctx, bg);
+    drawAvatar(ctx, avatarImg);
+    drawRightPanel(ctx, safeData.rank);
+    drawUserInfo(ctx, safeData);
+    drawProgress(ctx, safeData);
 
     const buffer = canvas.toBuffer("image/png");
     return new AttachmentBuilder(buffer, { name: "rank.png" });
@@ -191,299 +376,4 @@ export async function generateRankBanner(
     console.error("[LevelBanners] Error generando rank banner:", err);
     return null;
   }
-}
-
-export async function generateAchievementBanner(
-  achievementId: string,
-  user: any,
-  avatarBuffer?: Buffer,
-): Promise<AttachmentBuilder | null> {
-  if (!canvasLib) return null;
-  const achievement = getAchievement(achievementId);
-  if (!achievement) return null;
-  const { createCanvas } = canvasLib;
-  const canvas = createCanvas(600, 300);
-  const ctx = canvas.getContext("2d");
-  const gradient = ctx.createLinearGradient(0, 0, 600, 300);
-  gradient.addColorStop(0, COLORS.sakuraLight);
-  gradient.addColorStop(0.5, COLORS.sakuraPink);
-  gradient.addColorStop(1, COLORS.sakuraDark);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 600, 300);
-  ctx.strokeStyle = COLORS.white;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(10, 10, 580, 280);
-  ctx.fillStyle = COLORS.white;
-  ctx.font = "bold 36px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(achievement.emoji, 300, 200);
-  ctx.font = "bold 28px sans-serif";
-  ctx.fillText(achievement.name, 300, 245);
-  ctx.font = "18px sans-serif";
-  ctx.fillText(achievement.description, 300, 280);
-  const buffer = canvas.toBuffer("image/png");
-  return new AttachmentBuilder(buffer, { name: "achievement.png" });
-}
-
-export async function generateLevelUpBanner(
-  user: any,
-  oldLevel: number,
-  newLevel: number,
-  avatarBuffer?: Buffer,
-): Promise<AttachmentBuilder | null> {
-  if (!canvasLib) return null;
-  const { createCanvas, loadImage } = canvasLib;
-  const tier = getTierForLevel(newLevel);
-  const canvas = createCanvas(800, 400);
-  const ctx = canvas.getContext("2d");
-  const gradient = ctx.createLinearGradient(0, 0, 800, 400);
-  gradient.addColorStop(0, COLORS.sakuraLight);
-  gradient.addColorStop(0.5, `#${tier.color.toString(16).padStart(6, "0")}`);
-  gradient.addColorStop(1, COLORS.sakuraPink);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 800, 400);
-  if (avatarBuffer) {
-    const img = await loadImage(avatarBuffer);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(400, 130, 70, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(img, 330, 60, 140, 140);
-    ctx.restore();
-  }
-  ctx.fillStyle = COLORS.gold;
-  ctx.beginPath();
-  ctx.arc(400, 250, 50, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = COLORS.white;
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.fillStyle = COLORS.black;
-  ctx.font = "bold 40px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(newLevel.toString(), 400, 265);
-  ctx.fillStyle = COLORS.white;
-  ctx.font = "bold 32px sans-serif";
-  ctx.fillText(`LEVEL ${newLevel}`, 400, 340);
-  ctx.font = "20px sans-serif";
-  ctx.fillText(tier.name, 400, 375);
-  const buffer = canvas.toBuffer("image/png");
-  return new AttachmentBuilder(buffer, { name: "levelup.png" });
-}
-
-export async function generateTierUpBanner(
-  user: any,
-  tier: (typeof GLOBAL_TIERS)[0],
-  avatarBuffer?: Buffer,
-): Promise<AttachmentBuilder | null> {
-  if (!canvasLib) return null;
-  const { createCanvas } = canvasLib;
-  const canvas = createCanvas(800, 500);
-  const ctx = canvas.getContext("2d");
-  const colorHex = `#${tier.color.toString(16).padStart(6, "0")}`;
-  const gradient = ctx.createLinearGradient(0, 0, 800, 500);
-  gradient.addColorStop(0, colorHex);
-  gradient.addColorStop(0.5, COLORS.sakuraPink);
-  gradient.addColorStop(1, colorHex);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 800, 500);
-  ctx.fillStyle = COLORS.white;
-  ctx.font = "bold 40px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("✨ NEW TIER ✨", 400, 80);
-  ctx.fillStyle = COLORS.gold;
-  ctx.beginPath();
-  ctx.arc(400, 200, 100, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = COLORS.white;
-  ctx.lineWidth = 5;
-  ctx.stroke();
-  ctx.font = "bold 80px sans-serif";
-  ctx.fillText(tier.emoji, 400, 230);
-  ctx.fillStyle = COLORS.white;
-  ctx.font = "bold 48px sans-serif";
-  ctx.fillText(tier.name, 400, 350);
-  ctx.font = "28px sans-serif";
-  ctx.fillText(tier.nameJp, 400, 390);
-  ctx.font = "18px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.8)";
-  ctx.fillText(tier.description, 400, 430);
-  const buffer = canvas.toBuffer("image/png");
-  return new AttachmentBuilder(buffer, { name: "tierup.png" });
-}
-
-export async function generateGlobalRankBanner(
-  user: any,
-  profile: IGlobalLevel,
-  rank: number,
-  totalUsers: number,
-  avatarBuffer?: Buffer,
-): Promise<AttachmentBuilder | null> {
-  if (!canvasLib) return null;
-  const { createCanvas, loadImage } = canvasLib;
-  const tier = getTierForLevel(profile.globalLevel);
-  const canvas = createCanvas(900, 500);
-  const ctx = canvas.getContext("2d");
-  const colorHex = `#${tier.color.toString(16).padStart(6, "0")}`;
-  const gradient = ctx.createLinearGradient(0, 0, 900, 500);
-  gradient.addColorStop(0, COLORS.sakuraLight);
-  gradient.addColorStop(0.5, colorHex);
-  gradient.addColorStop(1, COLORS.sakuraLight);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 900, 500);
-  ctx.strokeStyle = COLORS.white;
-  ctx.lineWidth = 6;
-  ctx.strokeRect(15, 15, 870, 470);
-  if (avatarBuffer) {
-    const img = await loadImage(avatarBuffer);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(150, 200, 80, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(img, 70, 120, 160, 160);
-    ctx.restore();
-  }
-  ctx.fillStyle = COLORS.white;
-  ctx.font = "bold 36px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(user.displayName, 280, 150);
-  ctx.font = "bold 72px sans-serif";
-  ctx.fillText(`LV.${profile.globalLevel}`, 280, 240);
-  ctx.font = "24px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.fillText(`${profile.globalXp.toLocaleString()} XP Global`, 280, 280);
-  ctx.fillStyle = COLORS.gold;
-  ctx.font = "bold 48px sans-serif";
-  ctx.fillText(`#${rank}`, 280, 360);
-  ctx.font = "20px sans-serif";
-  ctx.fillStyle = COLORS.white;
-  ctx.fillText(`of ${totalUsers.toLocaleString()} users`, 280, 390);
-  ctx.fillStyle = COLORS.gold;
-  ctx.beginPath();
-  ctx.arc(750, 150, 60, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = COLORS.white;
-  ctx.lineWidth = 4;
-  ctx.stroke();
-  ctx.font = "bold 60px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(tier.emoji, 750, 170);
-  ctx.font = "bold 24px sans-serif";
-  ctx.fillText(tier.name, 750, 230);
-  ctx.font = "18px sans-serif";
-  ctx.fillText(tier.nameJp, 750, 255);
-  const achievementsList = profile.achievements.slice(0, 6);
-  achievementsList.forEach((achId: string, i: number) => {
-    const ach = getAchievement(achId);
-    if (ach) {
-      ctx.font = "32px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText(ach.emoji, 100 + i * 50, 420);
-    }
-  });
-  const buffer = canvas.toBuffer("image/png");
-  return new AttachmentBuilder(buffer, { name: "globalrank.png" });
-}
-
-export function getAchievementEmbed(achievementId: string, user: any): any {
-  const achievement = getAchievement(achievementId);
-  if (!achievement) return null;
-  return {
-    color: achievement.color,
-    title: `${achievement.emoji} ¡Logro Desbloqueado! ${achievement.emoji}`,
-    description:
-      `**${user.displayName}** ha conseguido:\n\n` +
-      `🌸 **${achievement.name}** (${achievement.nameEn})\n` +
-      `📝 ${achievement.description}`,
-    thumbnail: { url: user.displayAvatarURL() },
-    footer: { text: "Hoshiko Global Levels ✨" },
-    timestamp: new Date(),
-  };
-}
-
-export function getLevelUpEmbed(
-  user: any,
-  oldLevel: number,
-  newLevel: number,
-): any {
-  const tier = getTierForLevel(newLevel);
-  return {
-    color: tier.color,
-    title: `${tier.emoji} ¡Nivel Global: ${newLevel}! ${tier.emoji}`,
-    description:
-      `**${user.displayName}** ha alcanzado el **nivel ${newLevel}**!\n\n` +
-      `🏆 Tier actual: **${tier.name}** (${tier.nameJp}) ${tier.emoji}\n` +
-      `📝 "${tier.description}"`,
-    thumbnail: { url: user.displayAvatarURL() },
-    footer: { text: "Hoshiko Global Levels ✨" },
-    timestamp: new Date(),
-  };
-}
-
-export function getTierUpEmbed(user: any, tier: (typeof GLOBAL_TIERS)[0]): any {
-  return {
-    color: tier.color,
-    title: `${tier.emoji} ¡Nuevo Tier Desbloqueado! ${tier.emoji}`,
-    description:
-      `**${user.displayName}** ha alcanzado el tier:\n\n` +
-      `✨ **${tier.name}** ✨\n${tier.nameJp}\n\n` +
-      `📝 "${tier.description}"`,
-    thumbnail: { url: user.displayAvatarURL() },
-    footer: { text: "Hoshiko Global Levels ✨" },
-    timestamp: new Date(),
-  };
-}
-
-export function getGlobalRankEmbed(
-  user: any,
-  profile: IGlobalLevel,
-  rank: number,
-  totalUsers: number,
-): any {
-  const tier = getTierForLevel(profile.globalLevel);
-  return {
-    color: tier.color,
-    author: {
-      name: `${tier.emoji} ${user.displayName} — ${tier.name} ${tier.emoji}`,
-      icon_url: user.displayAvatarURL(),
-    },
-    title: `Nivel Global ${profile.globalLevel}`,
-    thumbnail: { url: user.displayAvatarURL() },
-    fields: [
-      {
-        name: `${tier.emoji} Tier Actual`,
-        value: `**${tier.name}** (${tier.nameJp})\n${tier.description}`,
-        inline: true,
-      },
-      {
-        name: "🌐 Ranking Global",
-        value: `**#${rank}** de ${totalUsers.toLocaleString()} usuarios`,
-        inline: true,
-      },
-      {
-        name: "💬 Mensajes Totales",
-        value: `\`${profile.totalMessages.toLocaleString()}\``,
-        inline: true,
-      },
-      {
-        name: "⚡ XP Global",
-        value: `\`${profile.globalXp.toLocaleString()}\` XP`,
-        inline: true,
-      },
-      {
-        name: "🏆 Logros",
-        value:
-          profile.achievements.length > 0
-            ? profile.achievements
-                .map((a: string) => getAchievement(a)?.emoji || "🏅")
-                .join(" ")
-            : "Sin logros aún",
-        inline: true,
-      },
-    ],
-    footer: { text: "Hoshiko Global Levels ✨" },
-    timestamp: new Date(),
-  };
 }
