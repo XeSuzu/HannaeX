@@ -420,4 +420,3 @@ export async function generateRankBanner(
     return null;
   }
 }
-git add 
