@@ -5,8 +5,9 @@ import {
 } from "discord.js";
 import { totalXpForLevel, xpForLevel } from "../../../Features/levelHandler";
 import { HoshikoClient } from "../../../index";
+import GlobalLevel from "../../../Models/GlobalLevel";
 import LocalLevel from "../../../Models/LocalLevels";
-import { generateRankBanner } from "../../../Utils/LevelBanners";
+import { generateServerRankBanner } from "../../../Utils/LevelBanners";
 
 export default {
   data: new SlashCommandBuilder()
@@ -62,6 +63,13 @@ export default {
         xp: { $gt: profile.xp },
       })) + 1;
 
+    const globalProfile = await GlobalLevel.findOne({ userId: target.id });
+    const globalRank = globalProfile
+      ? (await GlobalLevel.countDocuments({
+          globalXp: { $gt: globalProfile.globalXp },
+        })) + 1
+      : undefined;
+
     // Intentar generar banner con canvas
     try {
       const avatarUrl = target.displayAvatarURL({
@@ -71,14 +79,17 @@ export default {
       const avatarRes = await fetch(avatarUrl);
       const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
 
-      const banner = await generateRankBanner({
+      const banner = await generateServerRankBanner({
         username: target.displayName,
         avatarBuffer,
         level: profile.level,
+        rank,
         xpCurrent: xpIntoLevel,
         xpNeeded,
         progressPercent,
-        rank,
+        messagesSent: profile.messagesSent,
+        globalLevel: globalProfile?.globalLevel,
+        globalRank,
       });
 
       if (banner) {

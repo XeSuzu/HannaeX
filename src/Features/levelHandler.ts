@@ -20,6 +20,17 @@ export function totalXpForLevel(level: number): number {
   return total;
 }
 
+// Fórmula de XP de voz (separada de texto)
+export function xpForVoiceLevel(level: number): number {
+  return Math.floor(80 + level * 40);
+}
+
+export function totalXpForVoiceLevel(level: number): number {
+  let total = 0;
+  for (let i = 0; i < level; i++) total += xpForVoiceLevel(i);
+  return total;
+}
+
 // Verificar si es un nivel "importante" (milestone)
 export function isMilestone(level: number): boolean {
   const milestones = [5, 10, 15, 20, 25, 30, 50, 75, 100];
@@ -544,7 +555,7 @@ export async function handleVoiceXp(
   minutesInVoice: number,
 ): Promise<void> {
   if (!config.xpVoiceEnabled) return;
-  if (config.ignoredChannels.includes(member.channelId)) return;
+  if (config.ignoredChannels.includes(member.voice?.channelId)) return;
   if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r)))
     return;
 
@@ -555,22 +566,52 @@ export async function handleVoiceXp(
   const multiplier = config.xpMultiplier ?? 1.0;
   const earned = Math.floor(xpGain * minutesInVoice * multiplier);
 
-  const profile = await LocalLevel.findOne({
+  let profile = await LocalLevel.findOne({
     userId: member.id,
     guildId: member.guild.id,
   });
 
-  if (!profile) return;
-
-  const newXp = profile.xp + earned;
-  let newLevel = profile.level;
-
-  while (newXp >= totalXpForLevel(newLevel + 1)) {
-    newLevel++;
+  if (!profile) {
+    profile = await LocalLevel.create({
+      userId: member.id,
+      guildId: member.guild.id,
+    });
   }
+
+  const newVoiceXp = (profile.voiceXp ?? 0) + earned;
+  let newVoiceLevel = profile.voiceLevel ?? 0;
+
+  // Recalcular nivel de voz
+  while (newVoiceXp >= totalXpForVoiceLevel(newVoiceLevel + 1)) {
+    newVoiceLevel++;
+  }
+
+  const leveledUp = newVoiceLevel > (profile.voiceLevel ?? 0);
 
   await LocalLevel.updateOne(
     { userId: member.id, guildId: member.guild.id },
-    { $set: { xp: newXp, level: newLevel } },
+    {
+      $set: {
+        voiceXp: newVoiceXp,
+        voiceLevel: newVoiceLevel,
+      },
+      $inc: {
+        voiceMinutes: minutesInVoice,
+      },
+    },
   );
+
+  // Actualizar totalVoiceMinutes en GlobalLevel
+  await GlobalLevel.updateOne(
+    { userId: member.id },
+    { $inc: { totalVoiceMinutes: minutesInVoice } },
+    { upsert: true },
+  );
+
+  if (leveledUp) {
+    console.log(
+      `[VoiceLevel] ${member.user.username} subió al Nivel VC ${newVoiceLevel} en ${member.guild.name}`,
+    );
+    // Opcional: anunciar en canal del servidor
+  }
 }

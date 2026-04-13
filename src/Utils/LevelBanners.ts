@@ -1,78 +1,103 @@
-// ============================================
-// GENERADOR DE BANNERS CON @napi-rs/canvas
-// ============================================
-
 import { AttachmentBuilder } from "discord.js";
 import path from "path";
-import { getTierForLevel } from "../Models/GlobalLevel";
+import { GLOBAL_TIERS } from "../Models/GlobalLevel";
 
 let canvasLib: any = null;
 try {
   canvasLib = require("@napi-rs/canvas");
-} catch (e) {
-  console.log("[LevelBanners] @napi-rs/canvas no instalado");
-}
+} catch {}
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
-
 const BG_PATH = path.join(
   process.cwd(),
   "src/assets/images/banners/level-banners/bg-banner-1.jpg",
 );
 const FONT_DIR = path.join(process.cwd(), "src/assets/fonts/");
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// ─── Dimensiones ─────────────────────────────────────────────────────────────
+const W = 900,
+  H = 300;
 
-const W = 900;
-const H = 300;
-
-/** Todos los valores de layout en un solo lugar. Cambia aquí, cambia todo. */
+// ─── Layout ───────────────────────────────────────────────────────────────────
 const L = {
-  // Avatar
   av: { x: 84, y: 150, r: 72 },
-
-  // Zona de texto/info: empieza después del avatar
   info: { x: 182, maxRight: 730 },
-
-  // Posiciones verticales del bloque de info
-  usernameY: 96,
-  levelY: 135,
-  barY: 165,
-  barH: 24,
-  barRadius: 12,
-  xpY: 210,
-  tierY: 245,
-
-  // Panel derecho (rank)
-  panel: { x: 772, y: 32, w: 108, h: 130, r: 20 },
+  usernameY: 88,
+  levelY: 128,
+  subY: 158, // línea extra (global badge / servidor name)
+  barY: 175,
+  barH: 22,
+  barR: 11,
+  xpY: 215,
+  statsY: 248,
+  panel: { x: 772, y: 28, w: 108, h: 134, r: 20 },
 };
 
-const COLORS = {
+// ─── Colores ─────────────────────────────────────────────────────────────────
+const C = {
   white: "#FFFFFF",
-  lavender: "#E8D5FF",
-  lavenderFaded: "rgba(232,213,255,0.85)",
-  muted: "rgba(232,213,255,0.70)",
+  lav: "#E8D5FF",
+  lavFaded: "rgba(232,213,255,0.80)",
+  muted: "rgba(232,213,255,0.65)",
   gold: "#FFD700",
-  goldGlow: "rgba(255,215,0,0.22)",
-  progressBg: "rgba(255,255,255,0.18)",
-  progressEdge: "rgba(255,255,255,0.10)",
-  glass: "rgba(255,255,255,0.09)",
-  glassBorder: "rgba(255,255,255,0.14)",
+  goldGlow: "rgba(255,215,0,0.20)",
+  cyan: "#67E8F9",
+  cyanGlow: "rgba(103,232,249,0.20)",
+  glass: "rgba(255,255,255,0.08)",
+  glassBorder: "rgba(255,255,255,0.13)",
+  progressBg: "rgba(255,255,255,0.16)",
+  progressEdge: "rgba(255,255,255,0.08)",
   shadow: "rgba(0,0,0,0.40)",
 };
 
-// ─── Cache de recursos ────────────────────────────────────────────────────────
-
+// ─── Cache ───────────────────────────────────────────────────────────────────
 let _fontsOk = false;
 let _cachedBg: any = null;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+export interface ServerRankData {
+  username: string;
+  avatarBuffer: Buffer;
+  level: number;
+  rank: number;
+  xpCurrent: number;
+  xpNeeded: number;
+  progressPercent: number;
+  messagesSent: number;
+  globalLevel?: number;
+  globalRank?: number;
+}
 
+export interface VCRankData {
+  username: string;
+  avatarBuffer: Buffer;
+  voiceLevel: number;
+  vcRank: number;
+  voiceMinutes: number;
+  xpCurrent: number;
+  xpNeeded: number;
+  progressPercent: number;
+}
+
+export interface GlobalRankData {
+  username: string;
+  avatarBuffer: Buffer;
+  globalLevel: number;
+  globalRank: number;
+  totalUsers: number;
+  xpCurrent: number;
+  xpNeeded: number;
+  progressPercent: number;
+  totalMessages: number;
+  totalVoiceMinutes: number;
+  tier: (typeof GLOBAL_TIERS)[0];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** Dibuja un rect redondeado como path (no hace fill/stroke). */
 function rrPath(
   ctx: any,
   x: number,
@@ -95,74 +120,57 @@ function rrPath(
   ctx.closePath();
 }
 
-/** Intenta reducir tamaño de fuente hasta que el texto quepa en maxWidth.
- *  Si ni en minSize cabe, trunca con "…". */
 function fitText(
   ctx: any,
   text: string,
-  maxWidth: number,
+  maxW: number,
   startPx: number,
   minPx = 18,
-  weight: "bold" | "normal" = "bold",
-): { font: string; displayText: string } {
-  const stack = '"Banner Bold", "Banner Regular", "Noto", sans-serif';
-  let px = startPx;
-
-  while (px >= minPx) {
+  weight = "bold",
+): { font: string; text: string } {
+  const stack = '"BannerBold","BannerReg","Noto",sans-serif';
+  for (let px = startPx; px >= minPx; px -= 2) {
     ctx.font = `${weight} ${px}px ${stack}`;
-    if (ctx.measureText(text).width <= maxWidth) {
-      return { font: ctx.font, displayText: text };
-    }
-    px -= 2;
+    if (ctx.measureText(text).width <= maxW) return { font: ctx.font, text };
   }
-
   ctx.font = `${weight} ${minPx}px ${stack}`;
   let t = text;
-  while (t.length > 1 && ctx.measureText(t + "…").width > maxWidth) {
+  while (t.length > 1 && ctx.measureText(t + "…").width > maxW)
     t = t.slice(0, -1);
-  }
-  return { font: ctx.font, displayText: t + "…" };
+  return { font: ctx.font, text: t + "…" };
 }
 
-function font(px: number, weight: "bold" | "normal" = "normal") {
-  return `${weight} ${px}px "Banner Bold", "Banner Regular", "Noto", sans-serif`;
+function f(px: number, weight = "normal") {
+  return `${weight} ${px}px "BannerBold","BannerReg","Noto",sans-serif`;
 }
 
-function shadow(ctx: any, blur = 10, color = COLORS.shadow) {
+function sh(ctx: any, blur = 10, color = C.shadow) {
   ctx.shadowColor = color;
   ctx.shadowBlur = blur;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
 }
-
-function noShadow(ctx: any) {
+function nosh(ctx: any) {
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 }
 
-// ─── Registro de fuentes (una sola vez) ──────────────────────────────────────
-
-function registerFonts(GlobalFonts: any) {
+function registerFonts(GF: any) {
   if (_fontsOk) return;
-
   const fonts = [
-    { file: "Nunito-Bold.ttf", family: "Banner Bold" },
-    { file: "Nunito-Regular.ttf", family: "Banner Regular" },
-    // Añade estos si los tienes para cubrir CJK / emoji:
+    { file: "Nunito-Bold.ttf", family: "BannerBold" },
+    { file: "Nunito-Regular.ttf", family: "BannerReg" },
     { file: "NotoSans-Regular.ttf", family: "Noto" },
-    { file: "NotoColorEmoji.ttf", family: "Noto Emoji" },
   ];
-
-  for (const f of fonts) {
+  for (const fnt of fonts) {
     try {
-      GlobalFonts.registerFromPath(path.join(FONT_DIR, f.file), f.family);
+      GF.registerFromPath(path.join(FONT_DIR, fnt.file), fnt.family);
     } catch {
-      console.warn(`[LevelBanners] Fuente no encontrada: ${f.file}`);
+      console.warn(`[LevelBanners] Font missing: ${fnt.file}`);
     }
   }
-
   _fontsOk = true;
 }
 
@@ -171,22 +179,16 @@ async function getBg(loadImage: any) {
   return _cachedBg;
 }
 
-// ─── Capas de dibujo ──────────────────────────────────────────────────────────
-
 function drawBg(ctx: any, bg: any) {
   ctx.drawImage(bg, 0, 0, W, H);
-
-  // Overlay oscuro vertical (sutil)
   const ov = ctx.createLinearGradient(0, 0, 0, H);
   ov.addColorStop(0, "rgba(10,6,22,0.18)");
-  ov.addColorStop(1, "rgba(20,8,40,0.55)");
+  ov.addColorStop(1, "rgba(20,8,40,0.58)");
   ctx.fillStyle = ov;
   ctx.fillRect(0, 0, W, H);
-
-  // Degradado lateral izquierdo para dar contraste al texto
   const lg = ctx.createLinearGradient(0, 0, 520, 0);
-  lg.addColorStop(0, "rgba(8,4,18,0.50)");
-  lg.addColorStop(0.6, "rgba(8,4,18,0.12)");
+  lg.addColorStop(0, "rgba(8,4,18,0.52)");
+  lg.addColorStop(0.65, "rgba(8,4,18,0.10)");
   lg.addColorStop(1, "rgba(8,4,18,0.00)");
   ctx.fillStyle = lg;
   ctx.fillRect(0, 0, 520, H);
@@ -194,24 +196,18 @@ function drawBg(ctx: any, bg: any) {
 
 function drawAvatar(ctx: any, img: any) {
   const { x, y, r } = L.av;
-
-  // Anillo exterior brillante
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, r + 6, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(232,213,255,0.92)";
   ctx.fill();
   ctx.restore();
-
-  // Anillo interior de separación (oscuro)
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, r + 2, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(30,15,55,0.55)";
+  ctx.fillStyle = "rgba(20,10,40,0.55)";
   ctx.fill();
   ctx.restore();
-
-  // Clip circular para la imagen
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -221,202 +217,324 @@ function drawAvatar(ctx: any, img: any) {
   ctx.restore();
 }
 
-function drawRankPanel(ctx: any, rank: number) {
+function drawPanel(
+  ctx: any,
+  topLine: string,
+  midLine: string,
+  bottomLine: string,
+  glowColor: string,
+) {
   const { x, y, w, h, r } = L.panel;
   const cx = x + w / 2;
-
-  // Fondo glassmorphism
   ctx.save();
   rrPath(ctx, x, y, w, h, r);
-  ctx.fillStyle = COLORS.glass;
+  ctx.fillStyle = C.glass;
   ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = COLORS.glassBorder;
+  ctx.strokeStyle = C.glassBorder;
   ctx.stroke();
   ctx.restore();
-
-  // Glow dorado suave de fondo
   ctx.save();
-  ctx.shadowColor = COLORS.goldGlow;
-  ctx.shadowBlur = 28;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 26;
   rrPath(ctx, x + 2, y + 2, w - 4, h - 4, r - 2);
-  ctx.strokeStyle = "rgba(255,215,0,0.12)";
+  ctx.strokeStyle = glowColor.replace("0.20)", "0.10)");
   ctx.lineWidth = 1;
   ctx.stroke();
-  noShadow(ctx);
+  nosh(ctx);
   ctx.restore();
 
-  // Número de rank
   ctx.textAlign = "center";
-  shadow(ctx, 14, "rgba(255,180,0,0.30)");
-  ctx.fillStyle = COLORS.gold;
-  ctx.font = font(rank >= 100 ? 30 : 38, "bold");
-  ctx.fillText(`#${rank}`, cx, y + 54);
-
-  // Subtítulo "en el servidor"
-  noShadow(ctx);
-  ctx.fillStyle = COLORS.lavenderFaded;
-  ctx.font = font(14, "normal");
-  ctx.fillText("en el", cx, y + 80);
-  ctx.fillText("servidor", cx, y + 98);
+  sh(ctx, 14, glowColor);
+  ctx.fillStyle =
+    topLine.startsWith("#") && !topLine.startsWith("#0") ? C.gold : C.lav;
+  ctx.font = f(topLine.length > 3 ? 26 : 36, "bold");
+  ctx.fillText(topLine, cx, y + 52);
+  nosh(ctx);
+  ctx.fillStyle = C.lavFaded;
+  ctx.font = f(13, "normal");
+  ctx.fillText(midLine, cx, y + 76);
+  ctx.fillText(bottomLine, cx, y + 94);
   ctx.textAlign = "left";
 }
 
-function drawInfo(ctx: any, data: RankBannerData) {
-  const maxW = L.info.maxRight - L.info.x;
-
-  // Username con ajuste de tamaño automático
-  const { font: usernameFont, displayText } = fitText(
-    ctx,
-    data.username,
-    maxW,
-    34,
-    20,
-    "bold",
-  );
-  shadow(ctx, 12);
-  ctx.fillStyle = COLORS.white;
-  ctx.font = usernameFont;
-  ctx.textAlign = "left";
-  ctx.fillText(displayText, L.info.x, L.usernameY);
-
-  // Nivel
-  noShadow(ctx);
-  ctx.fillStyle = COLORS.lavender;
-  ctx.font = font(26, "normal");
-  ctx.fillText(`Nivel ${data.level}`, L.info.x, L.levelY);
-}
-
-function drawBar(ctx: any, data: RankBannerData) {
-  // El ancho de la barra va desde info.x hasta el borde del panel - margen
-  const bx = L.info.x;
-  const by = L.barY;
-  const bw = L.panel.x - L.info.x - 20; // ← llega hasta el panel
-  const bh = L.barH;
-  const br = L.barRadius;
-  const pct = clamp(data.progressPercent, 0, 100);
-
-  // Track (fondo)
+function drawBar(ctx: any, pct: number, gradStart: string, gradEnd: string) {
+  const bx = L.info.x,
+    by = L.barY;
+  const bw = L.panel.x - L.info.x - 18;
+  const bh = L.barH,
+    br = L.barR;
   rrPath(ctx, bx, by, bw, bh, br);
-  ctx.fillStyle = COLORS.progressBg;
+  ctx.fillStyle = C.progressBg;
   ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = COLORS.progressEdge;
+  ctx.strokeStyle = C.progressEdge;
   ctx.stroke();
-
-  // Fill (progreso)
-  if (pct > 0) {
-    const fw = Math.max(br * 2, Math.floor((pct / 100) * bw));
-    const grad = ctx.createLinearGradient(bx, 0, bx + fw, 0);
-    grad.addColorStop(0, "#A855F7");
-    grad.addColorStop(1, "#E879F9");
-
+  const fw = Math.max(br * 2, Math.floor((clamp(pct, 0, 100) / 100) * bw));
+  if (fw > 0) {
+    const g = ctx.createLinearGradient(bx, 0, bx + fw, 0);
+    g.addColorStop(0, gradStart);
+    g.addColorStop(1, gradEnd);
     ctx.save();
     rrPath(ctx, bx, by, fw, bh, br);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = g;
     ctx.fill();
-
-    // Brillo interno en el fill
     const shine = ctx.createLinearGradient(bx, by, bx, by + bh);
-    shine.addColorStop(0, "rgba(255,255,255,0.28)");
+    shine.addColorStop(0, "rgba(255,255,255,0.26)");
     shine.addColorStop(0.5, "rgba(255,255,255,0.00)");
     rrPath(ctx, bx, by, fw, bh, br);
     ctx.fillStyle = shine;
     ctx.fill();
     ctx.restore();
   }
-
-  // Texto XP
-  ctx.fillStyle = COLORS.muted;
-  ctx.font = font(18, "normal");
-  ctx.textAlign = "left";
-  ctx.fillText(
-    `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP  (${pct}%)`,
-    bx,
-    L.xpY,
-  );
 }
 
-function drawTierBadge(ctx: any, level: number) {
-  const tier = getTierForLevel(level);
-  if (!tier) return;
-
-  const bx = L.info.x;
-  const by = L.tierY - 16;
-  const text = `${tier.emoji}  ${tier.name}  ·  ${tier.nameJp}`;
-
-  ctx.font = font(15, "normal");
-  const tw = ctx.measureText(text).width;
-  const padX = 12;
-  const padY = 7;
-  const bw = tw + padX * 2;
-  const bh = 26;
-
-  // Cápsula de fondo
-  rrPath(ctx, bx, by, bw, bh, 13);
-  ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.fillStyle = COLORS.lavenderFaded;
-  ctx.fillText(text, bx + padX, by + bh - padY);
-}
-
-// ─── Función principal ────────────────────────────────────────────────────────
-
-export interface RankBannerData {
-  username: string;
-  avatarBuffer: Buffer;
-  level: number;
-  xpCurrent: number;
-  xpNeeded: number;
-  progressPercent: number;
-  rank: number;
-}
-
-export async function generateRankBanner(
-  data: RankBannerData,
+export async function generateServerRankBanner(
+  data: ServerRankData,
 ): Promise<AttachmentBuilder | null> {
   if (!canvasLib) return null;
-
   try {
     const { createCanvas, loadImage, GlobalFonts } = canvasLib;
-
     registerFonts(GlobalFonts);
-
-    // Sanitizar datos de entrada
-    const d: RankBannerData = {
-      username: data.username?.trim() || "Usuario",
-      avatarBuffer: data.avatarBuffer,
-      level: Math.max(0, data.level ?? 0),
-      xpCurrent: Math.max(0, data.xpCurrent ?? 0),
-      xpNeeded: Math.max(1, data.xpNeeded ?? 1),
-      progressPercent: clamp(data.progressPercent ?? 0, 0, 100),
-      rank: Math.max(1, data.rank ?? 1),
-    };
 
     const canvas = createCanvas(W, H);
     const ctx = canvas.getContext("2d");
-
-    // Cargar recursos en paralelo
-    const [bg, avatarImg] = await Promise.all([
+    const [bg, av] = await Promise.all([
       getBg(loadImage),
-      loadImage(d.avatarBuffer),
+      loadImage(data.avatarBuffer),
     ]);
 
     drawBg(ctx, bg);
-    drawAvatar(ctx, avatarImg);
-    drawRankPanel(ctx, d.rank);
-    drawInfo(ctx, d);
-    drawBar(ctx, d);
-    drawTierBadge(ctx, d.level);
+    drawAvatar(ctx, av);
 
-    const buffer = canvas.toBuffer("image/png");
-    return new AttachmentBuilder(buffer, { name: "rank.png" });
+    drawPanel(ctx, `#${data.rank}`, "en el", "servidor", C.goldGlow);
+
+    const maxW = L.info.maxRight - L.info.x;
+    const { font: unFont, text: unText } = fitText(
+      ctx,
+      data.username,
+      maxW,
+      34,
+      20,
+      "bold",
+    );
+    sh(ctx, 12);
+    ctx.fillStyle = C.white;
+    ctx.font = unFont;
+    ctx.textAlign = "left";
+    ctx.fillText(unText, L.info.x, L.usernameY);
+    nosh(ctx);
+
+    ctx.fillStyle = C.lav;
+    ctx.font = f(25, "normal");
+    ctx.fillText(`Nivel ${data.level}`, L.info.x, L.levelY);
+
+    if (data.globalLevel !== undefined) {
+      ctx.fillStyle = C.muted;
+      ctx.font = f(15, "normal");
+      const globalText = data.globalRank
+        ? `Global Lv.${data.globalLevel}  ·  #${data.globalRank} global`
+        : `Global Lv.${data.globalLevel}`;
+      ctx.fillText(globalText, L.info.x, L.subY);
+    }
+
+    drawBar(ctx, data.progressPercent, "#A855F7", "#E879F9");
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(17, "normal");
+    ctx.fillText(
+      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP  (${data.progressPercent}%)`,
+      L.info.x,
+      L.xpY,
+    );
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(14, "normal");
+    ctx.fillText(
+      `💬 ${data.messagesSent.toLocaleString()} mensajes`,
+      L.info.x,
+      L.statsY,
+    );
+
+    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+      name: "server-rank.png",
+    });
   } catch (err) {
-    console.error("[LevelBanners] Error generando rank banner:", err);
+    console.error("[LevelBanners] generateServerRankBanner:", err);
     return null;
   }
 }
+
+export async function generateVCRankBanner(
+  data: VCRankData,
+): Promise<AttachmentBuilder | null> {
+  if (!canvasLib) return null;
+  try {
+    const { createCanvas, loadImage, GlobalFonts } = canvasLib;
+    registerFonts(GlobalFonts);
+
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext("2d");
+    const [bg, av] = await Promise.all([
+      getBg(loadImage),
+      loadImage(data.avatarBuffer),
+    ]);
+
+    drawBg(ctx, bg);
+    drawAvatar(ctx, av);
+    drawPanel(ctx, `#${data.vcRank}`, "en voz", "servidor", C.cyanGlow);
+
+    const maxW = L.info.maxRight - L.info.x;
+    const { font: unFont, text: unText } = fitText(
+      ctx,
+      data.username,
+      maxW,
+      34,
+      20,
+      "bold",
+    );
+    sh(ctx, 12);
+    ctx.fillStyle = C.white;
+    ctx.font = unFont;
+    ctx.textAlign = "left";
+    ctx.fillText(unText, L.info.x, L.usernameY);
+    nosh(ctx);
+
+    ctx.fillStyle = C.cyan;
+    ctx.font = f(25, "normal");
+    ctx.fillText(`Nivel Voz ${data.voiceLevel}`, L.info.x, L.levelY);
+
+    const hrs = Math.floor(data.voiceMinutes / 60);
+    const mins = data.voiceMinutes % 60;
+    const timeStr = hrs > 0 ? `${hrs}h ${mins}m en voz` : `${mins}m en voz`;
+    ctx.fillStyle = C.muted;
+    ctx.font = f(15, "normal");
+    ctx.fillText(timeStr, L.info.x, L.subY);
+
+    drawBar(ctx, data.progressPercent, "#06B6D4", "#38BDF8");
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(17, "normal");
+    ctx.fillText(
+      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP Voz  (${data.progressPercent}%)`,
+      L.info.x,
+      L.xpY,
+    );
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(14, "normal");
+    ctx.fillText(
+      `🎙️ ${data.voiceMinutes.toLocaleString()} minutos totales`,
+      L.info.x,
+      L.statsY,
+    );
+
+    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+      name: "vc-rank.png",
+    });
+  } catch (err) {
+    console.error("[LevelBanners] generateVCRankBanner:", err);
+    return null;
+  }
+}
+
+export async function generateGlobalRankBanner(
+  data: GlobalRankData,
+): Promise<AttachmentBuilder | null> {
+  if (!canvasLib) return null;
+  try {
+    const { createCanvas, loadImage, GlobalFonts } = canvasLib;
+    registerFonts(GlobalFonts);
+
+    const canvas = createCanvas(W, H);
+    const ctx = canvas.getContext("2d");
+    const [bg, av] = await Promise.all([
+      getBg(loadImage),
+      loadImage(data.avatarBuffer),
+    ]);
+
+    drawBg(ctx, bg);
+    drawAvatar(ctx, av);
+
+    const tierColor = `rgba(${hexToRgb(data.tier.color)},0.22)`;
+    drawPanel(
+      ctx,
+      `#${data.globalRank}`,
+      "global",
+      `/${data.totalUsers.toLocaleString()}`,
+      tierColor,
+    );
+
+    const maxW = L.info.maxRight - L.info.x;
+    const { font: unFont, text: unText } = fitText(
+      ctx,
+      data.username,
+      maxW,
+      34,
+      20,
+      "bold",
+    );
+    sh(ctx, 12);
+    ctx.fillStyle = C.white;
+    ctx.font = unFont;
+    ctx.textAlign = "left";
+    ctx.fillText(unText, L.info.x, L.usernameY);
+    nosh(ctx);
+
+    ctx.fillStyle = C.lav;
+    ctx.font = f(25, "normal");
+    ctx.fillText(`Nivel Global ${data.globalLevel}`, L.info.x, L.levelY);
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(15, "normal");
+    ctx.fillText(
+      `${data.tier.emoji}  ${data.tier.name}  ·  ${data.tier.nameJp}`,
+      L.info.x,
+      L.subY,
+    );
+
+    const tierHex = `#${data.tier.color.toString(16).padStart(6, "0")}`;
+    drawBar(ctx, data.progressPercent, tierHex, lighten(tierHex, 40));
+
+    ctx.fillStyle = C.muted;
+    ctx.font = f(17, "normal");
+    ctx.fillText(
+      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP Global  (${data.progressPercent}%)`,
+      L.info.x,
+      L.xpY,
+    );
+
+    const hrs = Math.floor(data.totalVoiceMinutes / 60);
+    ctx.fillStyle = C.muted;
+    ctx.font = f(14, "normal");
+    ctx.fillText(
+      `💬 ${data.totalMessages.toLocaleString()} msgs  ·  🎙️ ${hrs}h en voz`,
+      L.info.x,
+      L.statsY,
+    );
+
+    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+      name: "global-rank.png",
+    });
+  } catch (err) {
+    console.error("[LevelBanners] generateGlobalRankBanner:", err);
+    return null;
+  }
+}
+
+function hexToRgb(hex: number): string {
+  const r = (hex >> 16) & 255;
+  const g = (hex >> 8) & 255;
+  const b = hex & 255;
+  return `${r},${g},${b}`;
+}
+
+function lighten(hex: string, amount: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.min(255, ((n >> 16) & 255) + amount);
+  const g = Math.min(255, ((n >> 8) & 255) + amount);
+  const b = Math.min(255, (n & 255) + amount);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+export { generateServerRankBanner as generateRankBanner };
