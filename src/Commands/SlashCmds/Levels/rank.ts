@@ -1,5 +1,4 @@
 import {
-  AttachmentBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   SlashCommandBuilder,
@@ -7,58 +6,7 @@ import {
 import { totalXpForLevel, xpForLevel } from "../../../Features/levelHandler";
 import { HoshikoClient } from "../../../index";
 import LocalLevel from "../../../Models/LocalLevels";
-
-// ============================================
-// CONFIGURACIÓN DE BANNERS PARA CANVAS (FUTURO)
-// ============================================
-// Para implementar banners con canvas, usa esta estructura:
-//
-// 1. Importar Canvas o Jimp
-// 2. Usar generateRankBanner(user, level, xp, rank, etc.)
-// 3. Generar imagen en memoria como Buffer
-// 4. Crear AttachmentBuilder con el buffer
-//
-// Ejemplo de estructura para el banner:
-// - Fondo: Gradiente rosa/sakura customizable
-// - Avatar del usuario con borde circular
-// - Nombre de usuario y tag
-// - Nivel con badge decorativo
-// - Barra de progreso animada
-// - Posición en el ranking
-// - Estadísticas (XP, mensajes)
-// - Decoraciones sakura
-
-export interface RankBannerConfig {
-  backgroundColor?: string;
-  accentColor?: string;
-  showBanner?: boolean;
-  style?: "sakura" | "ocean" | "sunset" | "custom";
-}
-
-export async function generateRankBanner(
-  user: any,
-  level: number,
-  xp: number,
-  rank: number,
-  progressPercent: number,
-  config?: RankBannerConfig,
-): Promise<AttachmentBuilder | null> {
-  // Placeholder para implementación futura con canvas
-  // Por ahora retorna null para usar el embed
-  return null;
-}
-
-// Función interna para generar banner
-async function createRankBanner(
-  target: any,
-  level: number,
-  xp: number,
-  rank: number,
-  progressPercent: number,
-  config?: RankBannerConfig,
-): Promise<AttachmentBuilder | null> {
-  return generateRankBanner(target, level, xp, rank, progressPercent, config);
-}
+import { generateRankBanner } from "../../../Utils/LevelBanners";
 
 export default {
   data: new SlashCommandBuilder()
@@ -69,12 +17,6 @@ export default {
         .setName("usuario")
         .setDescription("Usuario a consultar")
         .setRequired(false),
-    )
-    .addBooleanOption((o) =>
-      o
-        .setName("banner")
-        .setDescription("Generar banner visual (experimental)")
-        .setRequired(false),
     ),
 
   async execute(
@@ -82,7 +24,6 @@ export default {
     client: HoshikoClient,
   ) {
     const target = interaction.options.getUser("usuario") ?? interaction.user;
-    const showBanner = interaction.options.getBoolean("banner") ?? false;
 
     const profile = await LocalLevel.findOne({
       userId: target.id,
@@ -114,35 +55,46 @@ export default {
       100,
       Math.floor((xpIntoLevel / xpNeeded) * 100),
     );
-    const bar = buildProgressBar(progressPercent);
 
-    // Rank global en el servidor
     const rank =
       (await LocalLevel.countDocuments({
         guildId: interaction.guildId!,
         xp: { $gt: profile.xp },
       })) + 1;
 
-    // Calcular XP para el siguiente nivel
-    const xpToNextLevel = nextLevelXp - profile.xp;
+    // Intentar generar banner con canvas
+    try {
+      const avatarUrl = target.displayAvatarURL({
+        extension: "png",
+        size: 256,
+      });
+      const avatarRes = await fetch(avatarUrl);
+      const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
 
-    // Verificar si es milestone
+      const banner = await generateRankBanner({
+        username: target.displayName,
+        avatarBuffer,
+        level: profile.level,
+        xpCurrent: xpIntoLevel,
+        xpNeeded,
+        progressPercent,
+        rank,
+      });
+
+      if (banner) {
+        return interaction.editReply({ files: [banner] });
+      }
+    } catch (err) {
+      console.error("[rank] Error generando banner canvas:", err);
+    }
+
+    // Fallback: embed de texto
+    const bar = buildProgressBar(progressPercent);
+    const xpToNextLevel = nextLevelXp - profile.xp;
     const isMilestone = [5, 10, 15, 20, 25, 30, 50, 75, 100].includes(
       profile.level,
     );
     const milestoneEmoji = isMilestone ? "⭐" : "";
-
-    // Generar banner si se solicitó (futuro)
-    let attachment: AttachmentBuilder | null = null;
-    if (showBanner) {
-      attachment = await createRankBanner(
-        target,
-        profile.level,
-        profile.xp,
-        rank,
-        progressPercent,
-      );
-    }
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -170,11 +122,7 @@ export default {
           value: `\`${profile.xp.toLocaleString()}\` XP`,
           inline: true,
         },
-        {
-          name: "📈 Progreso",
-          value: `${bar}`,
-          inline: false,
-        },
+        { name: "📈 Progreso", value: bar, inline: false },
         {
           name: "🎯 Siguiente nivel",
           value:
@@ -188,12 +136,7 @@ export default {
       })
       .setTimestamp();
 
-    const payload: any = { embeds: [embed] };
-    if (attachment) {
-      payload.files = [attachment];
-    }
-
-    return interaction.editReply(payload);
+    return interaction.editReply({ embeds: [embed] });
   },
 };
 
