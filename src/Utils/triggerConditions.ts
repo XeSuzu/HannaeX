@@ -47,7 +47,7 @@ export async function checkReplyingToBot(
 ): Promise<boolean> {
   if (!message.reference?.messageId) return false;
   if (message.mentions.everyone) return false;
-  if (!message.mentions.users.has(client.user!.id)) return false;
+  if (!message.content.toLowerCase().startsWith("hoshi ask ")) return false;
   const repliedMsg = await message.channel.messages
     .fetch(message.reference.messageId)
     .catch(() => null);

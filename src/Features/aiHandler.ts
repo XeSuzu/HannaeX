@@ -1,4 +1,4 @@
-import { Content } from "@google/generative-ai";
+import { Content, Tool } from "@google/generative-ai";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -269,10 +269,17 @@ export default async (
 
   // --- 🚨 DETECCIÓN DE GATILLOS ---
   const isMentioned = message.mentions.users.has(client.user!.id);
-  const prefixMatch = message.content.toLowerCase().startsWith("hoshi ask ");
+  const prefixMatch =
+    message.content.toLowerCase().startsWith("hoshi ask ") &&
+    !message.content.toLowerCase().startsWith("hoshi ask img ");
 
   let isReplyToMe = false;
-  if (isPremium && message.reference && message.reference.messageId) {
+  if (
+    message.reference &&
+    message.reference.messageId &&
+    !message.mentions.everyone &&
+    message.content.toLowerCase().startsWith("hoshi ask ")
+  ) {
     try {
       const repliedMsg = await message.channel.messages.fetch(
         message.reference.messageId,
@@ -397,7 +404,7 @@ export default async (
           role: "user",
           parts: [
             {
-              text: `${userMessage || "Mira esta imagen:"}`,
+              text: `[${message.author.username} dice]: ${userMessage || "Mira esta imagen:"}`,
             },
             {
               inlineData: {
@@ -422,7 +429,7 @@ export default async (
         role: "user",
         parts: [
           {
-            text: `${userMessage}`,
+            text: `[${message.author.username} dice]: ${userMessage}`,
           },
         ],
       });
@@ -430,10 +437,15 @@ export default async (
 
     const safetyMode =
       (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
+    const tools = isDirectInteraction
+      ? [{ google_search: {} } as unknown as Tool]
+      : [];
+
     const stream = await generateResponseStream(
       systemInstruction,
       historyForApi,
       safetyMode,
+      tools,
     );
 
     let fullText = "";

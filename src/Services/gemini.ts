@@ -1,10 +1,10 @@
 import {
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-  GenerateContentStreamResult,
-  SafetySetting,
   Content,
+  GenerateContentStreamResult,
+  GoogleGenerativeAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  SafetySetting,
   Tool,
 } from "@google/generative-ai";
 
@@ -23,6 +23,7 @@ export async function generateResponseStream(
   systemInstruction: string,
   history: Content[],
   safetyLevel: "relaxed" | "standard" | "strict" = "standard",
+  tools?: Tool[],
 ): Promise<GenerateContentStreamResult["stream"]> {
   // 🛡️ MAPEO DE SEGURIDAD ROBUSTO
   const safetySettings: SafetySetting[] = [
@@ -73,9 +74,7 @@ export async function generateResponseStream(
       safetySettings,
       systemInstruction: systemInstruction,
 
-      tools: [
-        { google_search: {} } as unknown as Tool,
-      ],
+      ...(tools && tools.length > 0 && { tools }),
 
       generationConfig: {
         temperature: 0.7, // ✅ Ajustado ligeramente para mayor precisión técnica
@@ -118,7 +117,10 @@ export async function generateResponseStream(
       console.log(`🎚️ Nivel configurado: [${safetyLevel.toUpperCase()}]`);
 
       if (err.response?.promptFeedback) {
-        console.log("🔍 Feedback del Prompt:", JSON.stringify(err.response.promptFeedback, null, 2));
+        console.log(
+          "🔍 Feedback del Prompt:",
+          JSON.stringify(err.response.promptFeedback, null, 2),
+        );
       }
 
       if (err.response?.candidates && err.response.candidates.length > 0) {
@@ -140,7 +142,9 @@ export async function generateResponseStream(
     }
 
     if (err.name === "AbortError") {
-      console.error(`[GEMINI] ⏱️ Timeout: La respuesta tardó más de 30 segundos`);
+      console.error(
+        `[GEMINI] ⏱️ Timeout: La respuesta tardó más de 30 segundos`,
+      );
       throw new Error("TIMEOUT_ERROR");
     }
 
@@ -199,7 +203,9 @@ Respuesta (solo el array JSON):
     const parsed = JSON.parse(clean);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter((f: any) => typeof f === "string" && f.trim().length > 0);
+    return parsed.filter(
+      (f: any) => typeof f === "string" && f.trim().length > 0,
+    );
   } catch (err) {
     // Si falla la extracción, no bloqueamos nada — simplemente no guardamos facts
     console.warn("[GEMINI] ⚠️ No se pudieron extraer facts:", err);
