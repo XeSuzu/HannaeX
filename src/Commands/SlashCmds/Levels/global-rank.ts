@@ -11,6 +11,7 @@ import GlobalLevel, {
   globalTotalXpForLevel,
   globalXpForLevel,
 } from "../../../Models/GlobalLevel";
+import { generateGlobalRankBanner } from "../../../Utils/LevelBanners";
 
 export default {
   data: new SlashCommandBuilder()
@@ -57,9 +58,7 @@ export default {
       100,
       Math.floor((xpIntoLevel / xpNeeded) * 100),
     );
-    const bar = buildProgressBar(progressPercent, tier.color);
 
-    // Rank global
     const rank =
       (await GlobalLevel.countDocuments({
         globalXp: { $gt: globalProfile.globalXp },
@@ -68,9 +67,36 @@ export default {
     const totalUsers = await GlobalLevel.countDocuments({});
     const xpToNextLevel = nextLevelXp - globalProfile.globalXp;
 
-    // Logros con formato kawaii
+    // Intentar banner canvas
+    try {
+      const avatarUrl = target.displayAvatarURL({ extension: "png", size: 256 });
+      const avatarRes = await fetch(avatarUrl);
+      const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
+
+      const banner = await generateGlobalRankBanner({
+        username: target.displayName,
+        avatarBuffer,
+        globalLevel: globalProfile.globalLevel,
+        globalRank: rank,
+        totalUsers,
+        xpCurrent: xpIntoLevel,
+        xpNeeded,
+        progressPercent,
+        totalMessages: globalProfile.totalMessages,
+        totalVoiceMinutes: globalProfile.totalVoiceMinutes,
+        tier,
+      });
+
+      if (banner) return interaction.editReply({ files: [banner] });
+    } catch (err) {
+      console.error("[global-rank] Error generando banner:", err);
+    }
+
+    // Fallback embed
+    const bar = buildProgressBar(progressPercent, tier.color);
+
     const achievementsList = globalProfile.achievements
-      .slice(0, 6) // Máximo 6 logros visibles
+      .slice(0, 6)
       .map((a: string) => {
         const ach = getAchievement(a);
         return ach ? `${ach.emoji}` : "🏅";
@@ -83,7 +109,6 @@ export default {
         ? ` +${globalProfile.achievements.length - 6} más`
         : "";
 
-    // Próximo tier
     const currentTierIndex = GLOBAL_TIERS.findIndex(
       (t) => t.tier === tier.tier,
     );
@@ -124,11 +149,7 @@ export default {
           value: `\`${globalProfile.globalXp.toLocaleString()}\` XP`,
           inline: true,
         },
-        {
-          name: "📈 プログレス",
-          value: bar,
-          inline: false,
-        },
+        { name: "📈 プログレス", value: bar, inline: false },
         {
           name: "🎯 次のレベル",
           value:
@@ -168,8 +189,6 @@ export default {
 function buildProgressBar(percent: number, color: number): string {
   const filled = Math.round(percent / 10);
   const empty = 10 - filled;
-
-  // Usar caracteres especiales para la barra
   return (
     "```" +
     "▓".repeat(Math.max(0, filled)) +
