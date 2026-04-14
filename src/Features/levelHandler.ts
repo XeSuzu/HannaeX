@@ -562,9 +562,13 @@ export async function handleVoiceXp(
   const minMinutes = config.xpVoiceMinMinutes ?? 1;
   if (minutesInVoice < minMinutes) return;
 
+  // Cap anti-farming: máximo 120 minutos por sesión
+  const MAX_MINUTES_PER_SESSION = 120;
+  const cappedMinutes = Math.min(minutesInVoice, MAX_MINUTES_PER_SESSION);
+
   const xpGain = config.xpPerMinuteVoice ?? 10;
   const multiplier = config.xpMultiplier ?? 1.0;
-  const earned = Math.floor(xpGain * minutesInVoice * multiplier);
+  const earned = Math.floor(xpGain * cappedMinutes * multiplier);
 
   let profile = await LocalLevel.findOne({
     userId: member.id,
@@ -581,7 +585,6 @@ export async function handleVoiceXp(
   const newVoiceXp = (profile.voiceXp ?? 0) + earned;
   let newVoiceLevel = profile.voiceLevel ?? 0;
 
-  // Recalcular nivel de voz
   while (newVoiceXp >= totalXpForVoiceLevel(newVoiceLevel + 1)) {
     newVoiceLevel++;
   }
@@ -596,15 +599,14 @@ export async function handleVoiceXp(
         voiceLevel: newVoiceLevel,
       },
       $inc: {
-        voiceMinutes: minutesInVoice,
+        voiceMinutes: cappedMinutes,
       },
     },
   );
 
-  // Actualizar totalVoiceMinutes en GlobalLevel
   await GlobalLevel.updateOne(
     { userId: member.id },
-    { $inc: { totalVoiceMinutes: minutesInVoice } },
+    { $inc: { totalVoiceMinutes: cappedMinutes } },
     { upsert: true },
   );
 
@@ -612,6 +614,5 @@ export async function handleVoiceXp(
     console.log(
       `[VoiceLevel] ${member.user.username} subió al Nivel VC ${newVoiceLevel} en ${member.guild.name}`,
     );
-    // Opcional: anunciar en canal del servidor
   }
-}
+} 
