@@ -2,18 +2,43 @@ import { Events, VoiceState } from "discord.js";
 import { handleVoiceXp } from "../../Features/levelHandler";
 import LevelConfig from "../../Models/LevelConfig";
 
-// userId:guildId → timestamp de entrada válida
-const activeSessions = new Map<string, number>();
+// guardamos el timestamp, el member y el canal exacto
+const activeSessions = new Map<
+  string,
+  { start: number; member: any; channelId: string }
+>();
 
-// Cap de sesión: máximo 2 horas continuas
+// cap de sesión: máximo 2 horas continuas
 const MAX_SESSION_MS = 2 * 60 * 60_000;
 
-// Cada hora resetea sesiones que lleven más de 2h (sin dar XP extra)
-setInterval(() => {
+setInterval(async () => {
   const now = Date.now();
-  for (const [key, start] of activeSessions.entries()) {
-    if (now - start > MAX_SESSION_MS) {
-      activeSessions.set(key, now);
+  for (const [key, session] of activeSessions.entries()) {
+    if (now - session.start > MAX_SESSION_MS) {
+      const [userId, guildId] = key.split(":");
+      const minutes = Math.floor((now - session.start) / 60_000);
+
+      try {
+        const config = await LevelConfig.findOne({ guildId });
+        if (config?.enabled && config.xpVoiceEnabled) {
+          // pasamos el channelId a la función
+          await handleVoiceXp(
+            session.member,
+            config,
+            minutes,
+            session.channelId,
+          );
+        }
+      } catch (err) {
+        console.error("[voiceXp] error guardando xp por intervalo:", err);
+      }
+
+      // reiniciamos el reloj conservando los datos
+      activeSessions.set(key, {
+        start: now,
+        member: session.member,
+        channelId: session.channelId,
+      });
     }
   }
 }, 60 * 60_000);
@@ -40,18 +65,18 @@ async function closeSession(
   now: number,
 ): Promise<void> {
   const key = sessionKey(userId, guildId);
-  const start = activeSessions.get(key);
-  if (!start) return;
+  const session = activeSessions.get(key);
+  if (!session) return;
 
   activeSessions.delete(key);
 
-  const minutes = Math.floor((now - start) / 60_000);
+  const minutes = Math.floor((now - session.start) / 60_000);
   if (minutes < 1) return;
 
   const config = await LevelConfig.findOne({ guildId });
   if (!config?.enabled || !config.xpVoiceEnabled) return;
 
-  await handleVoiceXp(member, config, minutes);
+  await handleVoiceXp(member, config, minutes, session.channelId);
 }
 
 export default {
@@ -69,12 +94,20 @@ export default {
     const isOk = newState.channelId ? isValidSession(newState) : false;
 
     if (!wasOk && isOk) {
-      activeSessions.set(key, now);
+      activeSessions.set(key, {
+        start: now,
+        member,
+        channelId: newState.channelId!,
+      });
     } else if (wasOk && !isOk) {
       await closeSession(userId, guildId, member, now);
     } else if (wasOk && isOk && oldState.channelId !== newState.channelId) {
       await closeSession(userId, guildId, member, now);
-      activeSessions.set(key, now);
+      activeSessions.set(key, {
+        start: now,
+        member,
+        channelId: newState.channelId!,
+      });
     } else if (wasOk && !isValidSession(newState) && newState.channelId) {
       await closeSession(userId, guildId, member, now);
     }
