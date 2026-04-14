@@ -5,6 +5,19 @@ import LevelConfig from "../../Models/LevelConfig";
 // userId:guildId → timestamp de entrada válida
 const activeSessions = new Map<string, number>();
 
+// Cap de sesión: máximo 2 horas continuas
+const MAX_SESSION_MS = 2 * 60 * 60_000;
+
+// Cada hora resetea sesiones que lleven más de 2h (sin dar XP extra)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, start] of activeSessions.entries()) {
+    if (now - start > MAX_SESSION_MS) {
+      activeSessions.set(key, now);
+    }
+  }
+}, 60 * 60_000);
+
 function sessionKey(userId: string, guildId: string): string {
   return `${userId}:${guildId}`;
 }
