@@ -283,8 +283,6 @@ export default {
 
       if (isDirect) {
         await handleAi(message, client, true);
-      } else {
-        if (Math.random() < 0.02) await handleAi(message, client, false);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);

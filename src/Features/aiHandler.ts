@@ -369,9 +369,13 @@ export default async (
       promptContext,
     );
     const historyForApi: Content[] = [];
-    const sortedMessages = Array.from(prevMessages.values())
+    const recentMessages = Array.from(prevMessages.values())
       .reverse()
-      .slice(0, -1);
+      .slice(0, -1) as Message[];
+    const sortedMessages = recentMessages.filter(
+      (m) =>
+        m.author.id === client.user!.id || m.author.id === message.author.id,
+    );
 
     for (const m of sortedMessages) {
       const msgObj = m as Message;
