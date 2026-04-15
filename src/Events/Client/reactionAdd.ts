@@ -149,10 +149,10 @@ export default {
       }
     }
 
-    if (emojiIdentifier) {
+    if (emojiName) {
       const viralConfig = await ViralSetup.findOne({
         guildId: guildId,
-        emoji: emojiIdentifier,
+        emoji: emojiName,
       });
 
       if (viralConfig && (reaction.count || 0) >= viralConfig.requiredCount) {
