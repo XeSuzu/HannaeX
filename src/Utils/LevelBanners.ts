@@ -64,6 +64,7 @@ export interface ServerRankData {
   xpNeeded: number;
   progressPercent: number;
   messagesSent: number;
+  voiceMinutes: number;
   globalLevel?: number;
   globalRank?: number;
 }
@@ -128,7 +129,7 @@ function fitText(
   minPx = 18,
   weight = "bold",
 ): { font: string; text: string } {
-  const stack = '"BannerBold","BannerReg","Noto",sans-serif';
+  const stack = '"BannerBold","BannerReg","NotoColorEmoji",sans-serif';
   for (let px = startPx; px >= minPx; px -= 2) {
     ctx.font = `${weight} ${px}px ${stack}`;
     if (ctx.measureText(text).width <= maxW) return { font: ctx.font, text };
@@ -141,7 +142,7 @@ function fitText(
 }
 
 function f(px: number, weight = "normal") {
-  return `${weight} ${px}px "BannerBold","BannerReg","Noto",sans-serif`;
+  return `${weight} ${px}px "BannerBold","BannerReg","NotoColorEmoji",sans-serif`;
 }
 
 function sh(ctx: any, blur = 10, color = C.shadow) {
@@ -162,7 +163,7 @@ function registerFonts(GF: any) {
   const fonts = [
     { file: "Nunito-Bold.ttf", family: "BannerBold" },
     { file: "Nunito-Regular.ttf", family: "BannerReg" },
-    { file: "NotoSans-Regular.ttf", family: "Noto" },
+    { file: "NotoColorEmoji.ttf", family: "NotoColorEmoji" },
   ];
   for (const fnt of fonts) {
     try {
@@ -351,7 +352,7 @@ export async function generateServerRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(14, "normal");
     ctx.fillText(
-      `💬 ${data.messagesSent.toLocaleString()} mensajes`,
+      `💬 ${data.messagesSent.toLocaleString()} mensajes  ·  🎙️ ${data.voiceMinutes.toLocaleString()} min`,
       L.info.x,
       L.statsY,
     );

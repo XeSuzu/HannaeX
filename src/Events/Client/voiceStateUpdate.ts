@@ -8,15 +8,15 @@ const activeSessions = new Map<
   { start: number; member: any; channelId: string }
 >();
 
-// cap de sesión: máximo 2 horas continuas
-const MAX_SESSION_MS = 2 * 60 * 60_000;
-
+// Intervalo para guardar XP cada hora (sin límite de tiempo)
 setInterval(async () => {
   const now = Date.now();
   for (const [key, session] of activeSessions.entries()) {
-    if (now - session.start > MAX_SESSION_MS) {
+    const minutes = Math.floor((now - session.start) / 60_000);
+
+    // Solo procesar si lleva al menos 5 minutos
+    if (minutes >= 5) {
       const [userId, guildId] = key.split(":");
-      const minutes = Math.floor((now - session.start) / 60_000);
 
       try {
         const config = await LevelConfig.findOne({ guildId });
@@ -33,7 +33,7 @@ setInterval(async () => {
         console.error("[voiceXp] error guardando xp por intervalo:", err);
       }
 
-      // reiniciamos el reloj conservando los datos
+      // Reiniciamos el contador para la próxima hora
       activeSessions.set(key, {
         start: now,
         member: session.member,
@@ -41,7 +41,7 @@ setInterval(async () => {
       });
     }
   }
-}, 60 * 60_000);
+}, 60 * 60_000); // Cada hora
 
 function sessionKey(userId: string, guildId: string): string {
   return `${userId}:${guildId}`;

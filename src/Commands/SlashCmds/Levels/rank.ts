@@ -31,14 +31,18 @@ export default {
       guildId: interaction.guildId!,
     });
 
+    const displayName =
+      interaction.guild?.members.cache.get(target.id)?.displayName ??
+      target.username;
+
     if (!profile) {
       return interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor(0xffb7c5)
-            .setTitle(`🌸 Rango de ${target.displayName}`)
+            .setTitle(`🌸 Rango de ${displayName}`)
             .setDescription(
-              `**${target.displayName}** todavía no ha enviado mensajes en este servidor.\n\n` +
+              `**${displayName}** todavía no ha enviado mensajes en este servidor.\n\n` +
                 `💬 Envía algunos mensajes para empezar a ganar XP y subir de nivel~`,
             )
             .setThumbnail(target.displayAvatarURL())
@@ -80,7 +84,7 @@ export default {
       const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
 
       const banner = await generateServerRankBanner({
-        username: target.displayName,
+        username: displayName,
         avatarBuffer,
         level: profile.level,
         rank,
@@ -88,6 +92,7 @@ export default {
         xpNeeded,
         progressPercent,
         messagesSent: profile.messagesSent,
+        voiceMinutes: profile.voiceMinutes ?? 0,
         globalLevel: globalProfile?.globalLevel,
         globalRank,
       });
@@ -110,7 +115,7 @@ export default {
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
       .setAuthor({
-        name: `${target.displayName} ${milestoneEmoji}`,
+        name: `${displayName} ${milestoneEmoji}`,
         iconURL: target.displayAvatarURL(),
       })
       .setTitle(
@@ -129,10 +134,26 @@ export default {
           inline: true,
         },
         {
+          name: " Voz",
+          value: profile.voiceMinutes
+            ? `${profile.voiceMinutes.toLocaleString()} min`
+            : "Sin actividad",
+          inline: true,
+        },
+        {
           name: "⚡ XP Total",
           value: `\`${profile.xp.toLocaleString()}\` XP`,
           inline: true,
         },
+        ...(globalProfile
+          ? [
+              {
+                name: "🌐 Global",
+                value: `Nivel ${globalProfile.globalLevel} • #${globalRank}`,
+                inline: true,
+              },
+            ]
+          : []),
         { name: "📈 Progreso", value: bar, inline: false },
         {
           name: "🎯 Siguiente nivel",

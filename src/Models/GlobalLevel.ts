@@ -235,6 +235,30 @@ export const ACHIEVEMENTS = [
     description: "Un ave madrugadora~",
     color: 0xffa500,
   },
+  {
+    id: "voice_1h",
+    name: "一時間",
+    nameEn: "1 Hour Voice",
+    emoji: "🎤",
+    description: "60 minutos en voz! Buena conversación~",
+    color: 0x87ceeb,
+  },
+  {
+    id: "voice_10h",
+    name: "十時間",
+    nameEn: "10 Hours Voice",
+    emoji: "🎙️",
+    description: "600 minutos en voz! Muy sociable~",
+    color: 0x00ced1,
+  },
+  {
+    id: "voice_100h",
+    name: "百時間",
+    nameEn: "100 Hours Voice",
+    emoji: "🎧",
+    description: "6000 minutos en voz! Leyenda del chat de voz!",
+    color: 0x4b0082,
+  },
 ];
 
 export function getTierForLevel(level: number): (typeof GLOBAL_TIERS)[0] {

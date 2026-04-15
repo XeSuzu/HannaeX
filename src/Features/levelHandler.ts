@@ -218,6 +218,26 @@ function checkAchievements(
   return newAchievements;
 }
 
+function checkVoiceAchievements(
+  profile: any,
+  newVoiceMinutes: number,
+): string[] {
+  const newAchievements: string[] = [];
+
+  // Logros por minutos de voz
+  if (newVoiceMinutes >= 60 && !profile.achievements.includes("voice_1h")) {
+    newAchievements.push("voice_1h");
+  }
+  if (newVoiceMinutes >= 600 && !profile.achievements.includes("voice_10h")) {
+    newAchievements.push("voice_10h");
+  }
+  if (newVoiceMinutes >= 6000 && !profile.achievements.includes("voice_100h")) {
+    newAchievements.push("voice_100h");
+  }
+
+  return newAchievements;
+}
+
 async function announceAchievements(
   user: any,
   achievementIds: string[],
@@ -556,23 +576,38 @@ export async function handleVoiceXp(
   channelId: string | null,
 ): Promise<void> {
   if (!config.xpVoiceEnabled) return;
-  
+
   // usamos el canal que nos pasan por parámetro para evitar bugs al desconectarse
   if (channelId && config.ignoredChannels.includes(channelId)) return;
-  
+
   if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r)))
     return;
 
   const minMinutes = config.xpVoiceMinMinutes ?? 1;
   if (minutesInVoice < minMinutes) return;
 
-  // Cap anti-farming: máximo 120 minutos por sesión
-  const MAX_MINUTES_PER_SESSION = 120;
-  const cappedMinutes = Math.min(minutesInVoice, MAX_MINUTES_PER_SESSION);
+  // Sistema de XP pasiva: después de 5 horas de voz, XP reducida al 25%
+  const NORMAL_XP_MINUTES = 300; // Minutos con XP normal (5 horas)
+  const PASSIVE_XP_MULTIPLIER = 0.25; // 25% de XP a partir del límite
 
+  let earned = 0;
   const xpGain = config.xpPerMinuteVoice ?? 10;
   const multiplier = config.xpMultiplier ?? 1.0;
-  const earned = Math.floor(xpGain * cappedMinutes * multiplier);
+
+  if (minutesInVoice <= NORMAL_XP_MINUTES) {
+    // XP normal
+    earned = Math.floor(xpGain * minutesInVoice * multiplier);
+  } else {
+    // XP normal + XP pasiva
+    const normalMinutes = NORMAL_XP_MINUTES;
+    const passiveMinutes = minutesInVoice - NORMAL_XP_MINUTES;
+
+    const normalXp = xpGain * normalMinutes * multiplier;
+    const passiveXp =
+      xpGain * passiveMinutes * multiplier * PASSIVE_XP_MULTIPLIER;
+
+    earned = Math.floor(normalXp + passiveXp);
+  }
 
   let profile = await LocalLevel.findOne({
     userId: member.id,
@@ -603,16 +638,32 @@ export async function handleVoiceXp(
         voiceLevel: newVoiceLevel,
       },
       $inc: {
-        voiceMinutes: cappedMinutes,
+        voiceMinutes: minutesInVoice, // Guardar todos los minutos, no capped
       },
     },
   );
 
   await GlobalLevel.updateOne(
     { userId: member.id },
-    { $inc: { totalVoiceMinutes: cappedMinutes } },
+    { $inc: { totalVoiceMinutes: minutesInVoice } },
     { upsert: true },
   );
+
+  // Check for voice achievements
+  const globalProfile = await GlobalLevel.findOne({ userId: member.id });
+  if (globalProfile) {
+    const newVoiceAchievements = checkVoiceAchievements(
+      globalProfile,
+      globalProfile.totalVoiceMinutes,
+    );
+    if (newVoiceAchievements.length > 0) {
+      await GlobalLevel.updateOne(
+        { userId: member.id },
+        { $addToSet: { achievements: { $each: newVoiceAchievements } } },
+      );
+      await announceAchievements(member.user, newVoiceAchievements);
+    }
+  }
 
   if (leveledUp) {
     console.log(

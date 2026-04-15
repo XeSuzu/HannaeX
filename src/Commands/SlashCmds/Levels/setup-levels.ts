@@ -202,6 +202,11 @@ export default {
         )
         .addSubcommand((s) =>
           s
+            .setName("anuncio-limpiar")
+            .setDescription("❌ Eliminar canal de anuncios de nivel"),
+        )
+        .addSubcommand((s) =>
+          s
             .setName("ignorar")
             .setDescription("🚫 Ignorar/des-ignorar un canal")
             .addChannelOption((o) =>
@@ -311,6 +316,12 @@ export default {
         embed.addFields({
           name: "📢 Canal de anuncio",
           value: `<#${config.announceChannelId}>`,
+          inline: false,
+        });
+      } else {
+        embed.addFields({
+          name: "📢 Canal de anuncio",
+          value: "No configurado (se usará el canal actual de la acción).",
           inline: false,
         });
       }
@@ -603,6 +614,25 @@ export default {
           .setColor(0x51cf66)
           .setTitle("📢 Canal de anuncio establecido")
           .setDescription(`Anuncios de nivel se enviarán a <#${channel.id}>`)
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
+      }
+
+      if (sub === "anuncio-limpiar") {
+        await LevelConfig.updateOne(
+          { guildId },
+          { announceChannelId: null },
+          { upsert: true },
+        );
+
+        const embed = new EmbedBuilder()
+          .setColor(0xff6b6b)
+          .setTitle("❌ Canal de anuncio eliminado")
+          .setDescription(
+            "El sistema ya no usará un canal fijo para anuncios de nivel.",
+          )
           .setFooter({ text: "Hoshiko Levels 🌸" })
           .setTimestamp();
 

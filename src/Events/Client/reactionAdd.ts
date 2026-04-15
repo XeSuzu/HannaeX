@@ -1,5 +1,7 @@
 import { Events, MessageReaction, PartialUser, User } from "discord.js";
 import ActiveRole from "../../Models/ActiveRole";
+import LevelConfig from "../../Models/LevelConfig";
+import LocalLevel from "../../Models/LocalLevels";
 import ReactionConfig from "../../Models/ReactionConfig";
 import ServerConfig from "../../Models/serverConfig";
 import ViralSetup from "../../Models/ViralSetup";
@@ -112,7 +114,41 @@ export default {
     // =========================================================
     // 4. VIRAL ROLE (Global)
     // =========================================================
-    const emojiIdentifier = reaction.emoji.id || reaction.emoji.name;
+    // =========================================================
+    // REACCIÓN XP (Ganancia por reaccionar a mensajes)
+    // =========================================================
+    if (
+      message.author &&
+      !message.author.bot &&
+      user.id !== message.author.id
+    ) {
+      const levelConfig = await LevelConfig.findOne({ guildId });
+      if (
+        levelConfig?.xpReactionEnabled &&
+        (levelConfig.xpPerReaction ?? 0) > 0
+      ) {
+        const reactionXp = levelConfig.xpPerReaction;
+        try {
+          let userProfile = await LocalLevel.findOne({
+            userId: user.id,
+            guildId,
+          });
+          if (!userProfile) {
+            userProfile = await LocalLevel.create({
+              userId: user.id,
+              guildId,
+            });
+          }
+          await LocalLevel.updateOne(
+            { userId: user.id, guildId },
+            { $inc: { xp: reactionXp } },
+          );
+        } catch (err) {
+          console.error(`[reactionXp] Error dando XP por reacción:`, err);
+        }
+      }
+    }
+
     if (emojiIdentifier) {
       const viralConfig = await ViralSetup.findOne({
         guildId: guildId,
