@@ -11,6 +11,7 @@ import GlobalLevel, {
   globalTotalXpForLevel,
   globalXpForLevel,
 } from "../../../Models/GlobalLevel";
+import LocalLevel from "../../../Models/LocalLevels";
 import { generateGlobalRankBanner } from "../../../Utils/LevelBanners";
 
 export default {
@@ -67,9 +68,18 @@ export default {
     const totalUsers = await GlobalLevel.countDocuments({});
     const xpToNextLevel = nextLevelXp - globalProfile.globalXp;
 
+    const localProfiles = await LocalLevel.find({ userId: target.id });
+    const totalVoiceMinutes = localProfiles.reduce(
+      (acc, p) => acc + (p.voiceMinutes ?? 0),
+      0,
+    );
+
     // Intentar banner canvas
     try {
-      const avatarUrl = target.displayAvatarURL({ extension: "png", size: 256 });
+      const avatarUrl = target.displayAvatarURL({
+        extension: "png",
+        size: 256,
+      });
       const avatarRes = await fetch(avatarUrl);
       const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
 
@@ -83,7 +93,7 @@ export default {
         xpNeeded,
         progressPercent,
         totalMessages: globalProfile.totalMessages,
-        totalVoiceMinutes: globalProfile.totalVoiceMinutes,
+        totalVoiceMinutes,
         tier,
       });
 
@@ -174,6 +184,11 @@ export default {
         {
           name: `🏆 実績 ${globalProfile.achievements.length}/10`,
           value: achievementsText + moreAchievements,
+          inline: true,
+        },
+        {
+          name: "🎤 Tiempo en Voz",
+          value: `\`${Math.floor(totalVoiceMinutes / 60)}h ${totalVoiceMinutes % 60}m\``,
           inline: true,
         },
       )
