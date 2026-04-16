@@ -14,16 +14,7 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
-
-async function getAnimeGif(category: string): Promise<string> {
-  try {
-    const res = await fetch(`https://nekos.best/api/v2/${category}`);
-    const json = await res.json();
-    return json.results[0].url;
-  } catch {
-    return "https://media.tenor.com/7X7HPs4.gif";
-  }
-}
+import { getAnimeGif } from "../../../Utils/animeGif";
 
 async function startPat(
   targetUser: User,

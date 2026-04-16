@@ -14,17 +14,7 @@ import {
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
-
-// ⚙️ FUNCIÓN AUXILIAR API
-async function getAnimeGif(category: string): Promise<string> {
-  try {
-    const response = await fetch(`https://nekos.best/api/v2/${category}`);
-    const json = await response.json();
-    return json.results[0].url;
-  } catch (e) {
-    return "https://media.tenor.com/7X7HPs4.gif";
-  }
-}
+import { getAnimeGif } from "../../../Utils/animeGif";
 
 // ⚙️ LÓGICA CENTRAL (Compartida por Slash y Texto)
 async function startHug(

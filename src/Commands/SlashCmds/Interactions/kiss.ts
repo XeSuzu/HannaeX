@@ -14,16 +14,7 @@ import {
 import { HoshikoClient } from "../../../index";
 import Couple from "../../../Models/couple";
 import { SlashCommand } from "../../../Interfaces/Command";
-
-async function getAnimeGif(category: string): Promise<string> {
-  try {
-    const response = await fetch(`https://nekos.best/api/v2/${category}`);
-    const json = await response.json();
-    return json.results[0].url;
-  } catch (e) {
-    return "https://i.pinimg.com/originals/4e/6e/7e/4e6e7e9783821452fd9a3e5517058c68.gif";
-  }
-}
+import { getAnimeGif } from "../../../Utils/animeGif";
 
 async function startKiss(
   targetUser: User,
