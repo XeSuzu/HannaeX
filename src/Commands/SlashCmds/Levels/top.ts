@@ -27,7 +27,6 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    console.log("[top] guildId:", interaction.guildId);
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId!;
 
@@ -199,7 +198,7 @@ async function handlePaginatedTop(
   const collector = reply.createMessageComponentCollector({
     componentType: ComponentType.Button,
     filter: (btn) => btn.user.id === interaction.user.id,
-    time: 5 * 60_000, // 5 minutos
+    time: 5 * 60_000,
   });
 
   collector.on("collect", async (btn) => {
@@ -225,7 +224,6 @@ async function handlePaginatedTop(
   });
 
   collector.on("end", async () => {
-    // Deshabilitar todos los botones al expirar
     const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("top_first")
