@@ -16,12 +16,15 @@ import { extractFacts, generateResponseStream } from "../Services/gemini";
 import { buscarLetraGenius } from "../Services/geniusLyrics";
 import { SearchService, isQuerySafe } from "../Services/search";
 import { SystemPromptContext, SystemPrompts } from "../Utils/AI/SystemPrompts";
+import { containsPromptInjection } from "../Utils/triggerConditions";
 
 const antiSpamCooldown = new Set<string>();
 const processedMessages = new Set<string>();
 
-// Lista negra de términos para IA (no para búsqueda de imágenes)
-// Términos que siempre bloqueamos
+// ✅ Rate limit por usuario (3s entre mensajes)
+const userAiCooldown = new Map<string, number>();
+const USER_AI_COOLDOWN_MS = 3000;
+
 const AI_BLOCKED_TERMS = new Set([
   "como suicidarme",
   "como matarme",
@@ -37,7 +40,6 @@ const AI_BLOCKED_TERMS = new Set([
   "guia para hackear",
 ]);
 
-// Términos sensibles que requieren respuesta cuidadosa
 const AI_SENSITIVE_TERMS = [
   "suicid",
   "autolesion",
@@ -66,6 +68,15 @@ function shouldBlockMessage(text: string): { block: boolean; reason?: string } {
   return { block: false };
 }
 
+// ✅ Saludos aleatorios cuando solo mencionan al bot sin texto
+const EMPTY_MENTION_RESPONSES = [
+  "¿Me llamaste?",
+  "Dime~",
+  "¿Qué pasó?",
+  "Aquí estoy~ ¿en qué te ayudo?",
+  "¿Sí?",
+];
+
 export default async (
   message: Message,
   client: HoshikoClient,
@@ -73,15 +84,18 @@ export default async (
 ): Promise<boolean> => {
   if (message.author.bot || !message.guild) return false;
 
-  // =============================================================
-  // 🛡️ GUARD PRINCIPAL — evita doble procesamiento del mismo mensaje
-  // =============================================================
   if (processedMessages.has(message.id)) return false;
+
+  // ✅ Rate limit por usuario
+  const now = Date.now();
+  const lastCall = userAiCooldown.get(message.author.id) ?? 0;
+  if (now - lastCall < USER_AI_COOLDOWN_MS) return false;
+  userAiCooldown.set(message.author.id, now);
 
   let config = await ServerConfig.findOne({ guildId: message.guild.id });
   if (!config) config = new ServerConfig({ guildId: message.guild.id });
 
-  // --- ✨ BÚSQUEDA DE IMÁGENES CON PAGINACIÓN ---
+  // --- ✨ BÚSQUEDA DE IMÁGENES ---
   const prefix = config.prefix || "x";
   const imgAskMatch = message.content.match(
     /^(?:hoshi ask img|neko ask img)\s+(.+)/i,
@@ -236,7 +250,7 @@ export default async (
   const aiSystem = config.aiSystem || {
     mode: "neko",
     behavior: "normal",
-    randomChance: 3,
+    randomChance: 0,
     spontaneousChannels: [],
   };
   const isPremium = await PremiumManager.isPremium(message.guild.id);
@@ -274,12 +288,7 @@ export default async (
     !message.content.toLowerCase().startsWith("hoshi ask img ");
 
   let isReplyToMe = false;
-  if (
-    message.reference &&
-    message.reference.messageId &&
-    !message.mentions.everyone &&
-    message.content.toLowerCase().startsWith("hoshi ask ")
-  ) {
+  if (message.reference?.messageId && !message.mentions.everyone) {
     try {
       const repliedMsg = await message.channel.messages.fetch(
         message.reference.messageId,
@@ -291,7 +300,6 @@ export default async (
   const isDirectInteraction =
     forced || isMentioned || prefixMatch || isReplyToMe;
 
-  // Si no es forced y tiene gatillos directos → salir (messageCreate lo manejará con forced=true)
   if (!forced && (isMentioned || prefixMatch || isReplyToMe)) return false;
 
   // --- 🎲 GATILLO ESPONTÁNEO ---
@@ -299,7 +307,10 @@ export default async (
   if (!isDirectInteraction) {
     const allowedChannels = aiSystem.spontaneousChannels || [];
     if (allowedChannels.includes(message.channel.id)) {
-      isRandomTrigger = Math.random() * 100 < (aiSystem.randomChance || 3);
+      // ✅ Solo si randomChance está explícitamente configurado > 0
+      isRandomTrigger =
+        (aiSystem.randomChance ?? 0) > 0 &&
+        Math.random() * 100 < aiSystem.randomChance;
     }
   }
 
@@ -312,8 +323,7 @@ export default async (
   antiSpamCooldown.add(message.channel.id);
   setTimeout(() => antiSpamCooldown.delete(message.channel.id), 2500);
 
-  // --- 🚫 FILTRO DE CONTENIDO PARA IA ---
-  // Solo verificamos si es una interacción directa (mencion, hoshi ask, respuesta)
+  // --- 🚫 FILTRO DE CONTENIDO + PROMPT INJECTION ---
   if (isDirectInteraction) {
     const filterResult = shouldBlockMessage(message.content);
     if (filterResult.block) {
@@ -322,18 +332,24 @@ export default async (
         "Mmm~ eso no es algo de lo que me guste hablar. Qué otro tema te interesa?",
         "Uy~ ese tema me da cosa tocarlo jaja. Cambiamos de tema?",
       ];
-      const randomResponse =
-        responses[Math.floor(Math.random() * responses.length)];
-      await message.reply(`${randomResponse}${filterResult.reason || ""}`);
+      await message.reply(
+        `${responses[Math.floor(Math.random() * responses.length)]}${filterResult.reason || ""}`,
+      );
+      return true;
+    }
+
+    // ✅ Bloquear prompt injection
+    if (containsPromptInjection(message.content)) {
+      await message.reply("Nyaa~ eso suena sospechoso, no voy a hacer eso 👀");
       return true;
     }
   }
 
-  // Marcar mensaje como procesado AQUÍ — después de todos los guards
   processedMessages.add(message.id);
   setTimeout(() => processedMessages.delete(message.id), 10000);
 
-  if (isDirectInteraction && "sendTyping" in message.channel) {
+  // ✅ sendTyping también para replies
+  if ((isDirectInteraction || isReplyToMe) && "sendTyping" in message.channel) {
     await (message.channel as any).sendTyping().catch(() => null);
   }
 
@@ -372,6 +388,8 @@ export default async (
     const recentMessages = Array.from(prevMessages.values())
       .reverse()
       .slice(0, -1) as Message[];
+
+    // ✅ Solo bot + usuario — contexto personal
     const sortedMessages = recentMessages.filter(
       (m) =>
         m.author.id === client.user!.id || m.author.id === message.author.id,
@@ -394,8 +412,21 @@ export default async (
     let userMessage = message.content
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
-    if (!userMessage && isMentioned) userMessage = "Hola";
+
+    // ✅ Respuesta aleatoria si solo mencionan sin texto
+    if (!userMessage && isMentioned) {
+      userMessage =
+        EMPTY_MENTION_RESPONSES[
+          Math.floor(Math.random() * EMPTY_MENTION_RESPONSES.length)
+        ];
+    }
+
     if (prefixMatch) userMessage = message.content.substring(10).trim();
+
+    // ✅ Limpiar "hoshi ask" del mensaje si viene con prefijo
+    if (userMessage.toLowerCase().startsWith("hoshi ask ")) {
+      userMessage = userMessage.substring(10).trim();
+    }
 
     if (
       message.attachments.size > 0 &&
@@ -459,7 +490,6 @@ export default async (
       fullText += chunk.text();
     }
 
-    // --- ✂️ CHUNKS ---
     const MAX = 1996;
     const cleanText = (fullText.trim() || "...").replace(/^>>>\s*/, "");
 

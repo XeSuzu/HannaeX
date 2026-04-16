@@ -168,38 +168,46 @@ export async function extractFacts(
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite",
       generationConfig: {
-        temperature: 0.1, // Muy bajo — queremos respuestas deterministas
+        temperature: 0.1,
         maxOutputTokens: 256,
       },
     });
 
     const prompt = `
-Analiza el siguiente mensaje de un usuario de Discord llamado "${username}" y extrae ÚNICAMENTE información personal relevante y duradera sobre él.
+Analiza el mensaje de un usuario de Discord llamado "${username}" y extrae información útil para personalizar futuras respuestas.
 
-REGLAS ESTRICTAS:
-- Solo extrae hechos concretos: gustos, preferencias, nombre real, edad, idioma, hobbies, trabajo, etc.
-- NO extraigas preguntas, saludos, opiniones temporales ni comentarios del momento.
+EXTRAE cualquiera de estos tipos:
+- Datos personales: nombre real, edad, país, idioma
+- Gustos y hobbies: música, anime, juegos, deportes, etc.
+- Trabajo/estudios: profesión, carrera, habilidades
+- Preferencias de conversación: si prefiere respuestas cortas, si le gusta el humor, si es directo
+- Estado emocional recurrente: si menciona estar estresado seguido, si suele estar de buen humor, etc.
+- Temas que le importan o menciona frecuentemente
+
+REGLAS:
+- Solo hechos concretos y útiles para futuras conversaciones
+- NO extraigas saludos, preguntas genéricas ni comentarios del momento sin valor futuro
 - Si no hay nada relevante, responde exactamente: []
-- Responde SOLO con un array JSON de strings. Sin explicaciones. Sin markdown.
+- Responde SOLO con un array JSON de strings, sin markdown ni explicaciones
+- Máximo 3 facts por mensaje
 
-Ejemplos de facts válidos:
+Ejemplos válidos:
 - "Le gusta el anime de mechas"
-- "Su nombre real es Carlos"
-- "Trabaja como programador"
-- "Prefiere respuestas cortas"
+- "Prefiere respuestas cortas y directas"
+- "Está aprendiendo programación en TypeScript"
+- "Suele estar activo de noche"
+- "Tiene sentido del humor sarcástico"
+- "Le molesta cuando le explican cosas que ya sabe"
 
-Mensaje del usuario:
+Mensaje:
 "${userMessage}"
 
-Respuesta (solo el array JSON):
+Respuesta (solo array JSON):
     `.trim();
 
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-
-    // Limpiamos posibles backticks que Gemini añada
     const clean = text.replace(/```json|```/g, "").trim();
-
     const parsed = JSON.parse(clean);
     if (!Array.isArray(parsed)) return [];
 
@@ -207,7 +215,6 @@ Respuesta (solo el array JSON):
       (f: any) => typeof f === "string" && f.trim().length > 0,
     );
   } catch (err) {
-    // Si falla la extracción, no bloqueamos nada — simplemente no guardamos facts
     console.warn("[GEMINI] ⚠️ No se pudieron extraer facts:", err);
     return [];
   }

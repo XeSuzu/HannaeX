@@ -6,9 +6,7 @@ import {
   checkReplyingToBot,
   hasCommandArguments,
   isCommandPassthrough,
-  isHoshiAsk,
   isHoshiPrefix,
-  isImgCommand,
   isMentionTrigger,
 } from "../../Utils/triggerConditions";
 import { HoshikoClient } from "../../index";
@@ -204,7 +202,6 @@ export default {
 
         const prefixIsHoshi = isHoshiPrefix(prefix);
 
-        // Comandos especiales — se manejan antes de buscar en el registro
         if (commandName === "snipe") {
           await handleTextMessageSnipe(message, args);
           return;
@@ -214,7 +211,6 @@ export default {
           return;
         }
 
-        // Si el prefix es hoshi y el comando es passthrough (ask/img) con args → IA
         if (
           prefixIsHoshi &&
           isCommandPassthrough(commandName) &&
@@ -245,11 +241,10 @@ export default {
             }
             return;
           }
-          // Comando no encontrado → ignorar
           return;
         }
       } else {
-        // Sin prefix — solo "hoshi ask" o "hoshi img" activan la IA
+        // ✅ Sin prefix — solo hoshi ask y hoshi img activan la IA
         const lowerContent = message.content.toLowerCase();
         if (
           lowerContent.startsWith("hoshi ask ") ||
@@ -259,7 +254,7 @@ export default {
         }
       }
 
-      // ─── Fase 4: Features (solo si no hay prefix de comando) ─────────────
+      // ─── Fase 4: Features ─────────────────────────────────────────────────
       Sanitizer.clean(message.content);
       await handleCulture(message);
       if (!isHoshiCall && (await handleAfk(message))) return;
@@ -269,17 +264,11 @@ export default {
       const isAiEnabled = settings?.aiModule?.enabled !== false;
       if (!isAiEnabled) return;
 
+      // ✅ Solo @ mención con contenido y reply directo al bot — sin duplicados
       const isMentioned = isMentionTrigger(message, client);
       const isReplyingToMe = await checkReplyingToBot(message, client);
-      const isImgTrigger = isImgCommand(message);
-      const isAskTrigger = isHoshiAsk(message);
 
-      const isDirect =
-        isMentioned ||
-        isReplyingToMe ||
-        isHoshiCall ||
-        isImgTrigger ||
-        isAskTrigger;
+      const isDirect = isMentioned || isReplyingToMe || isHoshiCall;
 
       if (isDirect) {
         await handleAi(message, client, true);

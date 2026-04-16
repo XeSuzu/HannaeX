@@ -38,6 +38,7 @@ export function isMentionTrigger(
   const contentAfterMention = message.content
     .replace(`<@${client.user!.id}>`, "")
     .trim();
+  // ✅ Solo activa si hay texto después del @
   return hasMention && contentAfterMention.length > 0;
 }
 
@@ -47,7 +48,7 @@ export async function checkReplyingToBot(
 ): Promise<boolean> {
   if (!message.reference?.messageId) return false;
   if (message.mentions.everyone) return false;
-  if (!message.content.toLowerCase().startsWith("hoshi ask ")) return false;
+  // ✅ Reply directo al bot es suficiente, sin exigir "hoshi ask"
   const repliedMsg = await message.channel.messages
     .fetch(message.reference.messageId)
     .catch(() => null);
@@ -64,4 +65,19 @@ export function hasCommandArguments(
     contentAfterPrefix.toLowerCase().startsWith(`${commandName} `) &&
     contentAfterPrefix.slice(commandName.length).trim().length > 0
   );
+}
+
+// ✅ Detección de prompt injection
+const INJECTION_PATTERNS = [
+  /ignora (tus |todas )?(instrucciones|reglas)/i,
+  /eres ahora/i,
+  /nuevo (rol|sistema|prompt)/i,
+  /actúa como/i,
+  /forget (your |all )?(instructions|rules)/i,
+  /you are now/i,
+  /new (role|system|prompt)/i,
+];
+
+export function containsPromptInjection(text: string): boolean {
+  return INJECTION_PATTERNS.some((p) => p.test(text));
 }
