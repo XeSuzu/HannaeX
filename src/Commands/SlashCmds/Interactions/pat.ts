@@ -1,4 +1,4 @@
-// src/Commands/SlashCmds/Interactions/slap.ts
+// src/Commands/SlashCmds/Interactions/pat.ts
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -25,55 +25,55 @@ async function getAnimeGif(category: string): Promise<string> {
   }
 }
 
-async function startSlap(
+async function startPat(
   targetUser: User,
   authorUser: User,
   color: string,
   replyCallback: (payload: any) => Promise<Message>,
 ) {
   if (targetUser.id === authorUser.id) {
-    const gif = await getAnimeGif("slap");
+    const gif = await getAnimeGif("pat");
     return replyCallback({
       embeds: [
         new EmbedBuilder()
           .setColor(color as any)
           .setDescription(
-            `😶 **${authorUser.username}**... te diste una cachetada a ti mism@. Todo bien?`,
+            `🥹 **${authorUser.username}** se da palmaditas a sí mism@. Todo va a estar bien~`,
           )
           .setImage(gif),
       ],
     });
   }
 
-  const gif = await getAnimeGif("slap");
+  const gif = await getAnimeGif("pat");
   const flavors = [
-    `le da una cachetada épica a`,
-    `viene con toda la mano a`,
-    `le manda un tortazo a`,
-    `le aplica la ley del talión a`,
+    `le da una tierna palmadita en la cabeza a`,
+    `acaricia suavemente la cabeza de`,
+    `le dice "buen trabajo" con palmaditas a`,
+    `consuela con cariño a`,
   ];
   const flavor = flavors[Math.floor(Math.random() * flavors.length)];
 
   const embed = new EmbedBuilder()
     .setColor(color as any)
     .setDescription(
-      `👋 **${authorUser.username}** ${flavor} **${targetUser.username}**!\n\n*¿Devolverás la cachetada?* 😤`,
+      `🤍 **${authorUser.username}** ${flavor} **${targetUser.username}**~\n\n*¿Aceptas las palmaditas?* 🥺`,
     )
     .setImage(gif)
     .setTimestamp()
     .setFooter({
-      text: `Esperando a ${targetUser.username}...`,
+      text: `Para ${targetUser.username} con cariño~`,
       iconURL: targetUser.displayAvatarURL(),
     });
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId("slap_return")
-      .setLabel("👋 Devolver")
-      .setStyle(ButtonStyle.Danger),
+      .setCustomId("pat_accept")
+      .setLabel("🥹 Aceptar")
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId("slap_ignore")
-      .setLabel("😤 Ignorar")
+      .setCustomId("pat_reject")
+      .setLabel("😾 No gracias")
       .setStyle(ButtonStyle.Secondary),
   );
 
@@ -91,7 +91,7 @@ async function startSlap(
   collector.on("collect", async (i: ButtonInteraction) => {
     if (i.user.id !== targetUser.id)
       return i.reply({
-        content: "❌ Esta cachetada no es para ti.",
+        content: "❌ Estas palmaditas no son para ti.",
         ephemeral: true,
       });
 
@@ -104,14 +104,14 @@ async function startSlap(
     );
     await i.update({ components: [disabled] });
 
-    if (i.customId === "slap_return") {
-      const gif2 = await getAnimeGif("slap");
+    if (i.customId === "pat_accept") {
+      const gif2 = await getAnimeGif("pat");
       await i.followUp({
         embeds: [
           new EmbedBuilder()
-            .setColor("#ff5252")
+            .setColor("#f8bbd0")
             .setDescription(
-              `💥 **${targetUser.username}** le devolvió la cachetada a **${authorUser.username}**. ¡Empate!`,
+              `🥹 **${targetUser.username}** aceptó las palmaditas de **${authorUser.username}**. Qué ternura~`,
             )
             .setImage(gif2),
         ],
@@ -122,7 +122,7 @@ async function startSlap(
           new EmbedBuilder()
             .setColor("#9e9e9e")
             .setDescription(
-              `😤 **${targetUser.username}** ignoró la cachetada con clase. Dignidad: 100.`,
+              `😾 **${targetUser.username}** no quería palmaditas hoy. Respetado.`,
             ),
         ],
       });
@@ -134,12 +134,12 @@ async function startSlap(
 const command: SlashCommand = {
   category: "Interactions",
   data: new SlashCommandBuilder()
-    .setName("slap")
-    .setDescription("👋 Dale una cachetada a alguien")
+    .setName("pat")
+    .setDescription("🤍 Dale palmaditas a alguien")
     .addUserOption((opt) =>
       opt
         .setName("usuario")
-        .setDescription("A quién cachetear")
+        .setDescription("A quién pattear")
         .setRequired(true),
     ),
 
@@ -149,10 +149,10 @@ const command: SlashCommand = {
   ) {
     const target = interaction.options.getUser("usuario", true);
     const member = interaction.member as GuildMember;
-    await startSlap(
+    await startPat(
       target,
       interaction.user,
-      member?.displayHexColor || "#ff5252",
+      member?.displayHexColor || "#f8bbd0",
       async (p) => (await interaction.editReply(p)) as Message,
     );
   },
@@ -161,12 +161,12 @@ const command: SlashCommand = {
     const target = message.mentions.users.first();
     if (!target)
       return message.reply(
-        "🌸 Menciona a alguien. Ejemplo: `hoshi slap @usuario`",
+        "🌸 Menciona a alguien. Ejemplo: `hoshi pat @usuario`",
       );
-    await startSlap(
+    await startPat(
       target,
       message.author,
-      message.member?.displayHexColor || "#ff5252",
+      message.member?.displayHexColor || "#f8bbd0",
       async (p) => message.reply(p),
     );
   },
