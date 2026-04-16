@@ -1,5 +1,8 @@
 import { ActivityType, Client, Events } from "discord.js";
-import { initVoiceSessionClient } from "../../Events/Client/voiceStateUpdate";
+import {
+  initVoiceSessionClient,
+  rehydrateVoiceSessions,
+} from "../../Events/Client/voiceStateUpdate";
 import { HoshikoClient } from "../../index";
 import ActiveRole from "../../Models/ActiveRole";
 import { HoshikoLogger, LogLevel } from "../../Security";
@@ -77,8 +80,8 @@ export default {
 
     await Logger.logBotRestart("Bot iniciado correctamente");
 
-    // 🎤 Registrar client para sesiones de voz
     initVoiceSessionClient(client);
+    await rehydrateVoiceSessions(); // <- línea nueva
     console.log("   🎤 Gestor de sesiones de voz activo");
 
     // ─────────────────────────────────────

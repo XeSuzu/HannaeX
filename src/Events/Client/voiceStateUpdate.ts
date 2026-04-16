@@ -1,10 +1,9 @@
 import { Client, Events, VoiceState } from "discord.js";
 import crypto from "node:crypto";
 import { handleVoiceXp } from "../../Features/levelHandler";
+import ActiveVoiceSession from "../../Models/ActiveVoiceSession";
 import LevelConfig from "../../Models/LevelConfig";
 
-// ─── Mapa de sesiones activas ────────────────────────────────────────────────
-// Solo guarda datos primitivos; el member se fetchea fresco en cada operación
 const activeSessions = new Map<
   string,
   {
@@ -12,34 +11,69 @@ const activeSessions = new Map<
     userId: string;
     guildId: string;
     channelId: string;
-    token: string; // versión de sesión — evita zombies y race conditions
+    token: string;
   }
 >();
 
-// Necesitamos el client para fetchear members frescos desde el intervalo
 let client: Client;
 export function initVoiceSessionClient(c: Client): void {
   client = c;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Rehidratación al arrancar ────────────────────────────────────────────────
+export async function rehydrateVoiceSessions(): Promise<void> {
+  if (!client) return;
+  const saved = await ActiveVoiceSession.find();
+  let restored = 0,
+    cleaned = 0;
+
+  for (const s of saved) {
+    try {
+      const guild = client.guilds.cache.get(s.guildId);
+      if (!guild) {
+        await ActiveVoiceSession.deleteOne({ _id: s._id });
+        cleaned++;
+        continue;
+      }
+
+      const member = await guild.members.fetch(s.userId).catch(() => null);
+      if (!member?.voice?.channelId || member.voice.channelId !== s.channelId) {
+        await ActiveVoiceSession.deleteOne({ _id: s._id });
+        cleaned++;
+        continue;
+      }
+
+      activeSessions.set(sessionKey(s.userId, s.guildId), {
+        start: s.start.getTime(), // Preserva start original — no pierde minutos
+        userId: s.userId,
+        guildId: s.guildId,
+        channelId: s.channelId,
+        token: s.token,
+      });
+      restored++;
+    } catch {
+      await ActiveVoiceSession.deleteOne({ _id: s._id }).catch(() => null);
+      cleaned++;
+    }
+  }
+  console.log(
+    `   🎤 Sesiones de voz rehidratadas: ${restored} restauradas, ${cleaned} limpiadas`,
+  );
+}
+
 function sessionKey(userId: string, guildId: string): string {
   return `${userId}:${guildId}`;
 }
 
-/** Valida el estado VC desde el evento (al entrar/salir) */
 function isValidSession(state: VoiceState): boolean {
   if (!state.channel || !state.member) return false;
   if (state.member.user.bot) return false;
   if (state.selfDeaf || state.selfMute) return false;
   if (state.serverDeaf || state.serverMute) return false;
   if (state.guild.afkChannelId === state.channelId) return false;
-
-  const humans = state.channel.members.filter((m) => !m.user.bot).size;
-  return humans >= 2;
+  return state.channel.members.filter((m) => !m.user.bot).size >= 2;
 }
 
-/** Valida el estado VC usando el member fresco (usado por el intervalo) */
 function isValidVoiceStateNow(member: any): boolean {
   const state = member?.voice;
   if (!state?.channel || !member) return false;
@@ -47,18 +81,33 @@ function isValidVoiceStateNow(member: any): boolean {
   if (state.selfDeaf || state.selfMute) return false;
   if (state.serverDeaf || state.serverMute) return false;
   if (member.guild.afkChannelId === state.channelId) return false;
-
-  const humans = state.channel.members.filter((m: any) => !m.user.bot).size;
-  return humans >= 2;
+  return state.channel.members.filter((m: any) => !m.user.bot).size >= 2;
 }
 
-// ─── Intervalo cada hora ──────────────────────────────────────────────────────
-// Paga XP VC local acumulada, revalidando el estado real del miembro
+async function persistSession(
+  userId: string,
+  guildId: string,
+  channelId: string,
+  start: number,
+  token: string,
+): Promise<void> {
+  await ActiveVoiceSession.findOneAndUpdate(
+    { userId, guildId },
+    { channelId, start: new Date(start), token },
+    { upsert: true },
+  ).catch(() => null);
+}
+
+async function removePersistedSession(
+  userId: string,
+  guildId: string,
+): Promise<void> {
+  await ActiveVoiceSession.deleteOne({ userId, guildId }).catch(() => null);
+}
+
 setInterval(async () => {
   const now = Date.now();
-
   for (const [key, session] of activeSessions.entries()) {
-    // Verificar que la sesión no fue reemplazada o borrada mientras iteramos
     const current = activeSessions.get(key);
     if (!current || current.token !== session.token) continue;
 
@@ -67,58 +116,71 @@ setInterval(async () => {
 
     try {
       if (!client) continue;
-
       const guild = client.guilds.cache.get(session.guildId);
       if (!guild) {
         activeSessions.delete(key);
+        await removePersistedSession(session.userId, session.guildId);
         continue;
       }
 
-      // Fetch member fresco — valida roles y estado actual
       const member = await guild.members
         .fetch(session.userId)
         .catch(() => null);
       if (!member) {
         activeSessions.delete(key);
+        await removePersistedSession(session.userId, session.guildId);
         continue;
       }
 
-      // Re-verificar token después del await (puede haber cambiado)
       const latest = activeSessions.get(key);
       if (!latest || latest.token !== session.token) continue;
 
-      // Si el estado dejó de ser válido, resetear timer sin dar XP
       if (!isValidVoiceStateNow(member)) {
         activeSessions.set(key, { ...session, start: now });
+        await persistSession(
+          session.userId,
+          session.guildId,
+          session.channelId,
+          now,
+          session.token,
+        );
         continue;
       }
 
       const config = await LevelConfig.findOne({ guildId: session.guildId });
       if (!config?.enabled || !config.xpVoiceEnabled) continue;
-
-      // Validar canal y roles ignorados con datos frescos
       if (config.ignoredChannels.includes(session.channelId)) continue;
       if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r))) {
         activeSessions.set(key, { ...session, start: now });
+        await persistSession(
+          session.userId,
+          session.guildId,
+          session.channelId,
+          now,
+          session.token,
+        );
         continue;
       }
 
       await handleVoiceXp(member, config, minutes, session.channelId);
 
-      // Verificar token una última vez antes de resetear
       const after = activeSessions.get(key);
       if (!after || after.token !== session.token) continue;
 
-      // Resetear contador para la siguiente hora
       activeSessions.set(key, { ...session, start: now });
+      await persistSession(
+        session.userId,
+        session.guildId,
+        session.channelId,
+        now,
+        session.token,
+      );
     } catch (err) {
       console.error("[voiceXp] error guardando xp por intervalo:", err);
     }
   }
 }, 60 * 60_000);
 
-// ─── closeSession ─────────────────────────────────────────────────────────────
-// Token-safe: si el intervalo reemplazó la sesión justo antes, no duplicamos XP
 async function closeSession(
   userId: string,
   guildId: string,
@@ -128,8 +190,8 @@ async function closeSession(
   const session = activeSessions.get(key);
   if (!session) return;
 
-  // Borrar primero — evita que el intervalo la procese en paralelo
   activeSessions.delete(key);
+  await removePersistedSession(userId, guildId); // Borrar en DB también
 
   const minutes = Math.floor((now - session.start) / 60_000);
   if (minutes < 1) return;
@@ -149,14 +211,12 @@ async function closeSession(
   await handleVoiceXp(member, config, minutes, session.channelId);
 }
 
-// ─── Evento principal ─────────────────────────────────────────────────────────
 export default {
   name: Events.VoiceStateUpdate,
   async execute(oldState: VoiceState, newState: VoiceState): Promise<void> {
     const member = newState.member ?? oldState.member;
     const userId = member?.id;
     const guildId = newState.guild.id;
-
     if (!userId || member?.user.bot) return;
 
     const key = sessionKey(userId, guildId);
@@ -165,29 +225,29 @@ export default {
     const isOk = newState.channelId ? isValidSession(newState) : false;
 
     if (!wasOk && isOk) {
-      // Entró a un canal válido
+      const token = crypto.randomUUID();
       activeSessions.set(key, {
         start: now,
         userId,
         guildId,
         channelId: newState.channelId!,
-        token: crypto.randomUUID(),
+        token,
       });
+      await persistSession(userId, guildId, newState.channelId!, now, token);
     } else if (wasOk && !isOk) {
-      // Salió del canal o dejó de ser válido
       await closeSession(userId, guildId, now);
     } else if (wasOk && isOk && oldState.channelId !== newState.channelId) {
-      // Cambió de canal: cerrar sesión anterior y abrir nueva
       await closeSession(userId, guildId, now);
+      const token = crypto.randomUUID();
       activeSessions.set(key, {
         start: now,
         userId,
         guildId,
         channelId: newState.channelId!,
-        token: crypto.randomUUID(),
+        token,
       });
+      await persistSession(userId, guildId, newState.channelId!, now, token);
     } else if (wasOk && newState.channelId && !isValidSession(newState)) {
-      // Sigue en canal pero pasó a estado inválido (se muteó, etc.)
       await closeSession(userId, guildId, now);
     }
   },
