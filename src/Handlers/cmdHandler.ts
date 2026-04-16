@@ -1,7 +1,7 @@
-import path from "path";
 import fs from "fs";
+import path from "path";
 import { HoshikoClient } from "../index";
-import { SlashCommand, PrefixCommand } from "../Interfaces/Command";
+import { PrefixCommand, SlashCommand } from "../Interfaces/Command";
 
 function getFilesRecursively(directory: string): string[] {
   let files: string[] = [];
@@ -27,23 +27,30 @@ function getFilesRecursively(directory: string): string[] {
   return files;
 }
 
-function loadCommands<T>(directoryPath: string, validator: (cmd: any) => boolean): T[] {
+function loadCommands<T>(
+  directoryPath: string,
+  validator: (cmd: any) => boolean,
+): T[] {
   const commands: T[] = [];
   const allFiles = getFilesRecursively(directoryPath);
 
-  console.log(`[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos)`);
+  console.log(
+    `[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos)`,
+  );
 
   for (const filePath of allFiles) {
     try {
       delete require.cache[require.resolve(filePath)];
-      
+
       const mod = require(path.resolve(filePath));
       const command = mod.default || mod;
 
       if (validator(command)) {
-        commands.push(command as T); 
+        commands.push(command as T);
       } else {
-        console.warn(`⚠️ [WARNING] El archivo ${path.basename(filePath)} fue ignorado porque no tiene la estructura correcta (le falta name, data o execute).`);
+        console.warn(
+          `⚠️ [WARNING] El archivo ${path.basename(filePath)} fue ignorado porque no tiene la estructura correcta (le falta name, data o execute).`,
+        );
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -55,27 +62,38 @@ function loadCommands<T>(directoryPath: string, validator: (cmd: any) => boolean
 
 export default (client: HoshikoClient) => {
   const prefixPath = path.join(__dirname, "../Commands/PrefixCmds");
-  
+
   const prefixCommands = loadCommands<PrefixCommand>(prefixPath, (cmd) => {
-    return cmd && typeof cmd.name === "string" && typeof cmd.execute === "function";
+    return (
+      cmd && typeof cmd.name === "string" && typeof cmd.execute === "function"
+    );
   });
-  
+
   for (const c of prefixCommands) {
     client.commands.set(c.name, c);
   }
   console.log(`📜 Prefijos validados y cargados: ${client.commands.size}`);
 
   const slashPath = path.join(__dirname, "../Commands/SlashCmds");
-  
+
   const slashCommands = loadCommands<SlashCommand>(slashPath, (cmd) => {
     return cmd && cmd.data && typeof cmd.execute === "function";
   });
 
   for (const command of slashCommands) {
-    const name = command.data.name; 
-    
+    const name = command.data.name;
+
     if (name) {
       client.slashCommands.set(name, command);
+
+      // ✅ Si tiene prefixRun, registrarlo también para comandos de texto
+      if (typeof (command as any).prefixRun === "function") {
+        client.commands.set(name, {
+          name,
+          execute: (message: any, args: any[], client: any) =>
+            (command as any).prefixRun(client, message, args),
+        } as any);
+      }
     }
   }
 
