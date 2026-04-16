@@ -309,10 +309,10 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const minLength = config?.xpMinLength ?? 5;
   if (message.content.length < minLength) return;
 
-  const baseXp       = config?.xpPerMessage ?? 20;
+  const baseXp = config?.xpPerMessage ?? 20;
   const cooldownSecs = config?.xpCooldown ?? 60;
-  const multiplier   = config?.xpMultiplier ?? 1.0;
-  const now          = new Date();
+  const multiplier = config?.xpMultiplier ?? 1.0;
+  const now = new Date();
 
   let profile = await LocalLevel.findOne({
     userId: message.author.id,
@@ -340,8 +340,8 @@ export async function handleLevelXp(message: Message): Promise<void> {
   ).size;
 
   const isInvalidMentionSpam = totalMentions > validMentions;
-  const isVeryFastSpam       = secondsSinceLast < 5; // < 5s = spam real
-  const isAbuse              = isInvalidMentionSpam || isVeryFastSpam;
+  const isVeryFastSpam = secondsSinceLast < 5; // < 5s = spam real
+  const isAbuse = isInvalidMentionSpam || isVeryFastSpam;
 
   const isInAbuseCooldown =
     !!profile.abuseCooldownUntil && now < profile.abuseCooldownUntil;
@@ -357,22 +357,12 @@ export async function handleLevelXp(message: Message): Promise<void> {
 
   // Aplicar cooldown y advertencia si hay abuso nuevo
   if (isAbuse) {
-    const cooldownUntil = new Date(now.getTime() + 5 * 60 * 1000);
     await LocalLevel.updateOne(
       { userId: message.author.id, guildId: message.guild.id },
-      { abuseCooldownUntil: cooldownUntil, lastAbuseWarning: now },
-    );
-
-    await (message.channel as TextChannel)
-      .send(
-        `🐾 ${message.author}, estás enviando mensajes demasiado rápido para ganar XP. ` +
-          `Sigue hablando con normalidad y el sistema volverá a contarte en un momento.`,
-      )
-      .catch(() => {});
-
-    await LocalLevel.updateOne(
-      { userId: message.author.id, guildId: message.guild.id },
-      { $inc: { messagesSent: 1 } },
+      {
+        abuseCooldownUntil: new Date(now.getTime() + 5 * 60 * 1000),
+        $inc: { messagesSent: 1 },
+      },
     );
     return;
   }
@@ -386,7 +376,11 @@ export async function handleLevelXp(message: Message): Promise<void> {
   let earned = Math.floor(baseXp + Math.random() * baseXp * 0.5);
 
   // Bonus por menciones válidas
-  if (config?.xpMentionBonus && config.xpMentionBonus > 0 && validMentions > 0) {
+  if (
+    config?.xpMentionBonus &&
+    config.xpMentionBonus > 0 &&
+    validMentions > 0
+  ) {
     const mentionBonus = Math.min(
       validMentions * config.xpMentionBonus,
       config.xpMentionMaxBonus ?? 25,
@@ -414,16 +408,16 @@ export async function handleLevelXp(message: Message): Promise<void> {
 
   // ── Weekly local ─────────────────────────────────────────────────────────
   const currentWeekStart = getCurrentWeekStart();
-  const localWeekStart   = profile.weekStartDate ?? new Date(0);
+  const localWeekStart = profile.weekStartDate ?? new Date(0);
 
   let weeklyXp: number;
   let weeklyMessages: number;
 
   if (localWeekStart < currentWeekStart) {
-    weeklyXp      = earned;
+    weeklyXp = earned;
     weeklyMessages = 1;
   } else {
-    weeklyXp      = (profile.weeklyXp ?? 0) + earned;
+    weeklyXp = (profile.weeklyXp ?? 0) + earned;
     weeklyMessages = (profile.weeklyMessages ?? 0) + 1;
   }
 
@@ -436,14 +430,14 @@ export async function handleLevelXp(message: Message): Promise<void> {
   }
 
   const leveledUp = newLevel > profile.level;
-  const oldLevel  = profile.level;
+  const oldLevel = profile.level;
 
   await LocalLevel.updateOne(
     { userId: message.author.id, guildId: message.guild.id },
     {
-      xp:           newXp,
-      level:        newLevel,
-      lastXpGain:   now,
+      xp: newXp,
+      level: newLevel,
+      lastXpGain: now,
       weeklyXp,
       weeklyMessages,
       weekStartDate: currentWeekStart,
@@ -471,7 +465,7 @@ export async function handleLevelXp(message: Message): Promise<void> {
   if (announceMode === "silent") return;
   if (announceMode === "milestone" && !isMilestone(newLevel)) return;
 
-  const milestone      = isMilestone(newLevel);
+  const milestone = isMilestone(newLevel);
   const milestoneEmoji = milestone ? "⭐ " : "";
   const celebrationEmoji = milestone ? "🎉" : "✨";
 
@@ -583,15 +577,15 @@ export async function handleVoiceXp(
   if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r)))
     return;
 
-  const minMinutes   = config.xpVoiceMinMinutes ?? 1;
-  const safeMinutes  = Math.max(0, Math.floor(minutesInVoice || 0));
+  const minMinutes = config.xpVoiceMinMinutes ?? 1;
+  const safeMinutes = Math.max(0, Math.floor(minutesInVoice || 0));
   if (safeMinutes < minMinutes) return;
 
   // XP pasiva de voz: primeras 5h → XP completo; luego → 25%
-  const NORMAL_XP_MINUTES    = 300;
+  const NORMAL_XP_MINUTES = 300;
   const PASSIVE_XP_MULTIPLIER = 0.25;
 
-  const xpGain     = config.xpPerMinuteVoice ?? 10;
+  const xpGain = config.xpPerMinuteVoice ?? 10;
   const multiplier = config.xpMultiplier ?? 1.0;
 
   let earned: number;
@@ -599,9 +593,12 @@ export async function handleVoiceXp(
   if (safeMinutes <= NORMAL_XP_MINUTES) {
     earned = Math.floor(xpGain * safeMinutes * multiplier);
   } else {
-    const normalXp  = xpGain * NORMAL_XP_MINUTES * multiplier;
+    const normalXp = xpGain * NORMAL_XP_MINUTES * multiplier;
     const passiveXp =
-      xpGain * (safeMinutes - NORMAL_XP_MINUTES) * multiplier * PASSIVE_XP_MULTIPLIER;
+      xpGain *
+      (safeMinutes - NORMAL_XP_MINUTES) *
+      multiplier *
+      PASSIVE_XP_MULTIPLIER;
     earned = Math.floor(normalXp + passiveXp);
   }
 
@@ -628,7 +625,7 @@ export async function handleVoiceXp(
 
   // ── Weekly VC local ───────────────────────────────────────────────────────
   const currentWeekStart = getCurrentWeekStart();
-  const localWeekStart   = profile.weekStartDate ?? new Date(0);
+  const localWeekStart = profile.weekStartDate ?? new Date(0);
   const weeklyVoiceMinutes =
     localWeekStart < currentWeekStart
       ? safeMinutes
@@ -638,7 +635,7 @@ export async function handleVoiceXp(
     { userId: member.id, guildId: member.guild.id },
     {
       $set: {
-        voiceXp:    newVoiceXp,
+        voiceXp: newVoiceXp,
         voiceLevel: newVoiceLevel,
       },
       $inc: {
