@@ -123,6 +123,7 @@ const SEPARATOR = "╌".repeat(34);
 const command: SlashCommand = {
   category: "Information",
   cooldown: 3,
+  ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("help")
     .setDescription("🌸 Muestra el menú de ayuda de Hoshiko."),
@@ -131,8 +132,6 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    await interaction.deferReply();
-
     const memberPerms = interaction.member
       ?.permissions as Readonly<PermissionsBitField>;
     const isOwner = interaction.user.id === process.env.BOT_OWNER_ID;
