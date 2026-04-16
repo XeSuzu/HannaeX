@@ -61,7 +61,10 @@ async function buildEmbed(
 
   const totalUsers = await LocalLevel.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(totalUsers / perPage));
-  const top = await LocalLevel.find(query).sort(sort).skip(skip).limit(perPage);
+  const top = await LocalLevel.find(query)
+    .sort(sort as any)
+    .skip(skip)
+    .limit(perPage);
 
   const medals = ["🥇", "🥈", "🥉"];
 
