@@ -13,7 +13,7 @@ const BG_PATH = path.join(
   "src/assets/images/banners/level-banners/bg-banner-1.jpg",
 );
 const FONT_DIR = path.join(process.cwd(), "src/assets/fonts/");
-
+const NOTO_CJK_DIR = "/usr/share/fonts/opentype/noto/";
 // ─── Dimensiones ─────────────────────────────────────────────────────────────
 const W = 900,
   H = 300;
@@ -129,7 +129,8 @@ function fitText(
   minPx = 18,
   weight = "bold",
 ): { font: string; text: string } {
-  const stack = '"BannerBold","BannerReg","NotoColorEmoji",sans-serif';
+  const stack =
+    '"BannerBold","BannerReg","NotoSansCJK","NotoColorEmoji",sans-serif';
   for (let px = startPx; px >= minPx; px -= 2) {
     ctx.font = `${weight} ${px}px ${stack}`;
     if (ctx.measureText(text).width <= maxW) return { font: ctx.font, text };
@@ -142,7 +143,7 @@ function fitText(
 }
 
 function f(px: number, weight = "normal") {
-  return `${weight} ${px}px "BannerBold","BannerReg","NotoColorEmoji",sans-serif`;
+  return `${weight} ${px}px "BannerBold","BannerReg","NotoSansCJK","NotoColorEmoji",sans-serif`;
 }
 
 function sh(ctx: any, blur = 10, color = C.shadow) {
@@ -160,6 +161,8 @@ function nosh(ctx: any) {
 
 function registerFonts(GF: any) {
   if (_fontsOk) return;
+
+  // Fuentes propias del bot
   const fonts = [
     { file: "Nunito-Bold.ttf", family: "BannerBold" },
     { file: "Nunito-Regular.ttf", family: "BannerReg" },
@@ -172,6 +175,20 @@ function registerFonts(GF: any) {
       console.warn(`[LevelBanners] Font missing: ${fnt.file}`);
     }
   }
+
+  // ✅ Fuentes CJK del sistema (chino, japonés, coreano)
+  const cjkFonts = [
+    { file: "NotoSansCJK-Regular.ttc", family: "NotoSansCJK" },
+    { file: "NotoSansCJK-Bold.ttc", family: "NotoSansCJK" },
+  ];
+  for (const fnt of cjkFonts) {
+    try {
+      GF.registerFromPath(path.join(NOTO_CJK_DIR, fnt.file), fnt.family);
+    } catch {
+      console.warn(`[LevelBanners] CJK font missing: ${fnt.file}`);
+    }
+  }
+
   _fontsOk = true;
 }
 
