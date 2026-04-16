@@ -15,10 +15,6 @@ import {
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
-// ==========================================================
-// 🎀 LINKS & ASSETS
-// ==========================================================
-// Los links se generan dinámicamente usando el client ID del bot
 const SUPPORT_SERVER =
   process.env.SUPPORT_SERVER_INVITE || "https://discord.gg/tuserver";
 const BANNER_URL =
@@ -31,10 +27,6 @@ function getInviteLink(clientId: string | undefined): string {
     : "https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands";
 }
 
-// ==========================================================
-// 🐾 EMOJIS — Reemplaza con tus custom emojis cuando los tengas
-// Formato custom: "<:nombre:ID>" o "<a:nombre:ID>" animados
-// ==========================================================
 const EMOJI = {
   paw: "🐾",
   flower: "🌸",
@@ -57,11 +49,9 @@ const EMOJI = {
   invite: "💌",
   support: "💬",
   prefix: "❯",
+  divider: "▸",
 };
 
-// ==========================================================
-// 🐱 CATEGORÍAS
-// ==========================================================
 const CATEGORIES: Record<
   string,
   {
@@ -75,7 +65,7 @@ const CATEGORIES: Record<
   Fun: {
     emoji: EMOJI.fun,
     desc: "Minijuegos y entretenimiento",
-    flavor: "porque un servidor sin juegos es un servidor triste~ nyaa",
+    flavor: "porque un servidor sin juegos es un servidor triste~",
     color: 0xff8fab,
   },
   Information: {
@@ -99,7 +89,7 @@ const CATEGORIES: Record<
   Moderation: {
     emoji: EMOJI.moderation,
     desc: "Herramientas de Staff",
-    flavor: "para los que cuidan el servidor. buen trabajo, senpai 🛡️",
+    flavor: "para los que cuidan el servidor. buen trabajo 🛡️",
     color: 0xff6b6b,
     visibleTo: "Mod",
   },
@@ -120,16 +110,16 @@ const CATEGORIES: Record<
 };
 
 const WELCOME_LINES = [
-  "¿perdido? tranquilo, estoy aquí~ nyaa",
+  "¿perdido? tranquilo, estoy aquí~",
   "oya oya, ¿necesitas ayuda? qué raro que no lo sepas todo ya...",
   "hm... llegaste hasta aquí. bien. no estoy impresionada. (sí lo estoy)",
   "¿buscando algo? yo lo sé todo. pregúntame~",
   "otro humano perdido... al menos eres cute~",
 ];
 
-// ==========================================================
-// COMANDO
-// ==========================================================
+// ─── SEPARADOR VISUAL ──────────────────────────────────────
+const SEPARATOR = "╌".repeat(34);
+
 const command: SlashCommand = {
   category: "Information",
   cooldown: 3,
@@ -141,6 +131,8 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
+    await interaction.deferReply();
+
     const memberPerms = interaction.member
       ?.permissions as Readonly<PermissionsBitField>;
     const isOwner = interaction.user.id === process.env.BOT_OWNER_ID;
@@ -168,7 +160,7 @@ const command: SlashCommand = {
     const mainEmbed = buildMainEmbed(
       client,
       categorized,
-      interaction.user.username,
+      interaction.user,
       welcomeLine,
     );
 
@@ -179,7 +171,7 @@ const command: SlashCommand = {
 
     const collector = msg.createMessageComponentCollector({
       filter: (i) => i.user.id === interaction.user.id,
-      time: 60000 * 5,
+      time: 60000 * 2,
     });
 
     collector.on(
@@ -195,7 +187,7 @@ const command: SlashCommand = {
           embed = buildMainEmbed(
             client,
             categorized,
-            interaction.user.username,
+            interaction.user,
             welcomeLine,
           );
         } else if (i.isStringSelectMenu()) {
@@ -216,11 +208,17 @@ const command: SlashCommand = {
       },
     );
 
+    // ✅ Deshabilita todos los componentes al expirar (no links)
     collector.on("end", () => {
-      const disabledRow = ActionRowBuilder.from(components[0] as any);
-      disabledRow.components.forEach((c: any) => c.setDisabled(true));
+      const disabledRows = components.map((row) => {
+        const newRow = ActionRowBuilder.from(row as any);
+        newRow.components.forEach((c: any) => {
+          if (c.data.style !== ButtonStyle.Link) c.setDisabled(true);
+        });
+        return newRow;
+      });
       interaction
-        .editReply({ components: [disabledRow, components[1]] as any })
+        .editReply({ components: disabledRows as any })
         .catch(() => {});
     });
   },
@@ -299,56 +297,63 @@ function buildComponents(
 function buildMainEmbed(
   client: HoshikoClient,
   categorized: Record<string, { name: string; desc: string }[]>,
-  username: string,
+  user: { username: string; displayAvatarURL: () => string },
   welcomeLine: string,
 ): EmbedBuilder {
   const totalCmds = Object.values(categorized).flat().length;
   const prefix = process.env.DEFAULT_PREFIX || "x";
 
+  // Categorías como tabla visual compacta
   const catList = Object.entries(categorized)
     .map(([cat, cmds]) => {
       const info = CATEGORIES[cat] || { emoji: "📁" };
-      return `${info.emoji} **${cat}** — ${cmds.length} cmd${cmds.length !== 1 ? "s" : ""}`;
+      const count = `\`${cmds.length}\``;
+      return `${info.emoji} **${cat}** ${EMOJI.arrow} ${count} cmd${cmds.length !== 1 ? "s" : ""}`;
     })
     .join("\n");
 
   return new EmbedBuilder()
     .setColor(0xff8fab)
     .setAuthor({
-      name: `${client.user?.username} • nyaa~`,
-      iconURL: client.user?.displayAvatarURL(),
+      name: `Solicitado por ${user.username}`,
+      iconURL: user.displayAvatarURL(),
     })
-    .setTitle(`${EMOJI.flower} ¡Hola, ${username}!`)
+    .setTitle(`${EMOJI.flower} Hoshiko — Centro de Ayuda`)
     .setDescription(
-      `*${welcomeLine}*\n\n` +
-        `${EMOJI.sparkle} **${totalCmds} comandos** listos para ti.\n` +
-        `Usa el menú de abajo para explorar~ ${EMOJI.heart}`,
+      `> *${welcomeLine}*\n\n` +
+        `${EMOJI.sparkle} **${totalCmds} comandos** disponibles.\n` +
+        `Usa el menú de abajo para explorar~ ${EMOJI.heart}\n\n` +
+        `${SEPARATOR}`,
     )
     .addFields(
       {
         name: `${EMOJI.paw} Categorías`,
-        value: catList,
+        value: catList || "*Sin categorías disponibles.*",
         inline: true,
       },
       {
-        name: `${EMOJI.prefix} Prefijos & Activadores`,
-        value:
-          `\`/\` Comandos slash\n` +
-          `\`${prefix}\` Comandos clásicos\n` +
-          `\`hoshi ask\` Pregunta directa a la IA\n` +
-          `\`@Hoshiko\` Chat con IA\n` +
-          `\`${prefix}img\` Buscar imágenes`,
+        name: `${EMOJI.prefix} Activadores`,
+        value: [
+          `\`/\` — Slash commands`,
+          `\`${prefix}\` — Comandos clásicos`,
+          `\`hoshi ask\` — Pregunta a la IA`,
+          `\`@Hoshiko\` — Chat con IA`,
+          `\`${prefix}img\` — Buscar imágenes`,
+        ].join("\n"),
         inline: true,
       },
       {
-        name: `${EMOJI.ping} Latencia`,
-        value: `\`${client.ws.ping}ms\``,
+        name: `${EMOJI.ping} Estado`,
+        value: [
+          `Latencia \`${client.ws.ping}ms\``,
+          `Servidores \`${client.guilds.cache.size}\``,
+        ].join("\n"),
         inline: true,
       },
     )
     .setImage(BANNER_URL)
     .setFooter({
-      text: `${EMOJI.paw} Hoshiko • Desarrollado por v.sxn ®`,
+      text: `${EMOJI.paw} Hoshiko • Desarrollado por v.sxn ®  •  Expira en 2 min`,
       iconURL: client.user?.displayAvatarURL(),
     })
     .setTimestamp();
@@ -369,20 +374,27 @@ function buildCategoryEmbed(
     color: 0xff8fab,
   };
 
+  // Agrupar en columnas de 2 si hay muchos comandos
   const cmdList =
     commands.length > 0
       ? commands
-          .map((c) => `\`/${c.name}\`\n${EMOJI.arrow} *${c.desc}*`)
+          .map(
+            (c) =>
+              `${EMOJI.divider} \`/${c.name}\`\n` +
+              `\u200b \u200b \u200b *${c.desc.length > 60 ? c.desc.substring(0, 57) + "..." : c.desc}*`,
+          )
           .join("\n\n")
-      : `*${EMOJI.moon} hmm... parece que no hay nada aquí todavía.*`;
+      : `*${EMOJI.moon} No hay comandos aquí todavía.*`;
 
   return new EmbedBuilder()
     .setColor(info.color)
     .setAuthor({
-      name: `${info.emoji} ${category} — ${commands.length} comando${commands.length !== 1 ? "s" : ""}`,
+      name: `${info.emoji} ${category}  ·  ${commands.length} comando${commands.length !== 1 ? "s" : ""}`,
       iconURL: client.user?.displayAvatarURL(),
     })
-    .setDescription(`*${info.flavor}*\n\n` + `${cmdList}`)
+    .setDescription(
+      `> *${info.flavor}*\n\n` + `${SEPARATOR}\n\n` + `${cmdList}`,
+    )
     .setImage(BANNER_URL)
     .setFooter({
       text: `${EMOJI.paw} Hoshiko • Desarrollado por v.sxn ®`,
@@ -398,42 +410,45 @@ function buildAIEmbed(
   client: HoshikoClient,
   commands: { name: string; desc: string }[],
 ): EmbedBuilder {
-  const prefix = process.env.DEFAULT_PREFIX || "!";
+  const prefix = process.env.DEFAULT_PREFIX || "x";
 
   const cmdList =
     commands.length > 0
       ? commands
-          .map((c) => `\`/${c.name}\`  ${EMOJI.arrow} *${c.desc}*`)
+          .map((c) => `${EMOJI.divider} \`/${c.name}\` — *${c.desc}*`)
           .join("\n")
       : "";
 
   return new EmbedBuilder()
     .setColor(0x00d9ff)
     .setAuthor({
-      name: `Hoshiko AI • powered by Gemini`,
+      name: `Hoshiko AI  ·  powered by Gemini`,
       iconURL: client.user?.displayAvatarURL(),
     })
     .setTitle(`${EMOJI.moon} sí, soy inteligente. no tanto como tú crees.`)
     .setDescription(
-      `*tengo memoria, busco en internet y puedo hablar de lo que sea~ nyaa*`,
+      `> *tengo memoria, busco en internet y puedo hablar de lo que sea~*\n\n` +
+        `${SEPARATOR}`,
     )
     .addFields(
       {
         name: `${EMOJI.sparkle} ¿Cómo hablar conmigo?`,
-        value:
-          `${EMOJI.arrow} Mencióname \`@Hoshiko\`\n` +
-          `${EMOJI.arrow} Responde a alguno de mis mensajes\n` +
-          `${EMOJI.arrow} Escribe \`hoshi ask <pregunta>\`\n` +
-          `${EMOJI.arrow} Prefijo: \`${prefix}img\` para buscar imágenes`,
+        value: [
+          `${EMOJI.divider} Mencioname \`@Hoshiko <mensaje>\``,
+          `${EMOJI.divider} Responde a uno de mis mensajes`,
+          `${EMOJI.divider} Escribe \`hoshi ask <pregunta>\``,
+          `${EMOJI.divider} Usa \`${prefix}img <query>\` para imágenes`,
+        ].join("\n"),
         inline: false,
       },
       {
         name: `${EMOJI.star} ¿Qué puedo hacer?`,
-        value:
-          `${EMOJI.arrow} Buscar info actualizada en internet\n` +
-          `${EMOJI.arrow} Explicar código, anime, ciencia, lo que sea\n` +
-          `${EMOJI.arrow} Buscar imágenes con paginación\n` +
-          `${EMOJI.arrow} Recordar tus preferencias entre sesiones ${EMOJI.heart}`,
+        value: [
+          `${EMOJI.divider} Buscar info actualizada en internet`,
+          `${EMOJI.divider} Explicar código, anime, ciencia, lo que sea`,
+          `${EMOJI.divider} Buscar imágenes con paginación`,
+          `${EMOJI.divider} Recordar tus preferencias entre sesiones ${EMOJI.heart}`,
+        ].join("\n"),
         inline: false,
       },
       ...(cmdList
@@ -447,7 +462,7 @@ function buildAIEmbed(
         : []),
       {
         name: `${EMOJI.paw} Personalidad`,
-        value: `Cámbiala con \`/setup\` ~ tengo varios modos disponibles`,
+        value: `Cámbiala con \`/setup\` — varios modos disponibles~`,
         inline: false,
       },
     )

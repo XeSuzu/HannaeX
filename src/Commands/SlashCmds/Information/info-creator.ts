@@ -2,28 +2,45 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  ActivityType,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoClient } from "../../../index";
 
-const curiosidades = [
-  "🌸 Hoshiko significa 'niña de las estrellas' en japonés.",
-  "🐾 Hoshiko fue creada con mucho amor y demasiado café.",
-  "✨ El primer comando que tuvo Hoshiko fue `ping`.",
-  "🌙 Hoshiko trabaja 24/7 sin descanso, ¡incluso de madrugada!",
-  "💫 El color morado de Hoshiko representa creatividad y magia.",
-  "🎀 Cada respuesta de Hoshiko tiene un toque kawaii intencional.",
-  "🌟 Hoshiko está construida sobre Discord.js v14 y TypeScript.",
-  "🎉 Cada actualización de Hoshiko trae nuevas sorpresas y mejoras basadas en el feedback de la comunidad.",
-  "💖 Hoshiko tiene un sistema de agradecimientos para reconocer a quienes contribuyen al proyecto, desde testers hasta colaboradores.",
-  "🌟 Hoshiko tiene planes de expandirse con nuevas funcionalidades, integraciones y eventos especiales para mantener la experiencia fresca y emocionante para todos los usuarios.",
+const SEPARATOR = "╌".repeat(34);
+
+const CURIOSIDADES = [
+  "Hoshiko significa *niña de las estrellas* en japonés 🌠",
+  "Fue creada con mucho amor y demasiado café a las 3am ☕",
+  "El primer comando que tuvo fue `ping`. Humilde origen.",
+  "Trabaja 24/7 sin descanso, incluso de madrugada 🌙",
+  "Está construida sobre Discord.js v14 y TypeScript 🛠️",
+  "Cada actualización nace del feedback real de la comunidad 💬",
+  "Tiene memoria — recuerda tus preferencias entre sesiones 🧠",
+  "Su IA puede buscar en internet en tiempo real 🌐",
 ];
 
-const testers = [
-  { name: "Tester 1", note: "Primera en reportar bugs 🐛" },
-  { name: "Tester 2", note: "Rey del estrés testing 💥" },
-  { name: "Tester 3", note: "Siempre con ideas increíbles 💡" },
+const CONTRIBUTORS: {
+  id: string;
+  tag: string;
+  note: string;
+  emoji: string;
+  flavor: string;
+}[] = [
+  {
+    id: "1031006071411724308",
+    tag: ".0yrxx",
+    note: "Mejoras en VC",
+    emoji: "🎙️",
+    flavor:
+      "la que se sentó en VC y dijo *'esto podría estar mejor'*. tenía razón.",
+  },
+  {
+    id: "798965856204750898",
+    tag: "aguss9999_",
+    note: "Ideas de comandos",
+    emoji: "💡",
+    flavor: "responsable de más de una feature que hoy usas sin darte cuenta.",
+  },
 ];
 
 const command: SlashCommand = {
@@ -33,66 +50,106 @@ const command: SlashCommand = {
     .setName("infocreator")
     .setDescription("🌸 Descubre todo sobre el proyecto Hoshiko"),
 
-  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient): Promise<void> {
-    // await interaction.deferReply({ ephemeral: true });
-
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ): Promise<void> {
     const creatorId = process.env.BOT_OWNER_ID || client.application?.owner?.id;
     const creator = await client.users.fetch(creatorId!).catch(() => null);
+
     if (!creator) {
-      await interaction.editReply({ content: "😿 No pude cargar los datos del proyecto..." });
+      await interaction.editReply({
+        content: "😿 No pude cargar los datos del proyecto...",
+      });
       return;
     }
 
     await creator.fetch(true);
 
-    // Stats
+    // ── Stats ──────────────────────────────────────────────
     const totalServers = client.guilds.cache.size;
-    const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+    const totalUsers = client.guilds.cache.reduce(
+      (acc, g) => acc + g.memberCount,
+      0,
+    );
     const uptimeMs = client.uptime ?? 0;
-    const uptimeHours = Math.floor(uptimeMs / 1000 / 60 / 60);
-    const uptimeMinutes = Math.floor((uptimeMs / 1000 / 60) % 60);
+    const uptimeH = Math.floor(uptimeMs / 1000 / 60 / 60);
+    const uptimeM = Math.floor((uptimeMs / 1000 / 60) % 60);
+    const ping = client.ws.ping;
 
-    // Curiosidad random
-    const curiosidad = curiosidades[Math.floor(Math.random() * curiosidades.length)];
+    const curiosidad =
+      CURIOSIDADES[Math.floor(Math.random() * CURIOSIDADES.length)];
 
-    // Agradecimientos
-    const testersText = testers.map(t => `**${t.name}** — ${t.note}`).join("\n");
+    // ── Fetch contributors ─────────────────────────────────
+    const contributorsText = (
+      await Promise.all(
+        CONTRIBUTORS.map(async (c) => {
+          const user = await client.users.fetch(c.id).catch(() => null);
+          const display = user ? `**${user.username}**` : `**${c.tag}**`;
+          return (
+            `${c.emoji} ${display}\n` + `\u200b \u200b \u200b *${c.flavor}*`
+          );
+        }),
+      )
+    ).join("\n\n");
 
     const embed = new EmbedBuilder()
-      .setTitle("🌸 Sobre el Proyecto Hoshiko")
+      .setColor(creator.accentColor ?? 0xff8fab)
+      .setAuthor({
+        name: `Proyecto Hoshiko — por ${creator.username}`,
+        iconURL: creator.displayAvatarURL({ size: 256 }),
+      })
+      .setTitle("🌸 ¿Quién soy?")
       .setDescription(
-        `Hoshiko es un bot de Discord creado con pasión por **${creator.username}**.\nUna experiencia kawaii, funcional y llena de amor. 💜`
+        `> *Un bot de Discord hecho con pasión, código bonito y demasiado café.*\n\n` +
+          `Creada por **${creator.username}** desde cero — full stack, ` +
+          `sin plantillas, sin atajos. Cada feature fue pensada, discutida y ` +
+          `peleada con el compilador hasta que funcionó. Hoshiko es el resultado ` +
+          `de alguien que no se conformó con lo genérico.\n\n` +
+          `${SEPARATOR}`,
       )
       .setThumbnail(creator.displayAvatarURL({ size: 256 }))
-      .setColor(creator.accentColor ?? 0x9b59b6)
       .addFields(
         {
-          name: "👾 Estadísticas",
+          name: "📊 En números",
           value: [
-            `🏠 **Servidores:** ${totalServers}`,
-            `👥 **Usuarios totales:** ${totalUsers.toLocaleString()}`,
-            `⏱️ **Uptime:** ${uptimeHours}h ${uptimeMinutes}m`,
+            `\`🏠\` Servidores **${totalServers}**`,
+            `\`👥\` Usuarios **${totalUsers.toLocaleString()}**`,
+            `\`⏱️\` Uptime **${uptimeH}h ${uptimeM}m**`,
+            `\`📡\` Ping **${ping}ms**`,
           ].join("\n"),
-          inline: false,
+          inline: true,
+        },
+        {
+          name: "🛠️ Stack",
+          value: [
+            `\`⚙️\` Discord.js **v14**`,
+            `\`📘\` TypeScript`,
+            `\`🟢\` Node.js`,
+            `\`🍃\` MongoDB`,
+          ].join("\n"),
+          inline: true,
         },
         {
           name: "✨ Curiosidad del día",
-          value: curiosidad,
+          value: `> ${curiosidad}`,
           inline: false,
         },
         {
-          name: "💖 Agradecimientos especiales",
-          value: `Gracias a los testers que hicieron posible este proyecto:\n\n${testersText}`,
+          name: "💖 Contribuidores",
+          value:
+            `Sin estas personas, Hoshiko no sería lo que es hoy.\n` +
+            `Cada bug reportado, cada idea lanzada al aire — todo dejó huella. 🌸\n\n` +
+            `${contributorsText}`,
           inline: false,
         },
-        {
-          name: "🛠️ Stack técnico",
-          value: "Discord.js v14 • TypeScript • Node.js",
-          inline: false,
-        }
+      )
+      .setImage(
+        process.env.BANNER_URL ||
+          "https://i.pinimg.com/originals/2f/43/76/2f437614d7fa7239696a8b34d5e41769.gif",
       )
       .setFooter({
-        text: `Hoshiko Bot • Con amor desde el principio 🌙`,
+        text: `🐾 Hoshiko • Desarrollado por v.sxn ®  ·  Con amor desde el principio 🌙`,
         iconURL: client.user?.displayAvatarURL(),
       })
       .setTimestamp();
