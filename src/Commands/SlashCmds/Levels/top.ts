@@ -27,6 +27,7 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
+    console.log("[top] guildId:", interaction.guildId);
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId!;
 
