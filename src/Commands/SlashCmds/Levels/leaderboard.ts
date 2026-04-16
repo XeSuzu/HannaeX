@@ -9,7 +9,7 @@ import LocalLevel from "../../../Models/LocalLevels";
 export default {
   data: new SlashCommandBuilder()
     .setName("leaderboard")
-    .setDescription("🏆 Top 10 de usuarios por XP en este servidor")
+    .setDescription("🏆 Top de usuarios por XP en este servidor")
     .addIntegerOption((o) =>
       o
         .setName("pagina")
@@ -36,7 +36,7 @@ export default {
         embeds: [
           new EmbedBuilder()
             .setColor(0xffb7c5)
-            .setTitle("🏆 Leaderboard")
+            .setTitle("🏆 Leaderboard Local")
             .setDescription(
               `Aún no hay usuarios en el ranking de este servidor.\n\n` +
                 `💬 ¡Sé el primero en ganar XP y aparecer aquí!`,
@@ -47,46 +47,47 @@ export default {
       });
     }
 
+    // Ordenar por level primero, luego xp como desempate
     const top = await LocalLevel.find({ guildId: interaction.guildId! })
-      .sort({ xp: -1 })
+      .sort({ level: -1, xp: -1 })
       .skip(skip)
       .limit(perPage);
 
     const medals = ["🥇", "🥈", "🥉"];
     const totalPages = Math.ceil(totalUsers / perPage);
 
-    // Construir descripciones con más detalle
     const lines = await Promise.all(
       top.map(async (p, i) => {
         const user = await client.users.fetch(p.userId).catch(() => null);
         const name = user?.username ?? `Usuario #${p.userId.slice(0, 8)}`;
         const displayName = user?.displayName ?? name;
-        const avatar = user?.displayAvatarURL({ size: 32 }) ?? null;
         const position = skip + i + 1;
         const medal = medals[i] ?? `**#${position}**`;
 
-        // Calcular XP para el siguiente nivel
-        const currentLevelXp = calculateTotalXpForLevel(p.level);
-        const nextLevelXp = calculateTotalXpForLevel(p.level + 1);
-        const xpIntoLevel = p.xp - currentLevelXp;
-        const xpNeeded = calculateXpForLevel(p.level);
+        // Guards contra datos corruptos
+        const level = Math.max(0, p.level ?? 0);
+        const xp = Math.max(0, p.xp ?? 0);
+        const currentLevelXp = calculateTotalXpForLevel(level);
+        const xpIntoLevel = Math.max(0, xp - currentLevelXp);
+        const xpNeeded = Math.max(1, calculateXpForLevel(level));
         const progressPercent = Math.min(
           100,
           Math.floor((xpIntoLevel / xpNeeded) * 100),
         );
 
         if (position <= 3) {
-          // Top 3 con más detalle
-          return `${medal} **${displayName}**\n   └─ Nivel ${p.level} • ${p.xp.toLocaleString()} XP • ${progressPercent}%`;
+          return `${medal} **${displayName}**\n   └─ Nivel ${level} • ${xp.toLocaleString()} XP • ${progressPercent}%`;
         } else {
-          return `${medal} **${displayName}** — Nivel ${p.level} • ${p.xp.toLocaleString()} XP`;
+          return `${medal} **${displayName}** — Nivel ${level} • ${xp.toLocaleString()} XP`;
         }
       }),
     );
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
-      .setTitle(`🏆 Leaderboard — ${interaction.guild?.name || "Servidor"}`)
+      .setTitle(
+        `🏆 Leaderboard Local — ${interaction.guild?.name || "Servidor"}`,
+      )
       .setDescription(
         `**Top ${skip + 1}-${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
           lines.join("\n\n"),
@@ -105,7 +106,6 @@ export default {
   },
 };
 
-// Funciones auxiliares (copiadas de levelHandler para no importar innecesariamente)
 function calculateXpForLevel(level: number): number {
   return 100 + level * 50;
 }

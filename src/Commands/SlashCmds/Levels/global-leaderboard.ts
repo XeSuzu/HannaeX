@@ -9,7 +9,7 @@ import GlobalLevel, { getTierForLevel } from "../../../Models/GlobalLevel";
 export default {
   data: new SlashCommandBuilder()
     .setName("global-leaderboard")
-    .setDescription("🏆 Top global de usuarios por XP (todos los servidores)")
+    .setDescription("🌐 Top global de usuarios por XP (todos los servidores)")
     .addIntegerOption((o) =>
       o
         .setName("pagina")
@@ -27,18 +27,17 @@ export default {
     const perPage = 10;
     const skip = (page - 1) * perPage;
 
-    const totalUsers = await GlobalLevel.countDocuments({});
+    const totalUsers = await GlobalLevel.countDocuments();
 
     if (totalUsers === 0) {
       return interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor(0xffb7c5)
-            .setTitle("🏆 グローバルランキング / Global Leaderboard")
+            .setTitle("🌐 Global Leaderboard")
             .setDescription(
-              `まだランキングにユーザーがいません。\n` +
-                `まだユーザーはいません / No users yet.\n\n` +
-                `💬 最初のXPグローバル獲得者になろう! / Be the first to earn global XP!`,
+              `Aún no hay usuarios en el ranking global.\n\n` +
+                `💬 ¡Sé el primero en ganar XP y aparecer aquí!`,
             )
             .setFooter({ text: "Hoshiko Global Levels ✨" })
             .setTimestamp(),
@@ -46,8 +45,9 @@ export default {
       });
     }
 
-    const top = await GlobalLevel.find({})
-      .sort({ globalXp: -1 })
+    // Ordenar por globalLevel y globalXp como desempate
+    const top = await GlobalLevel.find()
+      .sort({ globalLevel: -1, globalXp: -1 })
       .skip(skip)
       .limit(perPage);
 
@@ -57,63 +57,53 @@ export default {
     const lines = await Promise.all(
       top.map(async (p, i) => {
         const user = await client.users.fetch(p.userId).catch(() => null);
-        const name =
-          user?.username ?? `Unknown / 不明 #${p.userId.slice(0, 6)}`;
+        const name = user?.username ?? `Unknown #${p.userId.slice(0, 6)}`;
         const displayName = user?.displayName ?? name;
         const tier = getTierForLevel(p.globalLevel);
         const position = skip + i + 1;
-        const medal = medals[i] ?? `${position}位`;
+        const medal = medals[i] ?? `**#${position}**`;
 
-        // Top 3 con estilo especial
+        const globalLevel = Math.max(0, p.globalLevel ?? 0);
+        const globalXp = Math.max(0, p.globalXp ?? 0);
+
         if (position === 1) {
           return (
-            `🥇 **${displayName}** ${tier.emoji}\n` +
-            `   └─ Lv.${p.globalLevel} • ${p.globalXp.toLocaleString()} XP\n` +
-            `   └─ ${tier.name} (${tier.nameJp})`
+            `${medal} **${displayName}** ${tier.emoji}\n` +
+            `   └─ **${tier.name}** (${tier.nameJp})\n` +
+            `   └─ Nivel Global ${globalLevel} • ${globalXp.toLocaleString()} XP`
           );
-        } else if (position === 2) {
-          return (
-            `🥈 **${displayName}** ${tier.emoji}\n` +
-            `   └─ Lv.${p.globalLevel} • ${p.globalXp.toLocaleString()} XP`
-          );
-        } else if (position === 3) {
-          return (
-            `🥉 **${displayName}** ${tier.emoji}\n` +
-            `   └─ Lv.${p.globalLevel} • ${p.globalXp.toLocaleString()} XP`
-          );
+        } else if (position <= 3) {
+          return `${medal} **${displayName}** ${tier.emoji} — Nivel ${globalLevel} • ${globalXp.toLocaleString()} XP`;
         } else {
-          return `${position}位. **${displayName}** ${tier.emoji} — Lv.${p.globalLevel} • ${p.globalXp.toLocaleString()} XP`;
+          return `${medal} **${displayName}** ${tier.emoji} — Lv.${globalLevel} • ${globalXp.toLocaleString()} XP`;
         }
       }),
     );
 
-    // Obtener el tier del #1
-    const topTier = getTierForLevel(top[0]?.globalLevel || 0);
-    const topUser = top[0]
-      ? await client.users.fetch(top[0].userId).catch(() => null)
-      : null;
+    const topTier = getTierForLevel(top[0]?.globalLevel ?? 0);
 
     const embed = new EmbedBuilder()
       .setColor(topTier.color)
-      .setTitle(`${topTier.emoji} 🌸 グローバルランキング 🌸 ${topTier.emoji}`)
+      .setTitle(`${topTier.emoji} Global Leaderboard ${topTier.emoji}`)
       .setDescription(
-        `**${skip + 1}-${Math.min(skip + perPage, totalUsers)}位 / Ranking** of ${totalUsers.toLocaleString()}人中 / users\n\n` +
+        `**Top ${skip + 1}-${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
           lines.join("\n\n"),
       )
-      .addFields({
-        name: "📖 ナビゲーション / Navigation",
-        value:
-          `ページ / Page **${page}** / **${totalPages}**\n` +
-          `コマンド / Use: \`/global-leaderboard pagina:${page < totalPages ? page + 1 : 1}\``,
-        inline: false,
-      })
-      .addFields({
-        name: "💡 ヒント / Tips",
-        value:
-          "XP全球は全てのサーバーで累積 / Global XP accumulates across all servers~\n" +
-          "各サーバーでアクティブに話そう! / Be active in servers!",
-        inline: false,
-      })
+      .addFields(
+        {
+          name: "📖 Navegación",
+          value:
+            `Página **${page}** de **${totalPages}**\n` +
+            `Usa \`/global-leaderboard pagina:${page < totalPages ? page + 1 : 1}\` para ver más`,
+          inline: false,
+        },
+        {
+          name: "💡 Info",
+          value:
+            "El XP global se acumula por actividad de texto en todos los servidores.",
+          inline: false,
+        },
+      )
       .setFooter({ text: "Hoshiko Global Levels ✨" })
       .setTimestamp();
 

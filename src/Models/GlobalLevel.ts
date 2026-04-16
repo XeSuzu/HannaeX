@@ -8,13 +8,12 @@ import { Document, Schema, model } from "mongoose";
 export interface IGlobalLevel extends Document {
   userId: string;
 
-  // XP Global
+  // XP Global (solo texto cross-server; voz es local)
   globalXp: number;
   globalLevel: number;
 
   // Estadísticas globales
   totalMessages: number;
-  totalVoiceMinutes: number;
   serversJoined: number;
 
   // Logros/Títulos desbloqueados
@@ -27,7 +26,7 @@ export interface IGlobalLevel extends Document {
   globalStreak: number;
   lastGlobalXpGain: Date;
 
-  // Meta-semanal
+  // Meta-semanal global (solo texto)
   weeklyXp: number;
   weeklyMessages: number;
   weekStartDate: Date;
@@ -40,8 +39,6 @@ export interface IGlobalLevel extends Document {
   updatedAt: Date;
 }
 
-// Sistema de Tiers Globales en JAPONÉS KAWAI
-// Todos los nombres son en japonés con temática de sakura/naturaleza/milky way
 export const GLOBAL_TIERS = [
   {
     name: "識別",
@@ -235,30 +232,6 @@ export const ACHIEVEMENTS = [
     description: "Un ave madrugadora~",
     color: 0xffa500,
   },
-  {
-    id: "voice_1h",
-    name: "一時間",
-    nameEn: "1 Hour Voice",
-    emoji: "🎤",
-    description: "60 minutos en voz! Buena conversación~",
-    color: 0x87ceeb,
-  },
-  {
-    id: "voice_10h",
-    name: "十時間",
-    nameEn: "10 Hours Voice",
-    emoji: "🎙️",
-    description: "600 minutos en voz! Muy sociable~",
-    color: 0x00ced1,
-  },
-  {
-    id: "voice_100h",
-    name: "百時間",
-    nameEn: "100 Hours Voice",
-    emoji: "🎧",
-    description: "6000 minutos en voz! Leyenda del chat de voz!",
-    color: 0x4b0082,
-  },
 ];
 
 export function getTierForLevel(level: number): (typeof GLOBAL_TIERS)[0] {
@@ -279,40 +252,30 @@ export function getAchievement(
   return ACHIEVEMENTS.find((a) => a.id === id);
 }
 
-// XP necesaria para subir del nivel N al N+1
 export function globalXpForLevel(level: number): number {
   return Math.floor(150 + level * 75);
 }
 
-// XP total acumulada hasta el nivel N
 export function globalTotalXpForLevel(level: number): number {
   let total = 0;
   for (let i = 0; i < level; i++) total += globalXpForLevel(i);
   return total;
 }
 
-const globalLevelSchema = new Schema<IGlobalLevel>({
+const globalLevelSchema = new Schema({
   userId: { type: String, required: true, unique: true },
   globalXp: { type: Number, default: 0 },
   globalLevel: { type: Number, default: 0 },
   totalMessages: { type: Number, default: 0 },
-  totalVoiceMinutes: { type: Number, default: 0 },
-  serversJoined: { type: Number, default: 0 },
+  // totalVoiceMinutes eliminado — la voz ahora es solo local
+  serversJoined: { type: Number, default: 1 },
   achievements: { type: [String], default: [] },
   currentTier: { type: String, default: "mihon" },
   globalStreak: { type: Number, default: 0 },
   lastGlobalXpGain: { type: Date, default: Date.now },
   weeklyXp: { type: Number, default: 0 },
   weeklyMessages: { type: Number, default: 0 },
-  weekStartDate: {
-    type: Date,
-    default: () => {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      now.setDate(now.getDate() - now.getDay());
-      return now;
-    },
-  },
+  weekStartDate: { type: Date, default: new Date(0) },
   abuseCooldownUntil: { type: Date },
   lastAbuseWarning: { type: Date },
   updatedAt: { type: Date, default: Date.now },
@@ -328,5 +291,9 @@ globalLevelSchema.pre("save", function (next) {
   this.currentTier = tier.tier;
   next();
 });
+
+// Índices para global leaderboard
+globalLevelSchema.index({ globalLevel: -1, globalXp: -1 });
+globalLevelSchema.index({ weeklyXp: -1, weeklyMessages: -1 });
 
 export default model<IGlobalLevel>("GlobalLevel", globalLevelSchema);

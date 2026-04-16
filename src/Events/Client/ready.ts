@@ -1,8 +1,9 @@
-import { ActivityType, Events, Client } from "discord.js";
+import { ActivityType, Client, Events } from "discord.js";
+import { initVoiceSessionClient } from "../../Events/Client/voiceStateUpdate";
 import { HoshikoClient } from "../../index";
 import ActiveRole from "../../Models/ActiveRole";
-import { Logger } from "../../Utils/SystemLogger";
 import { HoshikoLogger, LogLevel } from "../../Security";
+import { Logger } from "../../Utils/SystemLogger";
 
 const STATUS_LIST: { text: string; type: ActivityType }[] = [
   { text: "en {servers} servidores 🏠", type: ActivityType.Watching },
@@ -75,6 +76,10 @@ export default {
     console.log("");
 
     await Logger.logBotRestart("Bot iniciado correctamente");
+
+    // 🎤 Registrar client para sesiones de voz
+    initVoiceSessionClient(client);
+    console.log("   🎤 Gestor de sesiones de voz activo");
 
     // ─────────────────────────────────────
     // 🎀 Rotador de estados
