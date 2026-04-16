@@ -164,13 +164,17 @@ function registerFonts(GF: any) {
 
   // Fuentes propias del bot
   const fonts = [
-    { file: "Nunito-Bold.ttf", family: "BannerBold" },
-    { file: "Nunito-Regular.ttf", family: "BannerReg" },
-    { file: "NotoColorEmoji.ttf", family: "NotoColorEmoji" },
+    { file: "Nunito-Bold.ttf", family: "BannerBold", dir: FONT_DIR },
+    { file: "Nunito-Regular.ttf", family: "BannerReg", dir: FONT_DIR },
+    {
+      file: "NotoColorEmoji.ttf",
+      family: "NotoColorEmoji",
+      dir: "/usr/share/fonts/truetype/noto/",
+    },
   ];
   for (const fnt of fonts) {
     try {
-      GF.registerFromPath(path.join(FONT_DIR, fnt.file), fnt.family);
+      GF.registerFromPath(path.join(fnt.dir, fnt.file), fnt.family);
     } catch {
       console.warn(`[LevelBanners] Font missing: ${fnt.file}`);
     }
