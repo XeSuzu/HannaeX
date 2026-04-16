@@ -54,10 +54,11 @@ async function buildEmbed(
       ? { guildId, voiceMinutes: { $gt: 0 } }
       : { guildId, messagesSent: { $gt: 0 } };
 
+  // ✅ Sort consistente con /rank — mensajes también por xp primero
   const sort =
     type === "voice"
-      ? { voiceLevel: -1, voiceXp: -1, voiceMinutes: -1 }
-      : { messagesSent: -1, xp: -1 };
+      ? { voiceXp: -1, voiceLevel: -1, voiceMinutes: -1 }
+      : { xp: -1, messagesSent: -1 };
 
   const totalUsers = await LocalLevel.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(totalUsers / perPage));
@@ -77,33 +78,33 @@ async function buildEmbed(
         user?.displayName ??
         name;
       const position = skip + i + 1;
-      const medal = medals[i] ?? `\`#${position}\``;
+      // ✅ Posiciones 4+ con número limpio sin doble #
+      const medal = position <= 3 ? medals[position - 1] : `\`${position}.\``;
 
       if (type === "messages") {
         const level = Math.max(0, p.level ?? 0);
+        const xp = Math.max(0, p.xp ?? 0);
         const msgs = Math.max(0, p.messagesSent ?? 0);
-        const weekMsgs = Math.max(0, p.weeklyMessages ?? 0);
 
         if (position <= 3) {
           return (
             `${medal} **${displayName}**\n` +
-            `   ├ Nivel ${level} • ${msgs.toLocaleString()} mensajes\n` +
-            `   └ Esta semana: ${weekMsgs.toLocaleString()} msgs`
+            `   ├ Nivel ${level} • \`${xp.toLocaleString()}\` XP\n` +
+            `   └ ${msgs.toLocaleString()} mensajes`
           );
         }
         return `${medal} **${displayName}** — Nv.${level} • ${msgs.toLocaleString()} msgs`;
       } else {
         const voiceLevel = Math.max(0, p.voiceLevel ?? 0);
+        const voiceXp = Math.max(0, p.voiceXp ?? 0);
         const totalMins = Math.max(0, p.voiceMinutes ?? 0);
-        const weeklyMins = Math.max(0, p.weeklyVoiceMinutes ?? 0);
         const timeString = formatTime(totalMins);
-        const weekString = formatTime(weeklyMins);
 
         if (position <= 3) {
           return (
             `${medal} **${displayName}**\n` +
-            `   ├ Nivel VC ${voiceLevel} • ${timeString} total\n` +
-            `   └ Esta semana: ${weekString}`
+            `   ├ Nivel VC ${voiceLevel} • \`${voiceXp.toLocaleString()}\` XP\n` +
+            `   └ ${timeString} en voz`
           );
         }
         return `${medal} **${displayName}** — Nv.VC ${voiceLevel} • ${timeString}`;
