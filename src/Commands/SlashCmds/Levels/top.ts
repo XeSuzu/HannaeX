@@ -1,5 +1,9 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
+  ComponentType,
   EmbedBuilder,
   SlashCommandBuilder,
 } from "discord.js";
@@ -13,28 +17,10 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName("messages")
-        .setDescription("Top de usuarios por mensajes enviados")
-        .addIntegerOption((o) =>
-          o
-            .setName("pagina")
-            .setDescription("Página del ranking (1-10)")
-            .setMinValue(1)
-            .setMaxValue(10)
-            .setRequired(false),
-        ),
+        .setDescription("Top de usuarios por mensajes enviados"),
     )
     .addSubcommand((sub) =>
-      sub
-        .setName("voice")
-        .setDescription("Top de usuarios por tiempo en voz")
-        .addIntegerOption((o) =>
-          o
-            .setName("pagina")
-            .setDescription("Página del ranking (1-10)")
-            .setMinValue(1)
-            .setMaxValue(10)
-            .setRequired(false),
-        ),
+      sub.setName("voice").setDescription("Top de usuarios por tiempo en voz"),
     ),
 
   async execute(
@@ -42,59 +28,42 @@ export default {
     client: HoshikoClient,
   ) {
     const subcommand = interaction.options.getSubcommand();
-    const page = interaction.options.getInteger("pagina") ?? 1;
-    const perPage = 10;
-    const skip = (page - 1) * perPage;
     const guildId = interaction.guildId!;
 
     if (subcommand === "messages") {
-      await handleMessagesTop(
-        interaction,
-        client,
-        guildId,
-        page,
-        perPage,
-        skip,
-      );
+      await handlePaginatedTop(interaction, client, guildId, "messages");
     } else if (subcommand === "voice") {
-      await handleVoiceTop(interaction, client, guildId, page, perPage, skip);
+      await handlePaginatedTop(interaction, client, guildId, "voice");
     }
   },
 };
 
-async function handleMessagesTop(
+// ─── Builder de embed ─────────────────────────────────────────────────────────
+async function buildEmbed(
   interaction: ChatInputCommandInteraction,
   client: HoshikoClient,
   guildId: string,
+  type: "messages" | "voice",
   page: number,
-  perPage: number,
-  skip: number,
-) {
-  const totalUsers = await LocalLevel.countDocuments({ guildId });
+): Promise<{ embed: EmbedBuilder; totalPages: number }> {
+  const perPage = 10;
+  const skip = (page - 1) * perPage;
 
-  if (totalUsers === 0) {
-    return interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb7c5)
-          .setTitle("🏆 Top Mensajes")
-          .setDescription(
-            `Aún no hay usuarios con mensajes en este servidor.\n\n` +
-              `💬 ¡Sé el primero en enviar mensajes!`,
-          )
-          .setFooter({ text: "Hoshiko Levels 🌸" })
-          .setTimestamp(),
-      ],
-    });
-  }
+  const query =
+    type === "voice"
+      ? { guildId, voiceMinutes: { $gt: 0 } }
+      : { guildId, messagesSent: { $gt: 0 } };
 
-  const top = await LocalLevel.find({ guildId })
-    .sort({ messagesSent: -1 })
-    .skip(skip)
-    .limit(perPage);
+  const sort =
+    type === "voice"
+      ? { voiceLevel: -1, voiceXp: -1, voiceMinutes: -1 }
+      : { messagesSent: -1, xp: -1 };
+
+  const totalUsers = await LocalLevel.countDocuments(query);
+  const totalPages = Math.max(1, Math.ceil(totalUsers / perPage));
+  const top = await LocalLevel.find(query).sort(sort).skip(skip).limit(perPage);
 
   const medals = ["🥇", "🥈", "🥉"];
-  const totalPages = Math.ceil(totalUsers / perPage);
 
   const lines = await Promise.all(
     top.map(async (p, i) => {
@@ -102,110 +71,193 @@ async function handleMessagesTop(
       const name = user?.username ?? `Usuario #${p.userId.slice(0, 8)}`;
       const displayName =
         interaction.guild?.members.cache.get(p.userId)?.displayName ??
-        user?.username ??
+        user?.displayName ??
         name;
       const position = skip + i + 1;
-      const medal = medals[i] ?? `**#${position}**`;
+      const medal = medals[i] ?? `\`#${position}\``;
 
-      return `${medal} **${displayName}** — ${p.messagesSent.toLocaleString()} mensajes`;
+      if (type === "messages") {
+        const level = Math.max(0, p.level ?? 0);
+        const msgs = Math.max(0, p.messagesSent ?? 0);
+        const weekMsgs = Math.max(0, p.weeklyMessages ?? 0);
+
+        if (position <= 3) {
+          return (
+            `${medal} **${displayName}**\n` +
+            `   ├ Nivel ${level} • ${msgs.toLocaleString()} mensajes\n` +
+            `   └ Esta semana: ${weekMsgs.toLocaleString()} msgs`
+          );
+        }
+        return `${medal} **${displayName}** — Nv.${level} • ${msgs.toLocaleString()} msgs`;
+      } else {
+        const voiceLevel = Math.max(0, p.voiceLevel ?? 0);
+        const totalMins = Math.max(0, p.voiceMinutes ?? 0);
+        const weeklyMins = Math.max(0, p.weeklyVoiceMinutes ?? 0);
+        const timeString = formatTime(totalMins);
+        const weekString = formatTime(weeklyMins);
+
+        if (position <= 3) {
+          return (
+            `${medal} **${displayName}**\n` +
+            `   ├ Nivel VC ${voiceLevel} • ${timeString} total\n` +
+            `   └ Esta semana: ${weekString}`
+          );
+        }
+        return `${medal} **${displayName}** — Nv.VC ${voiceLevel} • ${timeString}`;
+      }
     }),
   );
 
+  const isEmpty = lines.length === 0;
+  const title =
+    type === "messages"
+      ? `💬 Top Mensajes — ${interaction.guild?.name}`
+      : `🎤 Top Voz — ${interaction.guild?.name}`;
+
+  const description = isEmpty
+    ? type === "messages"
+      ? "Aún no hay usuarios con mensajes. ¡Sé el primero! 💬"
+      : "Aún no hay usuarios con tiempo en voz. ¡Únete a un canal! 🎤"
+    : `**Top ${skip + 1}–${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
+      lines.join("\n\n");
+
   const embed = new EmbedBuilder()
     .setColor(0xffb7c5)
-    .setTitle(`🏆 Top Mensajes — ${interaction.guild?.name}`)
-    .setDescription(
-      `**Top ${skip + 1}-${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
-        lines.join("\n"),
-    )
-    .addFields({
-      name: "📖 Navegación",
-      value:
-        `Página **${page}** de **${totalPages}**\n` +
-        `Usa \`/top messages pagina:${page < totalPages ? page + 1 : 1}\` para ver más`,
-      inline: false,
-    })
+    .setTitle(title)
+    .setDescription(description)
     .setFooter({
-      text: "Hoshiko Levels 🌸 • ¡Sigue chateando!",
+      text: `Página ${page} de ${totalPages} • Hoshiko Levels 🌸`,
+      iconURL: interaction.guild?.iconURL() ?? undefined,
     })
     .setTimestamp();
 
-  await interaction.editReply({ embeds: [embed] });
+  return { embed, totalPages };
 }
 
-async function handleVoiceTop(
+// ─── Botones ──────────────────────────────────────────────────────────────────
+function buildButtons(
+  page: number,
+  totalPages: number,
+): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("top_first")
+      .setEmoji("⏮️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page === 1),
+    new ButtonBuilder()
+      .setCustomId("top_prev")
+      .setEmoji("◀️")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page === 1),
+    new ButtonBuilder()
+      .setCustomId("top_page")
+      .setLabel(`${page} / ${totalPages}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId("top_next")
+      .setEmoji("▶️")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page === totalPages),
+    new ButtonBuilder()
+      .setCustomId("top_last")
+      .setEmoji("⏭️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page === totalPages),
+  );
+}
+
+// ─── Handler paginado con collector ──────────────────────────────────────────
+async function handlePaginatedTop(
   interaction: ChatInputCommandInteraction,
   client: HoshikoClient,
   guildId: string,
-  page: number,
-  perPage: number,
-  skip: number,
+  type: "messages" | "voice",
 ) {
-  const totalUsers = await LocalLevel.countDocuments({
+  let page = 1;
+  const { embed, totalPages } = await buildEmbed(
+    interaction,
+    client,
     guildId,
-    voiceMinutes: { $gt: 0 },
+    type,
+    page,
+  );
+  const row = buildButtons(page, totalPages);
+
+  const reply = await interaction.editReply({
+    embeds: [embed],
+    components: totalPages > 1 ? [row] : [],
   });
 
-  if (totalUsers === 0) {
-    return interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffb7c5)
-          .setTitle("🏆 Top Voz")
-          .setDescription(
-            `Aún no hay usuarios con tiempo en voz en este servidor.\n\n` +
-              `🎤 ¡Sé el primero en unirte a un canal de voz!`,
-          )
-          .setFooter({ text: "Hoshiko Levels 🌸" })
-          .setTimestamp(),
-      ],
+  if (totalPages <= 1) return;
+
+  const collector = reply.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    filter: (btn) => btn.user.id === interaction.user.id,
+    time: 5 * 60_000, // 5 minutos
+  });
+
+  collector.on("collect", async (btn) => {
+    await btn.deferUpdate();
+
+    if (btn.customId === "top_first") page = 1;
+    else if (btn.customId === "top_prev") page = Math.max(1, page - 1);
+    else if (btn.customId === "top_next") page = Math.min(totalPages, page + 1);
+    else if (btn.customId === "top_last") page = totalPages;
+
+    const { embed: newEmbed, totalPages: tp } = await buildEmbed(
+      interaction,
+      client,
+      guildId,
+      type,
+      page,
+    );
+
+    await interaction.editReply({
+      embeds: [newEmbed],
+      components: [buildButtons(page, tp)],
     });
-  }
+  });
 
-  const top = await LocalLevel.find({ guildId, voiceMinutes: { $gt: 0 } })
-    .sort({ voiceMinutes: -1 })
-    .skip(skip)
-    .limit(perPage);
+  collector.on("end", async () => {
+    // Deshabilitar todos los botones al expirar
+    const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("top_first")
+        .setEmoji("⏮️")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+      new ButtonBuilder()
+        .setCustomId("top_prev")
+        .setEmoji("◀️")
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(true),
+      new ButtonBuilder()
+        .setCustomId("top_page")
+        .setLabel(`${page} / ${totalPages}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+      new ButtonBuilder()
+        .setCustomId("top_next")
+        .setEmoji("▶️")
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(true),
+      new ButtonBuilder()
+        .setCustomId("top_last")
+        .setEmoji("⏭️")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+    );
+    await interaction
+      .editReply({ components: [disabledRow] })
+      .catch(() => null);
+  });
+}
 
-  const medals = ["🥇", "🥈", "🥉"];
-  const totalPages = Math.ceil(totalUsers / perPage);
-
-  const lines = await Promise.all(
-    top.map(async (p, i) => {
-      const user = await client.users.fetch(p.userId).catch(() => null);
-      const name = user?.username ?? `Usuario #${p.userId.slice(0, 8)}`;
-      const displayName =
-        interaction.guild?.members.cache.get(p.userId)?.displayName ??
-        user?.username ??
-        name;
-      const position = skip + i + 1;
-      const medal = medals[i] ?? `**#${position}**`;
-      const hours = Math.floor(p.voiceMinutes / 60);
-      const minutes = p.voiceMinutes % 60;
-      const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-
-      return `${medal} **${displayName}** — ${timeString}`;
-    }),
-  );
-
-  const embed = new EmbedBuilder()
-    .setColor(0xffb7c5)
-    .setTitle(`🏆 Top Voz — ${interaction.guild?.name}`)
-    .setDescription(
-      `**Top ${skip + 1}-${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
-        lines.join("\n"),
-    )
-    .addFields({
-      name: "📖 Navegación",
-      value:
-        `Página **${page}** de **${totalPages}**\n` +
-        `Usa \`/top voice pagina:${page < totalPages ? page + 1 : 1}\` para ver más`,
-      inline: false,
-    })
-    .setFooter({
-      text: "Hoshiko Levels 🌸 • ¡Habla más tiempo!",
-    })
-    .setTimestamp();
-
-  await interaction.editReply({ embeds: [embed] });
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function formatTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
