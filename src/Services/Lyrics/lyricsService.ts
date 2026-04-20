@@ -19,6 +19,7 @@ export async function findLyrics(
     source: null,
     title: query.song,
     artist: query.artist,
+    thumbnail: null, // ← agregar esta línea
     confidence: 0,
   };
 }
