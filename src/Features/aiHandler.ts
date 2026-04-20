@@ -13,7 +13,14 @@ import { UserMemoryManager } from "../Database/UserMemoryManager";
 import { HoshikoClient } from "../index";
 import ServerConfig from "../Models/serverConfig";
 import { extractFacts, generateResponseStream } from "../Services/gemini";
-import { buscarLetraGenius } from "../Services/geniusLyrics";
+import {
+  buildLyricsButtons,
+  buildLyricsPageEmbed,
+  findLyrics,
+  normalizeLyricsQuery,
+  parseLyricsCommand,
+  splitLyrics,
+} from "../Services/Lyrics";
 import { SearchService, isQuerySafe } from "../Services/search";
 import { SystemPromptContext, SystemPrompts } from "../Utils/AI/SystemPrompts";
 import { containsPromptInjection } from "../Utils/triggerConditions";
@@ -21,7 +28,6 @@ import { containsPromptInjection } from "../Utils/triggerConditions";
 const antiSpamCooldown = new Set<string>();
 const processedMessages = new Set<string>();
 
-// ✅ Rate limit por usuario (3s entre mensajes)
 const userAiCooldown = new Map<string, number>();
 const USER_AI_COOLDOWN_MS = 3000;
 
@@ -68,7 +74,6 @@ function shouldBlockMessage(text: string): { block: boolean; reason?: string } {
   return { block: false };
 }
 
-// ✅ Saludos aleatorios cuando solo mencionan al bot sin texto
 const EMPTY_MENTION_RESPONSES = [
   "¿Me llamaste?",
   "Dime~",
@@ -85,12 +90,6 @@ export default async (
   if (message.author.bot || !message.guild) return false;
 
   if (processedMessages.has(message.id)) return false;
-
-  // ✅ Rate limit por usuario
-  const now = Date.now();
-  const lastCall = userAiCooldown.get(message.author.id) ?? 0;
-  if (now - lastCall < USER_AI_COOLDOWN_MS) return false;
-  userAiCooldown.set(message.author.id, now);
 
   let config = await ServerConfig.findOne({ guildId: message.guild.id });
   if (!config) config = new ServerConfig({ guildId: message.guild.id });
@@ -256,28 +255,60 @@ export default async (
   const isPremium = await PremiumManager.isPremium(message.guild.id);
 
   // --- 🎵 CANCIONES ---
-  const lyricsMatch = message.content.match(
-    /(?:letra de|busca la letra de|dame la letra de)\s+(.+?)(?:\s+de\s+|\s+-\s+)(.+)|(?:letra de|busca la letra de|dame la letra de)\s+(.+)/i,
-  );
-  if (lyricsMatch) {
+  const parsedLyrics = parseLyricsCommand(message.content);
+
+  if (parsedLyrics) {
     processedMessages.add(message.id);
     setTimeout(() => processedMessages.delete(message.id), 5000);
 
-    const cancion = (lyricsMatch[1] || lyricsMatch[3])
-      ?.replace(/-/g, " ")
-      .trim();
-    const artista = lyricsMatch[2]?.replace(/-/g, " ").trim() || null;
     const waiting = await message.reply("🎶 Buscando...");
-    const letra = await buscarLetraGenius(artista, cancion);
-    if (letra) {
-      const embed = new EmbedBuilder()
-        .setTitle(cancion.toUpperCase())
-        .setDescription(letra)
-        .setColor(0xffff00);
-      await waiting.edit({ content: null, embeds: [embed] });
+    const normalizedQuery = normalizeLyricsQuery(parsedLyrics);
+    const result = await findLyrics(normalizedQuery);
+
+    if (!result.found || !result.lyrics) {
+      await waiting.edit("😿 No la encontré...");
       return true;
     }
-    await waiting.edit("😿 No la encontré...");
+
+    const pages = splitLyrics(result.lyrics);
+    let page = 0;
+    const total = pages.length;
+
+    await waiting.edit({
+      content: null,
+      embeds: [buildLyricsPageEmbed(result, pages, page)],
+      components: total > 1 ? [buildLyricsButtons(page, total)] : [],
+    });
+
+    if (total <= 1) return true;
+
+    const collector = waiting.createMessageComponentCollector({
+      filter: (i) => i.user.id === message.author.id,
+      time: 180_000,
+    });
+
+    collector.on("collect", async (i) => {
+      await i.deferUpdate();
+      if (i.customId === "lyrics_close") {
+        collector.stop();
+        return;
+      }
+      if (i.customId === "lyrics_first") page = 0;
+      else if (i.customId === "lyrics_prev") page = Math.max(0, page - 1);
+      else if (i.customId === "lyrics_next")
+        page = Math.min(total - 1, page + 1);
+      else if (i.customId === "lyrics_last") page = total - 1;
+
+      await waiting.edit({
+        embeds: [buildLyricsPageEmbed(result, pages, page)],
+        components: [buildLyricsButtons(page, total)],
+      });
+    });
+
+    collector.on("end", async () => {
+      await waiting.edit({ components: [] }).catch(() => {});
+    });
+
     return true;
   }
 
@@ -300,23 +331,29 @@ export default async (
   const isDirectInteraction =
     forced || isMentioned || prefixMatch || isReplyToMe;
 
-  if (!forced && (isMentioned || prefixMatch || isReplyToMe)) return false;
-
   // --- 🎲 GATILLO ESPONTÁNEO ---
   let isRandomTrigger = false;
   if (!isDirectInteraction) {
     const allowedChannels = aiSystem.spontaneousChannels || [];
     if (allowedChannels.includes(message.channel.id)) {
-      // ✅ Solo si randomChance está explícitamente configurado > 0
       isRandomTrigger =
         (aiSystem.randomChance ?? 0) > 0 &&
         Math.random() * 100 < aiSystem.randomChance;
     }
   }
 
+  // ✅ FIX #1 — Lógica corregida: sale solo si no es ningún tipo de interacción
+  if (!isDirectInteraction && !isRandomTrigger) return false;
+
+  // ✅ FIX #2 — Rate limit movido aquí, después de confirmar que aplica
+  const now = Date.now();
+  const lastCall = userAiCooldown.get(message.author.id) ?? 0;
+  if (now - lastCall < USER_AI_COOLDOWN_MS) return false;
+  userAiCooldown.set(message.author.id, now);
+
   // --- 🔋 COOLDOWN ---
   const isOnCooldown = new Date(aiSystem.cooldownUntil || 0) > new Date();
-  if (!isDirectInteraction && (!isRandomTrigger || isOnCooldown)) return false;
+  if (!isDirectInteraction && isOnCooldown) return false;
 
   // --- 🛡️ ANTI SPAM ---
   if (antiSpamCooldown.has(message.channel.id)) return false;
@@ -338,7 +375,6 @@ export default async (
       return true;
     }
 
-    // ✅ Bloquear prompt injection
     if (containsPromptInjection(message.content)) {
       await message.reply("Nyaa~ eso suena sospechoso, no voy a hacer eso 👀");
       return true;
@@ -348,7 +384,6 @@ export default async (
   processedMessages.add(message.id);
   setTimeout(() => processedMessages.delete(message.id), 10000);
 
-  // ✅ sendTyping también para replies
   if ((isDirectInteraction || isReplyToMe) && "sendTyping" in message.channel) {
     await (message.channel as any).sendTyping().catch(() => null);
   }
@@ -389,7 +424,6 @@ export default async (
       .reverse()
       .slice(0, -1) as Message[];
 
-    // ✅ Solo bot + usuario — contexto personal
     const sortedMessages = recentMessages.filter(
       (m) =>
         m.author.id === client.user!.id || m.author.id === message.author.id,
@@ -413,7 +447,6 @@ export default async (
       .replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "")
       .trim();
 
-    // ✅ Respuesta aleatoria si solo mencionan sin texto
     if (!userMessage && isMentioned) {
       userMessage =
         EMPTY_MENTION_RESPONSES[
@@ -421,10 +454,10 @@ export default async (
         ];
     }
 
-    if (prefixMatch) userMessage = message.content.substring(10).trim();
-
-    // ✅ Limpiar "hoshi ask" del mensaje si viene con prefijo
-    if (userMessage.toLowerCase().startsWith("hoshi ask ")) {
+    // ✅ FIX #3 — Sin doble recorte
+    if (prefixMatch) {
+      userMessage = message.content.substring(10).trim();
+    } else if (userMessage.toLowerCase().startsWith("hoshi ask ")) {
       userMessage = userMessage.substring(10).trim();
     }
 
