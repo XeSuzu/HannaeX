@@ -19,7 +19,7 @@ import {
   findLyrics,
   normalizeLyricsQuery,
   parseLyricsCommand,
-  splitLyrics,
+  splitLyricsBySection,
 } from "../Services/Lyrics";
 import { SearchService, isQuerySafe } from "../Services/search";
 import { SystemPromptContext, SystemPrompts } from "../Utils/AI/SystemPrompts";
@@ -266,17 +266,19 @@ export default async (
     const result = await findLyrics(normalizedQuery);
 
     if (!result.found || !result.lyrics) {
-      await waiting.edit("😿 No la encontré...");
+      await waiting.edit("😿 No encontré la letra de esa canción~");
       return true;
     }
 
-    const pages = splitLyrics(result.lyrics);
+    const pages = splitLyricsBySection(result.lyrics);
     let page = 0;
     const total = pages.length;
 
+    const firstEmbed = await buildLyricsPageEmbed(result, pages, page);
+
     await waiting.edit({
       content: null,
-      embeds: [buildLyricsPageEmbed(result, pages, page)],
+      embeds: [firstEmbed],
       components: total > 1 ? [buildLyricsButtons(page, total)] : [],
     });
 
@@ -299,8 +301,9 @@ export default async (
         page = Math.min(total - 1, page + 1);
       else if (i.customId === "lyrics_last") page = total - 1;
 
+      const updatedEmbed = await buildLyricsPageEmbed(result, pages, page);
       await waiting.edit({
-        embeds: [buildLyricsPageEmbed(result, pages, page)],
+        embeds: [updatedEmbed],
         components: [buildLyricsButtons(page, total)],
       });
     });

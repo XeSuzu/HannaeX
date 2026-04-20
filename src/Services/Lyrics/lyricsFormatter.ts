@@ -6,56 +6,107 @@ import {
 } from "discord.js";
 import { LyricsResult } from "./types";
 
-const PAGE_SIZE = 3800;
-
-export function splitLyrics(lyrics: string): string[] {
-  const pages: string[] = [];
-  const lines = lyrics.split("\n");
-  let current = "";
-
-  for (const line of lines) {
-    if ((current + "\n" + line).trim().length > PAGE_SIZE) {
-      if (current.trim()) pages.push(current.trim());
-      current = line;
-    } else {
-      current = current ? current + "\n" + line : line;
-    }
-  }
-
-  if (current.trim()) pages.push(current.trim());
-  return pages.length > 0 ? pages : ["..."];
-}
-
+const MAX_LINES_PER_PAGE = 12;
+const SECTION_REGEX = /^\[.+\]$/;
 const SOURCE_LABELS: Record<string, string> = {
   genius: "Genius",
   lrclib: "LRCLIB",
   lyricsovh: "lyrics.ovh",
 };
 
-export function buildLyricsPageEmbed(
+// Busca artwork en iTunes si no viene del proveedor
+async function fetchItunesArtwork(
+  title: string,
+  artist: string | null,
+): Promise<string | null> {
+  try {
+    const query = artist ? `${title} ${artist}` : title;
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=1`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const artwork = data?.results?.[0]?.artworkUrl100;
+    if (!artwork) return null;
+    // Subir resolución de 100x100 a 600x600
+    return artwork.replace("100x100bb", "600x600bb");
+  } catch {
+    return null;
+  }
+}
+
+// Divide la letra en páginas por sección, máx 12 líneas por página
+export function splitLyricsBySection(lyrics: string): string[] {
+  const rawLines = lyrics.split("\n");
+  const pages: string[] = [];
+  let currentPage: string[] = [];
+
+  for (const line of rawLines) {
+    const trimmed = line.trim();
+
+    // Nueva sección detectada
+    if (SECTION_REGEX.test(trimmed) && currentPage.length > 0) {
+      pages.push(currentPage.join("\n").trim());
+      currentPage = [trimmed];
+      continue;
+    }
+
+    currentPage.push(trimmed);
+
+    // Si ya llegó al límite de líneas, cortar
+    if (currentPage.filter((l) => l !== "").length >= MAX_LINES_PER_PAGE) {
+      pages.push(currentPage.join("\n").trim());
+      currentPage = [];
+    }
+  }
+
+  if (currentPage.join("").trim()) {
+    pages.push(currentPage.join("\n").trim());
+  }
+
+  return pages.filter((p) => p.trim().length > 0);
+}
+
+// Sanear texto — quita info extra que viene en Genius al inicio
+function sanitizeLyricsPage(text: string): string {
+  return text
+    .replace(/\d+ Contributors?.*?Lyrics/is, "")
+    .replace(/^(Embed|See \w+ Live).*$/gim, "")
+    .replace(/You might also like/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export async function buildLyricsPageEmbed(
   result: LyricsResult,
   pages: string[],
   page: number,
-): EmbedBuilder {
-  const title = (result.title || "LETRA").toUpperCase();
-  const artist = result.artist ? ` — ${result.artist}` : "";
-  const source =
-    SOURCE_LABELS[result.source || ""] || result.source || "desconocida";
+): Promise<EmbedBuilder> {
   const total = pages.length;
+  const source = SOURCE_LABELS[result.source || ""] || result.source || "?";
 
-  const buildProgress = (index: number, total: number) => {
-    if (total <= 1) return "";
-    const filled = Math.round((index / (total - 1)) * 8);
-    return " • " + "▰".repeat(filled) + "▱".repeat(8 - filled);
-  };
+  // Imagen: primero del proveedor, si no busca en iTunes
+  let thumbnail = result.thumbnail;
+  if (!thumbnail && result.title) {
+    thumbnail = await fetchItunesArtwork(result.title, result.artist);
+  }
 
-  return new EmbedBuilder()
-    .setColor(0xffff00)
-    .setAuthor({ name: `🎵 ${title}${artist}` })
-    .setDescription(pages[page])
+  const embed = new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .setTitle(`🎵 ${result.title || "Letra"}`)
+    .setDescription(sanitizeLyricsPage(pages[page]))
     .setFooter({
-      text: `Página ${page + 1} de ${total}${buildProgress(page, total)} • ${source}`,
+      text: `Página ${page + 1}/${total} • ${source}`,
     });
+
+  if (result.artist) {
+    embed.setAuthor({ name: result.artist });
+  }
+
+  if (thumbnail) {
+    embed.setThumbnail(thumbnail);
+  }
+
+  return embed;
 }
 
 export function buildLyricsButtons(

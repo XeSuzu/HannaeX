@@ -8,24 +8,18 @@ import {
   Tool,
 } from "@google/generative-ai";
 
-// Verificación de API Key
 if (!process.env.GEMINI_API_KEY) {
   console.error("❌ Falta la variable de entorno GEMINI_API_KEY.");
-  process.exit(1);
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-/**
- * Genera una respuesta en streaming con filtros optimizados 🚀
- */
 export async function generateResponseStream(
   systemInstruction: string,
   history: Content[],
   safetyLevel: "relaxed" | "standard" | "strict" = "standard",
   tools?: Tool[],
 ): Promise<GenerateContentStreamResult["stream"]> {
-  // 🛡️ MAPEO DE SEGURIDAD ROBUSTO
   const safetySettings: SafetySetting[] = [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -73,31 +67,22 @@ export async function generateResponseStream(
       model: "gemini-2.5-flash-lite",
       safetySettings,
       systemInstruction: systemInstruction,
-
       ...(tools && tools.length > 0 && { tools }),
-
       generationConfig: {
-        temperature: 0.7, // ✅ Ajustado ligeramente para mayor precisión técnica
+        temperature: 0.7,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 4096, // ✅ ¡El tanque de oxígeno!
+        maxOutputTokens: 4096,
       },
     });
 
-    // 1. Separamos el historial previo del mensaje actual
     let chatHistory = history.slice(0, -1);
-
-    // 2. Google exige que el historial empiece con 'user'.
     while (chatHistory.length > 0 && chatHistory[0].role === "model") {
       chatHistory.shift();
     }
 
-    const chat = model.startChat({
-      history: chatHistory,
-    });
-
+    const chat = model.startChat({ history: chatHistory });
     const lastMessage = history[history.length - 1]?.parts[0]?.text || "";
-
     const result = await chat.sendMessageStream(lastMessage, {
       signal: controller.signal,
     });
@@ -107,7 +92,6 @@ export async function generateResponseStream(
   } catch (err: any) {
     clearTimeout(timeout);
 
-    // 🕵️ REPORTE FORENSE DE CENSURA INTEGRADO 🕵️
     if (
       err.message?.includes("SAFETY") ||
       err.message?.includes("blocked") ||
@@ -115,18 +99,15 @@ export async function generateResponseStream(
     ) {
       console.log("\n🚨 --- REPORTE DE BLOQUEO DE SEGURIDAD --- 🚨");
       console.log(`🎚️ Nivel configurado: [${safetyLevel.toUpperCase()}]`);
-
       if (err.response?.promptFeedback) {
         console.log(
           "🔍 Feedback del Prompt:",
           JSON.stringify(err.response.promptFeedback, null, 2),
         );
       }
-
       if (err.response?.candidates && err.response.candidates.length > 0) {
         const candidate = err.response.candidates[0];
         console.log("🚫 Razón de bloqueo:", candidate.finishReason);
-
         if (candidate.safetyRatings) {
           console.log("🛡️ Ratings Culpables:");
           candidate.safetyRatings.forEach((rating: any) => {
@@ -137,7 +118,6 @@ export async function generateResponseStream(
         }
       }
       console.log("----------------------------------\n");
-
       throw new Error("PROHIBITED_CONTENT");
     }
 
@@ -153,10 +133,6 @@ export async function generateResponseStream(
   }
 }
 
-/**
- * Extrae facts relevantes del mensaje de un usuario para memoria persistente.
- * Devuelve un array de strings con los facts encontrados, o vacío si no hay nada relevante.
- */
 export async function extractFacts(
   username: string,
   userMessage: string,
@@ -209,8 +185,8 @@ Respuesta (solo array JSON):
     const text = result.response.text().trim();
     const clean = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean);
-    if (!Array.isArray(parsed)) return [];
 
+    if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (f: any) => typeof f === "string" && f.trim().length > 0,
     );

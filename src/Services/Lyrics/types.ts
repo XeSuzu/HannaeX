@@ -14,6 +14,7 @@ export interface LyricsResult {
   source: LyricsSource | null;
   title: string | null;
   artist: string | null;
+  thumbnail: string | null; // ← nuevo
   confidence: number;
   providerError?: string | null;
 }

@@ -14,6 +14,7 @@ export async function lyricsOvhProvider(
         source: "lyricsovh",
         title: query.song,
         artist: query.artist,
+        thumbnail: null,
         confidence: 0,
         providerError: "lyrics.ovh requiere artista",
       };
@@ -21,31 +22,29 @@ export async function lyricsOvhProvider(
 
     const url = `${LYRICS_OVH_BASE_URL}/${encodeURIComponent(query.artist)}/${encodeURIComponent(query.song)}`;
     const res = await fetch(url);
-
-    if (!res.ok) {
+    if (!res.ok)
       return {
         found: false,
         lyrics: null,
         source: "lyricsovh",
         title: query.song,
         artist: query.artist,
+        thumbnail: null,
         confidence: 0,
       };
-    }
 
     const data = await res.json();
     const lyrics = data?.lyrics?.trim() || null;
-
-    if (!lyrics) {
+    if (!lyrics)
       return {
         found: false,
         lyrics: null,
         source: "lyricsovh",
         title: query.song,
         artist: query.artist,
+        thumbnail: null,
         confidence: 0,
       };
-    }
 
     return {
       found: true,
@@ -53,6 +52,7 @@ export async function lyricsOvhProvider(
       source: "lyricsovh",
       title: query.song,
       artist: query.artist,
+      thumbnail: null,
       confidence: 0.65,
     };
   } catch (error: any) {
@@ -62,8 +62,9 @@ export async function lyricsOvhProvider(
       source: "lyricsovh",
       title: query.song,
       artist: query.artist,
+      thumbnail: null,
       confidence: 0,
-      providerError: error?.message || "Error en lyrics.ovh",
+      providerError: error?.message,
     };
   }
 }
