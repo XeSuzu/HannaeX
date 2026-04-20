@@ -104,7 +104,6 @@ async function removePersistedSession(
   await ActiveVoiceSession.deleteOne({ userId, guildId }).catch(() => null);
 }
 
-// ✅ FIX — intervalo cada 5 minutos, no cada 1 hora
 setInterval(async () => {
   const now = Date.now();
   for (const [key, session] of activeSessions.entries()) {
@@ -136,14 +135,8 @@ setInterval(async () => {
       if (!latest || latest.token !== session.token) continue;
 
       if (!isValidVoiceStateNow(member)) {
-        activeSessions.set(key, { ...session, start: now });
-        await persistSession(
-          session.userId,
-          session.guildId,
-          session.channelId,
-          now,
-          session.token,
-        );
+        activeSessions.delete(key);
+        await removePersistedSession(session.userId, session.guildId);
         continue;
       }
 
@@ -179,7 +172,7 @@ setInterval(async () => {
       console.error("[voiceXp] error guardando xp por intervalo:", err);
     }
   }
-}, 5 * 60_000); // ✅ cada 5 minutos
+}, 5 * 60_000);
 
 async function closeSession(
   userId: string,
@@ -223,6 +216,47 @@ export default {
     const now = Date.now();
     const wasOk = oldState.channelId ? isValidSession(oldState) : false;
     const isOk = newState.channelId ? isValidSession(newState) : false;
+
+    // ─── Detectar cambio de mute/deaf estando en sesión activa ───────────────
+    const session = activeSessions.get(key);
+    const mutedNow =
+      newState.selfMute ||
+      newState.selfDeaf ||
+      newState.serverMute ||
+      newState.serverDeaf;
+    const wasMuted =
+      oldState.selfMute ||
+      oldState.selfDeaf ||
+      oldState.serverMute ||
+      oldState.serverDeaf;
+
+    if (session && newState.channelId === session.channelId) {
+      if (!wasMuted && mutedNow) {
+        // Se muteó/ensordó → resetear timer sin dar XP
+        activeSessions.set(key, { ...session, start: now });
+        await persistSession(
+          userId,
+          guildId,
+          session.channelId,
+          now,
+          session.token,
+        );
+        return;
+      }
+      if (wasMuted && !mutedNow) {
+        // Se desmuteó → resetear timer, empieza a contar desde ahora
+        activeSessions.set(key, { ...session, start: now });
+        await persistSession(
+          userId,
+          guildId,
+          session.channelId,
+          now,
+          session.token,
+        );
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (!wasOk && isOk) {
       const token = crypto.randomUUID();
