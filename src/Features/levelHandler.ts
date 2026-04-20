@@ -39,7 +39,7 @@ export function isMilestone(level: number): boolean {
 function getCurrentWeekStart(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  const day = d.getDay(); // 0 = domingo
+  const day = d.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diffToMonday);
   return d;
@@ -74,8 +74,6 @@ async function handleGlobalXp(
     });
   }
 
-  // Solo incrementar serversJoined si el perfil global ya existía
-  // y es la primera vez en este servidor
   if (!isNewGlobalProfile) {
     const localProfile = await LocalLevel.findOne({
       userId,
@@ -112,7 +110,6 @@ async function handleGlobalXp(
   const newTier = getTierForLevel(newGlobalLevel);
   const tierUp = newTier.tier !== oldTier.tier;
 
-  // Reset semanal global (lunes)
   const currentWeekStart = getCurrentWeekStart();
   const previousWeekStart = globalProfile.weekStartDate ?? new Date(0);
 
@@ -127,9 +124,25 @@ async function handleGlobalXp(
     weeklyMessages = (globalProfile.weeklyMessages ?? 0) + 1;
   }
 
+  // ─── Streak global ────────────────────────────────────────────────────────
+  const lastGain = globalProfile.lastGlobalXpGain ?? new Date(0);
+  const hoursSinceLast =
+    (now.getTime() - lastGain.getTime()) / (1000 * 60 * 60);
+
+  let newStreak = globalProfile.globalStreak ?? 0;
+  if (hoursSinceLast >= 20 && hoursSinceLast <= 48) {
+    newStreak += 1;
+  } else if (hoursSinceLast > 48) {
+    newStreak = 1;
+  }
+
   const achievements = [...globalProfile.achievements];
   const newAchievements = checkAchievements(
-    { ...globalProfile.toObject(), serversJoined: globalProfile.serversJoined },
+    {
+      ...globalProfile.toObject(),
+      serversJoined: globalProfile.serversJoined,
+      globalStreak: newStreak,
+    },
     message,
     newGlobalLevel,
   );
@@ -148,6 +161,7 @@ async function handleGlobalXp(
       $inc: { totalMessages: 1 },
       currentTier: newTier.tier,
       lastGlobalXpGain: now,
+      globalStreak: newStreak,
       weeklyXp,
       weeklyMessages,
       weekStartDate: currentWeekStart,
@@ -173,7 +187,7 @@ async function handleGlobalXp(
   }
 }
 
-// ─── Achievements (texto/global) ─────────────────────────────────────────────
+// ─── Achievements ─────────────────────────────────────────────────────────────
 function checkAchievements(
   profile: any,
   message: Message,
@@ -202,17 +216,29 @@ function checkAchievements(
   )
     newAchievements.push("messages_10k");
 
-  // multi_server: solo si realmente está en 2+ servidores
   if (
     profile.serversJoined >= 2 &&
     !profile.achievements.includes("multi_server")
   )
     newAchievements.push("multi_server");
 
+  // ✅ FIX — logros de streak ahora se verifican
+  if (
+    (profile.globalStreak ?? 0) >= 7 &&
+    !profile.achievements.includes("streak_7")
+  )
+    newAchievements.push("streak_7");
+
+  if (
+    (profile.globalStreak ?? 0) >= 30 &&
+    !profile.achievements.includes("streak_30")
+  )
+    newAchievements.push("streak_30");
+
   return newAchievements;
 }
 
-// ─── Anuncios ────────────────────────────────────────────────────────────────
+// ─── Anuncios ─────────────────────────────────────────────────────────────────
 async function announceAchievements(
   user: any,
   achievementIds: string[],
@@ -230,8 +256,8 @@ async function announceAchievements(
         `${achievement.emoji} ¡Logro Desbloqueado! ${achievement.emoji}`,
       )
       .setDescription(
-        `**${user.displayName}** ha conseguido:\\n\\n` +
-          `🌸 **${achievement.name}** (${achievement.nameEn})\\n` +
+        `**${user.displayName}** ha conseguido:\n\n` +
+          `🌸 **${achievement.name}** (${achievement.nameEn})\n` +
           `📝 ${achievement.description}`,
       )
       .setThumbnail(user.displayAvatarURL())
@@ -255,14 +281,14 @@ async function announceGlobalLevelUp(
     .setColor(tier.color)
     .setTitle(`${tier.emoji} ¡Nivel Global: ${newLevel}! ${tier.emoji}`)
     .setDescription(
-      `**${user.displayName}** ha alcanzado el **nivel ${newLevel}**!\\n\\n` +
-        `🏆 Tier actual: **${tier.name}** (${tier.nameJp}) ${tier.emoji}\\n` +
+      `**${user.displayName}** ha alcanzado el **nivel ${newLevel}**!\n\n` +
+        `🏆 Tier actual: **${tier.name}** (${tier.nameJp}) ${tier.emoji}\n` +
         `📝 "${tier.description}"`,
     )
     .setThumbnail(user.displayAvatarURL())
     .addFields({
       name: "🌸 ¡Sigue así!",
-      value: `Nivel \\\`${oldLevel}\\\` → \\\`${newLevel}\\\``,
+      value: `Nivel \`${oldLevel}\` → \`${newLevel}\``,
       inline: false,
     })
     .setFooter({ text: "Hoshiko Global Levels ✨" })
@@ -282,9 +308,9 @@ async function announceGlobalTierUp(
     .setColor(tier.color)
     .setTitle(`${tier.emoji} ¡Nuevo Tier Desbloqueado! ${tier.emoji}`)
     .setDescription(
-      `**${user.displayName}** ha alcanzado un nuevo tier:\\n\\n` +
-        `✨ **${tier.name}** ✨\\n` +
-        `${tier.nameJp}\\n\\n` +
+      `**${user.displayName}** ha alcanzado un nuevo tier:\n\n` +
+        `✨ **${tier.name}** ✨\n` +
+        `${tier.nameJp}\n\n` +
         `📝 "${tier.description}"`,
     )
     .setThumbnail(user.displayAvatarURL())
@@ -333,20 +359,18 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const secondsSinceLast =
     (now.getTime() - profile.lastXpGain.getTime()) / 1000;
 
-  // ── Detección de abuso ───────────────────────────────────────────────────
   const totalMentions = message.mentions.users.size;
   const validMentions = message.mentions.users.filter(
     (u) => !u.bot && u.id !== message.author.id,
   ).size;
 
   const isInvalidMentionSpam = totalMentions > validMentions;
-  const isVeryFastSpam = secondsSinceLast < 5; // < 5s = spam real
+  const isVeryFastSpam = secondsSinceLast < 5;
   const isAbuse = isInvalidMentionSpam || isVeryFastSpam;
 
   const isInAbuseCooldown =
     !!profile.abuseCooldownUntil && now < profile.abuseCooldownUntil;
 
-  // Si está en cooldown de abuso activo, solo contar mensaje y salir
   if (isInAbuseCooldown) {
     await LocalLevel.updateOne(
       { userId: message.author.id, guildId: message.guild.id },
@@ -355,7 +379,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
     return;
   }
 
-  // Aplicar cooldown y advertencia si hay abuso nuevo
   if (isAbuse) {
     await LocalLevel.updateOne(
       { userId: message.author.id, guildId: message.guild.id },
@@ -367,15 +390,12 @@ export async function handleLevelXp(message: Message): Promise<void> {
     return;
   }
 
-  // ── Calcular XP ganado ───────────────────────────────────────────────────
-  // Ventana de XP pasiva: entre passiveWindow y cooldownSecs → 35% del XP normal
   const passiveWindow = Math.max(15, Math.floor(cooldownSecs * 0.25));
   const isPassiveRange =
     secondsSinceLast >= passiveWindow && secondsSinceLast < cooldownSecs;
 
   let earned = Math.floor(baseXp + Math.random() * baseXp * 0.5);
 
-  // Bonus por menciones válidas
   if (
     config?.xpMentionBonus &&
     config.xpMentionBonus > 0 &&
@@ -388,15 +408,12 @@ export async function handleLevelXp(message: Message): Promise<void> {
     earned += Math.floor(mentionBonus);
   }
 
-  // XP pasiva si habla frecuente pero dentro del cooldown normal
   if (isPassiveRange) {
     earned = Math.max(1, Math.floor(earned * 0.35));
   }
 
-  // Aplicar multiplicador
   earned = Math.floor(earned * multiplier);
 
-  // Si no gana nada, solo contar mensaje
   if (earned <= 0) {
     await LocalLevel.updateOne(
       { userId: message.author.id, guildId: message.guild.id },
@@ -406,7 +423,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
     return;
   }
 
-  // ── Weekly local ─────────────────────────────────────────────────────────
   const currentWeekStart = getCurrentWeekStart();
   const localWeekStart = profile.weekStartDate ?? new Date(0);
 
@@ -421,7 +437,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
     weeklyMessages = (profile.weeklyMessages ?? 0) + 1;
   }
 
-  // ── Calcular nivel ────────────────────────────────────────────────────────
   const newXp = profile.xp + earned;
   let newLevel = profile.level;
 
@@ -449,7 +464,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
 
   if (!leveledUp) return;
 
-  // ── Roles de nivel ────────────────────────────────────────────────────────
   if (config?.levelRoles.length && message.member) {
     await assignLevelRoles(
       message.member,
@@ -460,7 +474,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
     );
   }
 
-  // ── Anuncio de subida de nivel ────────────────────────────────────────────
   const announceMode = config?.announceMode ?? "milestone";
   if (announceMode === "silent") return;
   if (announceMode === "milestone" && !isMilestone(newLevel)) return;
@@ -482,12 +495,12 @@ export async function handleLevelXp(message: Message): Promise<void> {
     .addFields(
       {
         name: "📊 Progreso",
-        value: `Nivel \\\`${oldLevel}\\\` → \\\`${newLevel}\\\``,
+        value: `Nivel \`${oldLevel}\` → \`${newLevel}\``,
         inline: true,
       },
       {
         name: "⚡ XP Total",
-        value: `\\\`${newXp.toLocaleString()}\\\` XP`,
+        value: `\`${newXp.toLocaleString()}\` XP`,
         inline: true,
       },
       {
@@ -581,7 +594,6 @@ export async function handleVoiceXp(
   const safeMinutes = Math.max(0, Math.floor(minutesInVoice || 0));
   if (safeMinutes < minMinutes) return;
 
-  // XP pasiva de voz: primeras 5h → XP completo; luego → 25%
   const NORMAL_XP_MINUTES = 300;
   const PASSIVE_XP_MULTIPLIER = 0.25;
 
@@ -623,7 +635,6 @@ export async function handleVoiceXp(
 
   const leveledUp = newVoiceLevel > (profile.voiceLevel ?? 0);
 
-  // ── Weekly VC local ───────────────────────────────────────────────────────
   const currentWeekStart = getCurrentWeekStart();
   const localWeekStart = profile.weekStartDate ?? new Date(0);
   const weeklyVoiceMinutes =
@@ -639,7 +650,7 @@ export async function handleVoiceXp(
         voiceLevel: newVoiceLevel,
       },
       $inc: {
-        voiceMinutes: safeMinutes, // Tiempo real total en VC; el cap solo aplica al XP
+        voiceMinutes: safeMinutes,
       },
       weeklyVoiceMinutes,
       ...(localWeekStart < currentWeekStart && {

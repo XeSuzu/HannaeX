@@ -20,7 +20,6 @@ export function initVoiceSessionClient(c: Client): void {
   client = c;
 }
 
-// ─── Rehidratación al arrancar ────────────────────────────────────────────────
 export async function rehydrateVoiceSessions(): Promise<void> {
   if (!client) return;
   const saved = await ActiveVoiceSession.find();
@@ -44,7 +43,7 @@ export async function rehydrateVoiceSessions(): Promise<void> {
       }
 
       activeSessions.set(sessionKey(s.userId, s.guildId), {
-        start: s.start.getTime(), // Preserva start original — no pierde minutos
+        start: s.start.getTime(),
         userId: s.userId,
         guildId: s.guildId,
         channelId: s.channelId,
@@ -105,6 +104,7 @@ async function removePersistedSession(
   await ActiveVoiceSession.deleteOne({ userId, guildId }).catch(() => null);
 }
 
+// ✅ FIX — intervalo cada 5 minutos, no cada 1 hora
 setInterval(async () => {
   const now = Date.now();
   for (const [key, session] of activeSessions.entries()) {
@@ -179,7 +179,7 @@ setInterval(async () => {
       console.error("[voiceXp] error guardando xp por intervalo:", err);
     }
   }
-}, 60 * 60_000);
+}, 5 * 60_000); // ✅ cada 5 minutos
 
 async function closeSession(
   userId: string,
@@ -191,7 +191,7 @@ async function closeSession(
   if (!session) return;
 
   activeSessions.delete(key);
-  await removePersistedSession(userId, guildId); // Borrar en DB también
+  await removePersistedSession(userId, guildId);
 
   const minutes = Math.floor((now - session.start) / 60_000);
   if (minutes < 1) return;
