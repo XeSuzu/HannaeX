@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { LyricsResult } from "./types";
 
-const MAX_LINES_PER_PAGE = 20;
+const MAX_SECTIONS_PER_PAGE = 3;
 const SECTION_REGEX = /^\[.+\]$/;
 const SOURCE_LABELS: Record<string, string> = {
   genius: "Genius",
@@ -33,32 +33,47 @@ async function fetchItunesArtwork(
 }
 
 export function splitLyricsBySection(lyrics: string): string[] {
-  const rawLines = lyrics.split("\n");
+  // Con etiquetas [Verse]/[Chorus] — cortar cada 3 secciones
+  if (SECTION_REGEX.test(lyrics)) {
+    const rawLines = lyrics.split("\n");
+    const pages: string[] = [];
+    let currentPage: string[] = [];
+    let sectionsInPage = 0;
+
+    for (const line of rawLines) {
+      const trimmed = line.trim();
+
+      if (SECTION_REGEX.test(trimmed)) {
+        if (sectionsInPage >= MAX_SECTIONS_PER_PAGE && currentPage.length > 0) {
+          pages.push(currentPage.join("\n").trim());
+          currentPage = [];
+          sectionsInPage = 0;
+        }
+        sectionsInPage++;
+      }
+
+      currentPage.push(trimmed);
+    }
+
+    if (currentPage.join("").trim()) {
+      pages.push(currentPage.join("\n").trim());
+    }
+
+    return pages.filter((p) => p.trim().length > 0);
+  }
+
+  // Fallback — sin etiquetas, cortar por párrafos, 3 por página
+  const paragraphs = lyrics
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
   const pages: string[] = [];
-  let currentPage: string[] = [];
-
-  for (const line of rawLines) {
-    const trimmed = line.trim();
-
-    if (SECTION_REGEX.test(trimmed) && currentPage.length > 0) {
-      pages.push(currentPage.join("\n").trim());
-      currentPage = [trimmed];
-      continue;
-    }
-
-    currentPage.push(trimmed);
-
-    if (currentPage.filter((l) => l !== "").length >= MAX_LINES_PER_PAGE) {
-      pages.push(currentPage.join("\n").trim());
-      currentPage = [];
-    }
+  for (let i = 0; i < paragraphs.length; i += MAX_SECTIONS_PER_PAGE) {
+    pages.push(paragraphs.slice(i, i + MAX_SECTIONS_PER_PAGE).join("\n\n"));
   }
 
-  if (currentPage.join("").trim()) {
-    pages.push(currentPage.join("\n").trim());
-  }
-
-  return pages.filter((p) => p.trim().length > 0);
+  return pages.length > 0 ? pages : [lyrics.trim()];
 }
 
 function sanitizeLyricsPage(text: string): string {
