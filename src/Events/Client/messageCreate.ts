@@ -244,11 +244,11 @@ export default {
           return;
         }
       } else {
-        // ✅ Sin prefix — solo hoshi ask y hoshi img activan la IA
+        // ✅ FIX #3 — triggers unificados con los que usa aiHandler
         const lowerContent = message.content.toLowerCase();
         if (
           lowerContent.startsWith("hoshi ask ") ||
-          lowerContent.startsWith("hoshi img ")
+          lowerContent.startsWith("neko ask img ")
         ) {
           isHoshiCall = true;
         }
@@ -264,15 +264,13 @@ export default {
       const isAiEnabled = settings?.aiModule?.enabled !== false;
       if (!isAiEnabled) return;
 
-      // ✅ Solo @ mención con contenido y reply directo al bot — sin duplicados
       const isMentioned = isMentionTrigger(message, client);
       const isReplyingToMe = await checkReplyingToBot(message, client);
 
       const isDirect = isMentioned || isReplyingToMe || isHoshiCall;
 
-      if (isDirect) {
-        await handleAi(message, client, true);
-      }
+      // ✅ FIX #2 — pasar isDirect como forced para que gatillos espontáneos funcionen
+      await handleAi(message, client, isDirect);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("💥 Error crítico en messageCreate:", errorMessage);
