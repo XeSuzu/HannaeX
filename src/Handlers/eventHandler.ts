@@ -1,14 +1,16 @@
+import { ClientEvents } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
-import { ClientEvents } from "discord.js";
 import { HoshikoClient } from "../index";
 import { HoshikoLogger, LogLevel } from "../Security";
 
 export interface EventFile<K extends keyof ClientEvents = keyof ClientEvents> {
   name: K;
   once?: boolean;
-  execute: (...args: [...ClientEvents[K], HoshikoClient]) => void | Promise<void>;
+  execute: (
+    ...args: [...ClientEvents[K], HoshikoClient]
+  ) => void | Promise<void>;
 }
 
 function getFilesRecursively(directory: string): string[] {
@@ -54,10 +56,9 @@ export default async (client: HoshikoClient) => {
     try {
       delete require.cache[require.resolve(filePath)];
 
-      const mod = await import(pathToFileURL(filePath).href);      
+      const mod = await import(pathToFileURL(filePath).href);
       const eventModule = mod.default ?? mod;
       const event: EventFile = eventModule?.default ?? eventModule;
-
 
       if (!event || !event.name || typeof event.execute !== "function") {
         failed++;
@@ -81,27 +82,31 @@ export default async (client: HoshikoClient) => {
       loaded++;
 
       console.log(
-        `   ✨ ${event.name.padEnd(22)} | ${path.relative(
-          eventsPath,
-          filePath
-        )}`
+        `   ✨ ${event.name.padEnd(22)} | ${path.relative(eventsPath, filePath)}`,
       );
     } catch (error) {
       failed++;
+
+      // 🔍 DEBUG — ver error completo para diagnosticar
+      console.error(
+        `\n[DEBUG] ❌ Error completo cargando ${path.basename(filePath)}:`,
+        error,
+      );
 
       await HoshikoLogger.log({
         level: LogLevel.ERROR,
         context: "EventHandler",
         message: `Error cargando evento: ${path.basename(filePath)}`,
-        metadata: error instanceof Error ? error.message : String(error),
+        metadata:
+          error instanceof Error
+            ? `${error.message}\n${error.stack}`
+            : String(error),
       });
     }
   }
 
   console.log("");
-  console.log(
-    `✨ EventHandler listo → ${loaded} cargados | ${failed} errores`
-  );
+  console.log(`✨ EventHandler listo → ${loaded} cargados | ${failed} errores`);
   console.log("────────────────────────────────────────\n");
 
   await HoshikoLogger.log({
