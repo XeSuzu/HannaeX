@@ -1,6 +1,6 @@
-import Genius from "genius-lyrics";
 import { LyricsResult, ParsedLyricsCommand } from "../types";
 
+const Genius = require("genius-lyrics");
 const client = new Genius.Client(process.env.GENIUS_API_KEY || "");
 
 export async function geniusProvider(
@@ -38,7 +38,6 @@ export async function geniusProvider(
       };
     }
 
-    // Thumbnail desde Genius
     const thumbnail =
       (firstSong as any).thumbnail ??
       (firstSong as any).image ??
