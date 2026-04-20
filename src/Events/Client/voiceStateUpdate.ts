@@ -155,7 +155,20 @@ setInterval(async () => {
         continue;
       }
 
-      await handleVoiceXp(member, config, minutes, session.channelId);
+      // Tiempo total de la sesión desde el inicio original
+      const sessionStartOriginal =
+        activeSessions.get(key)?.start ?? session.start;
+      const totalSessionMinutes = Math.floor(
+        (now - sessionStartOriginal) / 60_000,
+      );
+
+      await handleVoiceXp(
+        member,
+        config,
+        minutes,
+        session.channelId,
+        totalSessionMinutes,
+      );
 
       const after = activeSessions.get(key);
       if (!after || after.token !== session.token) continue;
@@ -183,6 +196,8 @@ async function closeSession(
   const session = activeSessions.get(key);
   if (!session) return;
 
+  const totalSessionMinutes = Math.floor((now - session.start) / 60_000);
+
   activeSessions.delete(key);
   await removePersistedSession(userId, guildId);
 
@@ -201,7 +216,13 @@ async function closeSession(
   if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r)))
     return;
 
-  await handleVoiceXp(member, config, minutes, session.channelId);
+  await handleVoiceXp(
+    member,
+    config,
+    minutes,
+    session.channelId,
+    totalSessionMinutes,
+  );
 }
 
 export default {
@@ -232,7 +253,6 @@ export default {
 
     if (session && newState.channelId === session.channelId) {
       if (!wasMuted && mutedNow) {
-        // Se muteó/ensordó → resetear timer sin dar XP
         activeSessions.set(key, { ...session, start: now });
         await persistSession(
           userId,
@@ -244,7 +264,6 @@ export default {
         return;
       }
       if (wasMuted && !mutedNow) {
-        // Se desmuteó → resetear timer, empieza a contar desde ahora
         activeSessions.set(key, { ...session, start: now });
         await persistSession(
           userId,

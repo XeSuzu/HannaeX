@@ -583,6 +583,7 @@ export async function handleVoiceXp(
   },
   minutesInVoice: number,
   channelId: string | null,
+  totalSessionMinutes: number = 0, // 👈 nuevo parámetro
 ): Promise<void> {
   if (!config.xpVoiceEnabled) return;
 
@@ -594,25 +595,22 @@ export async function handleVoiceXp(
   const safeMinutes = Math.max(0, Math.floor(minutesInVoice || 0));
   if (safeMinutes < minMinutes) return;
 
-  const NORMAL_XP_MINUTES = 300;
-  const PASSIVE_XP_MULTIPLIER = 0.25;
-
   const xpGain = config.xpPerMinuteVoice ?? 10;
   const multiplier = config.xpMultiplier ?? 1.0;
 
-  let earned: number;
-
-  if (safeMinutes <= NORMAL_XP_MINUTES) {
-    earned = Math.floor(xpGain * safeMinutes * multiplier);
-  } else {
-    const normalXp = xpGain * NORMAL_XP_MINUTES * multiplier;
-    const passiveXp =
-      xpGain *
-      (safeMinutes - NORMAL_XP_MINUTES) *
-      multiplier *
-      PASSIVE_XP_MULTIPLIER;
-    earned = Math.floor(normalXp + passiveXp);
+  // ─── Curva de rendimiento decreciente por sesión ──────────────────────────
+  function getActivityMultiplier(mins: number): number {
+    if (mins <= 180) return 1.0; // 0–3h  → 100%
+    if (mins <= 240) return 0.75; // 3–4h  → 75%
+    if (mins <= 300) return 0.5; // 4–5h  → 50%
+    if (mins <= 420) return 0.25; // 5–7h  → 25%
+    return 0.1; // 7h+   → 10% mínimo
   }
+
+  const actMultiplier = getActivityMultiplier(totalSessionMinutes);
+  let earned = Math.floor(xpGain * safeMinutes * multiplier * actMultiplier);
+
+  if (earned <= 0) return;
 
   let profile = await LocalLevel.findOne({
     userId: member.id,
