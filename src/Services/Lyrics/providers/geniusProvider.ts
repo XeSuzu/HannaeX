@@ -1,4 +1,4 @@
-import Genius from "genius-lyrics";
+import * as Genius from "genius-lyrics";
 import { LyricsResult, ParsedLyricsCommand } from "../types";
 
 const client = new Genius.Client(process.env.GENIUS_API_KEY || "");
