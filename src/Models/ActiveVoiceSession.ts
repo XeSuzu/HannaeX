@@ -5,6 +5,7 @@ export interface IActiveVoiceSession extends Document {
   guildId: string;
   channelId: string;
   start: Date;
+  originalStart: Date;
   token: string;
 }
 
@@ -13,13 +14,12 @@ const activeVoiceSessionSchema = new Schema({
   guildId: { type: String, required: true },
   channelId: { type: String, required: true },
   start: { type: Date, required: true },
+  originalStart: { type: Date, required: true },
   token: { type: String, required: true },
 });
 
-// Una sesión por usuario por guild
 activeVoiceSessionSchema.index({ userId: 1, guildId: 1 }, { unique: true });
 
-// TTL automático: limpia sesiones huérfanas después de 24h
 activeVoiceSessionSchema.index(
   { start: 1 },
   { expireAfterSeconds: 60 * 60 * 24 },

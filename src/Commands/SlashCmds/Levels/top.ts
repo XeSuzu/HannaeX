@@ -58,7 +58,7 @@ async function buildEmbed(
   const sort =
     type === "voice"
       ? { voiceXp: -1, voiceLevel: -1, voiceMinutes: -1 }
-      : { xp: -1, messagesSent: -1 };
+      : { level: -1, xp: -1 }; // ← era { xp: -1, messagesSent: -1 }
 
   const totalUsers = await LocalLevel.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(totalUsers / perPage));
@@ -93,7 +93,7 @@ async function buildEmbed(
             `   └ ${msgs.toLocaleString()} mensajes`
           );
         }
-        return `${medal} **${displayName}** — Nv.${level} • ${msgs.toLocaleString()} msgs`;
+        return `${medal} **${displayName}** — Nv.${level} • \`${xp.toLocaleString()}\` XP`;
       } else {
         const voiceLevel = Math.max(0, p.voiceLevel ?? 0);
         const voiceXp = Math.max(0, p.voiceXp ?? 0);

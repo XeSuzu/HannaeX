@@ -124,7 +124,6 @@ async function handleGlobalXp(
     weeklyMessages = (globalProfile.weeklyMessages ?? 0) + 1;
   }
 
-  // ─── Streak global ────────────────────────────────────────────────────────
   const lastGain = globalProfile.lastGlobalXpGain ?? new Date(0);
   const hoursSinceLast =
     (now.getTime() - lastGain.getTime()) / (1000 * 60 * 60);
@@ -222,7 +221,6 @@ function checkAchievements(
   )
     newAchievements.push("multi_server");
 
-  // ✅ FIX — logros de streak ahora se verifican
   if (
     (profile.globalStreak ?? 0) >= 7 &&
     !profile.achievements.includes("streak_7")
@@ -583,7 +581,7 @@ export async function handleVoiceXp(
   },
   minutesInVoice: number,
   channelId: string | null,
-  totalSessionMinutes: number = 0, // 👈 nuevo parámetro
+  totalSessionMinutes: number = 0,
 ): Promise<void> {
   if (!config.xpVoiceEnabled) return;
 
