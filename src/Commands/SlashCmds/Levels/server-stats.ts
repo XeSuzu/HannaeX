@@ -83,10 +83,10 @@ export default {
       .setColor(0xffb7c5)
       .setAuthor({
         name: guild.name,
-        iconURL: guild.iconURL() ?? undefined,
+        iconURL: guild.iconURL(),
       })
       .setTitle(`📊 Estadísticas de ${guild.name}`)
-      .setThumbnail(guild.iconURL() ?? undefined)
+      .setThumbnail(guild.iconURL())
       .setDescription(
         `Resumen de la actividad de niveles en este servidor. ` +
           `Estos datos se actualizan con cada consulta.`,

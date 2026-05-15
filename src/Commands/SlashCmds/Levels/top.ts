@@ -130,10 +130,10 @@ async function buildEmbed(
     .setColor(0xffb7c5)
     .setAuthor({
       name: `${interaction.guild?.name ?? "Servidor"}`,
-      iconURL: interaction.guild?.iconURL() ?? undefined,
+      iconURL: interaction.guild?.iconURL() ?? null,
     })
     .setTitle(title)
-    .setThumbnail(interaction.guild?.iconURL() ?? undefined)
+    .setThumbnail(interaction.guild?.iconURL() ?? null)
     .setDescription(description)
     .addFields(
       {
@@ -202,13 +202,6 @@ function buildButtons(
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page === totalPages),
   );
-}
-
-function formatTime(minutes: number): string {
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hrs > 0) return `${hrs}h ${mins}m`;
-  return `${mins}m`;
 }
 
 // ─── Handler paginado con collector ──────────────────────────────────────────

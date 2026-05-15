@@ -1,4 +1,4 @@
-import { EmbedBuilder, Message } from "discord.js";
+import { EmbedBuilder, Message, PartialMessage } from "discord.js";
 import { ISnipe, ISnipeEntry, Snipe } from "../Models/Snipe";
 
 export const SNIPE_MAX_ENTRIES = 100;
@@ -67,7 +67,11 @@ export const getSnipeEntry = async (channelId: string, position: number) => {
   };
 };
 
-export const recordDeletedMessage = async (message: Message) => {
+export const recordDeletedMessage = async (
+  message: Message | PartialMessage,
+) => {
+  if (!message.guild || !message.author) return;
+
   const payload = {
     content: message.content || "*(Solo imagen/sticker)*",
     author: message.author.tag,
@@ -77,10 +81,11 @@ export const recordDeletedMessage = async (message: Message) => {
     deletedAt: new Date(),
   };
 
+  const guildId = message.guild.id;
   const doc = await Snipe.findOneAndUpdate(
     { channelId: message.channel.id },
     {
-      $set: { guildId: message.guild.id },
+      $set: { guildId },
       $push: {
         snipes: {
           $each: [payload],
