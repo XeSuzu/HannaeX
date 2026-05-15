@@ -44,9 +44,10 @@ export async function rehydrateVoiceSessions(): Promise<void> {
         continue;
       }
 
+      const restoredAt = Date.now();
       activeSessions.set(sessionKey(s.userId, s.guildId), {
-        start: s.start.getTime(),
-        originalStart: s.originalStart?.getTime() ?? s.start.getTime(),
+        start: restoredAt,
+        originalStart: restoredAt,
         userId: s.userId,
         guildId: s.guildId,
         channelId: s.channelId,

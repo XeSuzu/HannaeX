@@ -65,8 +65,7 @@ export default {
     // Top 3 usuarios
     const topUsers = await LocalLevel.find({ guildId })
       .sort({ xp: -1 })
-      .limit(3)
-      .populate("userId"); // No funciona con userId string, pero intentemos
+      .limit(3);
 
     const topList = await Promise.all(
       topUsers.map(async (user, i) => {
@@ -82,8 +81,16 @@ export default {
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
+      .setAuthor({
+        name: guild.name,
+        iconURL: guild.iconURL() ?? undefined,
+      })
       .setTitle(`📊 Estadísticas de ${guild.name}`)
-      .setThumbnail(guild.iconURL())
+      .setThumbnail(guild.iconURL() ?? undefined)
+      .setDescription(
+        `Resumen de la actividad de niveles en este servidor. ` +
+          `Estos datos se actualizan con cada consulta.`,
+      )
       .addFields(
         {
           name: "👥 Usuarios Activos",
@@ -106,7 +113,7 @@ export default {
           inline: true,
         },
         {
-          name: "🎤 Minutos de Voz",
+          name: "🎤 Minutos de Voz Totales",
           value: `${stat.totalVoiceMinutes.toLocaleString()}`,
           inline: true,
         },

@@ -54,6 +54,9 @@ localLevelSchema.index({ userId: 1, guildId: 1 }, { unique: true });
 // Leaderboard local permanente
 localLevelSchema.index({ guildId: 1, level: -1, xp: -1 });
 
+// Leaderboard local mensajes
+localLevelSchema.index({ guildId: 1, messagesSent: -1, xp: -1, level: -1 });
+
 // Leaderboard semanal local
 localLevelSchema.index({
   guildId: 1,
@@ -63,6 +66,11 @@ localLevelSchema.index({
 });
 
 // VC leaderboard local
-localLevelSchema.index({ guildId: 1, voiceXp: -1 });
+localLevelSchema.index({
+  guildId: 1,
+  voiceMinutes: -1,
+  voiceXp: -1,
+  voiceLevel: -1,
+});
 
 export default model<ILocalLevel>("LocalLevel", localLevelSchema);

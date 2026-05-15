@@ -7,24 +7,25 @@ try {
   canvasLib = require("@napi-rs/canvas");
 } catch {}
 
-// ─── Rutas ────────────────────────────────────────────────────────────────────
+// Paths
 const BG_PATH = path.join(
   process.cwd(),
   "src/assets/images/banners/level-banners/bg-banner-1.jpg",
 );
 const FONT_DIR = path.join(process.cwd(), "src/assets/fonts/");
 const NOTO_CJK_DIR = "/usr/share/fonts/opentype/noto/";
-// ─── Dimensiones ─────────────────────────────────────────────────────────────
+
+// Dimensions
 const W = 900,
   H = 300;
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
+// Layout coordinates
 const L = {
   av: { x: 84, y: 150, r: 72 },
   info: { x: 182, maxRight: 730 },
   usernameY: 88,
   levelY: 128,
-  subY: 158, // línea extra (global badge / servidor name)
+  subY: 158,
   barY: 175,
   barH: 22,
   barR: 11,
@@ -33,7 +34,7 @@ const L = {
   panel: { x: 772, y: 28, w: 108, h: 134, r: 20 },
 };
 
-// ─── Colores ─────────────────────────────────────────────────────────────────
+// Color palette
 const C = {
   white: "#FFFFFF",
   lav: "#E8D5FF",
@@ -50,11 +51,11 @@ const C = {
   shadow: "rgba(0,0,0,0.40)",
 };
 
-// ─── Cache ───────────────────────────────────────────────────────────────────
+// Font cache
 let _fontsOk = false;
 let _cachedBg: any = null;
 
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
+// Data transfer objects
 export interface ServerRankData {
   username: string;
   avatarBuffer: Buffer;
@@ -94,7 +95,7 @@ export interface GlobalRankData {
   tier: (typeof GLOBAL_TIERS)[0];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helper functions
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
@@ -152,6 +153,7 @@ function sh(ctx: any, blur = 10, color = C.shadow) {
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
 }
+
 function nosh(ctx: any) {
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
@@ -162,7 +164,7 @@ function nosh(ctx: any) {
 function registerFonts(GF: any) {
   if (_fontsOk) return;
 
-  // Fuentes propias del bot
+  // Custom bot fonts
   const fonts = [
     { file: "Nunito-Bold.ttf", family: "BannerBold", dir: FONT_DIR },
     { file: "Nunito-Regular.ttf", family: "BannerReg", dir: FONT_DIR },
@@ -180,7 +182,7 @@ function registerFonts(GF: any) {
     }
   }
 
-  // ✅ Fuentes CJK del sistema (chino, japonés, coreano)
+  // System CJK fonts (Chinese, Japanese, Korean)
   const cjkFonts = [
     { file: "NotoSansCJK-Regular.ttc", family: "NotoSansCJK" },
     { file: "NotoSansCJK-Bold.ttc", family: "NotoSansCJK" },
@@ -311,6 +313,11 @@ function drawBar(ctx: any, pct: number, gradStart: string, gradEnd: string) {
   }
 }
 
+/**
+ * Generates server rank banner image.
+ * @param data - Server rank data
+ * @returns AttachmentBuilder with PNG image or null on failure
+ */
 export async function generateServerRankBanner(
   data: ServerRankData,
 ): Promise<AttachmentBuilder | null> {
@@ -329,7 +336,7 @@ export async function generateServerRankBanner(
     drawBg(ctx, bg);
     drawAvatar(ctx, av);
 
-    drawPanel(ctx, `#${data.rank}`, "en el", "servidor", C.goldGlow);
+    drawPanel(ctx, `#${data.rank}`, "in", "server", C.goldGlow);
 
     const maxW = L.info.maxRight - L.info.x;
     const { font: unFont, text: unText } = fitText(
@@ -349,7 +356,7 @@ export async function generateServerRankBanner(
 
     ctx.fillStyle = C.lav;
     ctx.font = f(25, "normal");
-    ctx.fillText(`Nivel ${data.level}`, L.info.x, L.levelY);
+    ctx.fillText(`Level ${data.level}`, L.info.x, L.levelY);
 
     if (data.globalLevel !== undefined) {
       ctx.fillStyle = C.muted;
@@ -373,7 +380,7 @@ export async function generateServerRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(14, "normal");
     ctx.fillText(
-      `💬 ${data.messagesSent.toLocaleString()} mensajes  ·  🎙️ ${data.voiceMinutes.toLocaleString()} min`,
+      `Messages: ${data.messagesSent.toLocaleString()}  ·  Voice: ${data.voiceMinutes.toLocaleString()} min`,
       L.info.x,
       L.statsY,
     );
@@ -387,6 +394,11 @@ export async function generateServerRankBanner(
   }
 }
 
+/**
+ * Generates voice rank banner image.
+ * @param data - Voice rank data
+ * @returns AttachmentBuilder with PNG image or null on failure
+ */
 export async function generateVCRankBanner(
   data: VCRankData,
 ): Promise<AttachmentBuilder | null> {
@@ -404,7 +416,7 @@ export async function generateVCRankBanner(
 
     drawBg(ctx, bg);
     drawAvatar(ctx, av);
-    drawPanel(ctx, `#${data.vcRank}`, "en voz", "servidor", C.cyanGlow);
+    drawPanel(ctx, `#${data.vcRank}`, "voice", "server", C.cyanGlow);
 
     const maxW = L.info.maxRight - L.info.x;
     const { font: unFont, text: unText } = fitText(
@@ -424,11 +436,11 @@ export async function generateVCRankBanner(
 
     ctx.fillStyle = C.cyan;
     ctx.font = f(25, "normal");
-    ctx.fillText(`Nivel Voz ${data.voiceLevel}`, L.info.x, L.levelY);
+    ctx.fillText(`Voice Level ${data.voiceLevel}`, L.info.x, L.levelY);
 
     const hrs = Math.floor(data.voiceMinutes / 60);
     const mins = data.voiceMinutes % 60;
-    const timeStr = hrs > 0 ? `${hrs}h ${mins}m en voz` : `${mins}m en voz`;
+    const timeStr = hrs > 0 ? `${hrs}h ${mins}m in voice` : `${mins}m in voice`;
     ctx.fillStyle = C.muted;
     ctx.font = f(15, "normal");
     ctx.fillText(timeStr, L.info.x, L.subY);
@@ -438,7 +450,7 @@ export async function generateVCRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(17, "normal");
     ctx.fillText(
-      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP Voz  (${data.progressPercent}%)`,
+      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} Voice XP  (${data.progressPercent}%)`,
       L.info.x,
       L.xpY,
     );
@@ -446,7 +458,7 @@ export async function generateVCRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(14, "normal");
     ctx.fillText(
-      `🎙️ ${data.voiceMinutes.toLocaleString()} minutos totales`,
+      `Voice: ${data.voiceMinutes.toLocaleString()} minutes total`,
       L.info.x,
       L.statsY,
     );
@@ -460,6 +472,11 @@ export async function generateVCRankBanner(
   }
 }
 
+/**
+ * Generates global rank banner image.
+ * @param data - Global rank data
+ * @returns AttachmentBuilder with PNG image or null on failure
+ */
 export async function generateGlobalRankBanner(
   data: GlobalRankData,
 ): Promise<AttachmentBuilder | null> {
@@ -505,7 +522,7 @@ export async function generateGlobalRankBanner(
 
     ctx.fillStyle = C.lav;
     ctx.font = f(25, "normal");
-    ctx.fillText(`Nivel Global ${data.globalLevel}`, L.info.x, L.levelY);
+    ctx.fillText(`Global Level ${data.globalLevel}`, L.info.x, L.levelY);
 
     ctx.fillStyle = C.muted;
     ctx.font = f(15, "normal");
@@ -521,7 +538,7 @@ export async function generateGlobalRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(17, "normal");
     ctx.fillText(
-      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} XP Global  (${data.progressPercent}%)`,
+      `${data.xpCurrent.toLocaleString()} / ${data.xpNeeded.toLocaleString()} Global XP  (${data.progressPercent}%)`,
       L.info.x,
       L.xpY,
     );
@@ -530,7 +547,7 @@ export async function generateGlobalRankBanner(
     ctx.fillStyle = C.muted;
     ctx.font = f(14, "normal");
     ctx.fillText(
-      `💬 ${data.totalMessages.toLocaleString()} msgs  ·  🎙️ ${hrs}h en voz`,
+      `Messages: ${data.totalMessages.toLocaleString()}  ·  Voice: ${hrs}h total`,
       L.info.x,
       L.statsY,
     );

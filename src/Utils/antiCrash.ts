@@ -1,49 +1,54 @@
 import { EmbedBuilder, WebhookClient } from "discord.js";
 
-// Si quieres recibir alertas en un canal privado, pon la URL del Webhook en tu .env
-// Ejemplo en .env: ERROR_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+// Webhook URL configured via ERROR_WEBHOOK_URL environment variable
 const webhookUrl = process.env.ERROR_WEBHOOK_URL;
 const webhook = webhookUrl ? new WebhookClient({ url: webhookUrl }) : null;
 
+/**
+ * Loads anti-crash handlers to capture unhandled errors.
+ * Sends error reports to a configured webhook if available.
+ */
 export const loadAntiCrash = () => {
-  // 1. Promesas rechazadas no manejadas (El error más común)
+  // 1. Unhandled promise rejections
   process.on("unhandledRejection", (reason: any, promise) => {
-    console.log("🚨 [AntiCrash] Unhandled Rejection/Catch");
+    console.log("[AntiCrash] Unhandled Rejection");
     console.log(reason);
-
-    // Enviamos el reporte
     sendErrorLog("Unhandled Rejection", reason);
   });
 
-  // 2. Excepciones no capturadas (Código roto crítico)
+  // 2. Uncaught exceptions
   process.on("uncaughtException", (err, origin) => {
-    console.log("🚨 [AntiCrash] Uncaught Exception/Catch");
+    console.log("[AntiCrash] Uncaught Exception");
     console.log(err, origin);
-
     sendErrorLog("Uncaught Exception", err);
   });
 
-  // 3. Monitoreo de excepciones (Opcional, pero útil)
+  // 3. Uncaught exception monitoring
   process.on("uncaughtExceptionMonitor", (err, origin) => {
-    console.log("🚨 [AntiCrash] Uncaught Exception Monitor");
+    console.log("[AntiCrash] Uncaught Exception Monitor");
     console.log(err, origin);
   });
 };
 
+/**
+ * Sends an error report to the configured webhook.
+ * @param type - Error type classification
+ * @param error - Error object or message
+ */
 function sendErrorLog(type: string, error: any) {
-  if (!webhook) return; // Si no hay webhook, solo queda en consola
+  if (!webhook) return;
 
   const errString =
     (error instanceof Error ? error.stack : String(error)) ||
-    "Error sin detalles";
+    "Error without details";
 
   const embed = new EmbedBuilder()
-    .setTitle(`💀 Error Crítico: ${type}`)
+    .setTitle(`Critical Error: ${type}`)
     .setDescription(`\`\`\`js\n${errString.substring(0, 4000)}\n\`\`\``)
     .setColor(0xff0000)
     .setTimestamp();
 
   webhook
     .send({ embeds: [embed] })
-    .catch(() => console.error("No se pudo enviar el log al webhook"));
+    .catch(() => console.error("Failed to send log to webhook"));
 }

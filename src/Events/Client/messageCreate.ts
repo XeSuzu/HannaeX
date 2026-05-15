@@ -1,7 +1,12 @@
 import { EmbedBuilder, Events, Message, PermissionsBitField } from "discord.js";
 import { SettingsManager } from "../../Database/SettingsManager";
-import { Snipe } from "../../Models/Snipe";
 import AFK from "../../Models/afk";
+import {
+  buildSnipeEmbed,
+  buildSnipeNotFoundMessage,
+  getSnipeEntry,
+  SNIPE_MAX_ENTRIES,
+} from "../../Utils/snipe";
 import {
   checkReplyingToBot,
   hasCommandArguments,
@@ -35,34 +40,22 @@ async function handleTextMessageSnipe(message: Message, args: string[]) {
   }
 
   const position = args[0] ? parseInt(args[0]) : 1;
-  if (isNaN(position) || position < 1 || position > 10) {
-    await message.reply("❌ El número debe ser entre 1 y 10.");
-    return;
-  }
-  const index = position - 1;
-
-  const doc = await Snipe.findOne({ channelId: message.channelId });
-
-  if (!doc || !doc.snipes.length || !doc.snipes[index]) {
+  if (isNaN(position) || position < 1 || position > SNIPE_MAX_ENTRIES) {
     await message.reply(
-      index === 0
-        ? "Nyaa~ no hay mensajes borrados recientes en este canal. 🧹"
-        : `Solo tengo guardados **${doc?.snipes.length || 0}** mensajes borrados aquí.`,
+      `❌ El número debe ser entre 1 y ${SNIPE_MAX_ENTRIES}.`,
     );
     return;
   }
 
-  const msg = doc.snipes[index];
-  const embed = new EmbedBuilder()
-    .setColor("Random")
-    .setAuthor({ name: `${msg.author} borró esto:`, iconURL: msg.authorAvatar })
-    .setDescription(msg.content)
-    .setFooter({
-      text: `Snipe ${position}/${doc.snipes.length} • Hoshiko 🐾 • Expira en 1h`,
-    })
-    .setTimestamp(msg.deletedAt);
+  const { total, entry } = await getSnipeEntry(message.channelId, position);
+  if (!total || !entry) {
+    await message.reply({
+      content: buildSnipeNotFoundMessage(position, total),
+    });
+    return;
+  }
 
-  if (msg.image) embed.setImage(msg.image);
+  const embed = buildSnipeEmbed(entry, position, total);
   await message.reply({ embeds: [embed] });
 }
 

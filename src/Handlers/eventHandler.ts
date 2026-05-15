@@ -48,9 +48,9 @@ export default async (client: HoshikoClient) => {
   let loaded = 0;
   let failed = 0;
 
-  console.log("\n╭──────────────────────────────────────╮");
-  console.log("│        ⚡ Event Handler Boot ⚡      │");
-  console.log("╰──────────────────────────────────────╯");
+  console.log("\n----------------------------------------");
+  console.log("     Event Handler Boot");
+  console.log("----------------------------------------");
 
   for (const filePath of allEventFiles) {
     try {
@@ -87,7 +87,7 @@ export default async (client: HoshikoClient) => {
     } catch (error) {
       failed++;
 
-      // 🔍 DEBUG — ver error completo para diagnosticar
+      // DEBUG — full error for diagnostics
       console.error(
         `\n[DEBUG] ❌ Error completo cargando ${path.basename(filePath)}:`,
         error,
@@ -106,8 +106,8 @@ export default async (client: HoshikoClient) => {
   }
 
   console.log("");
-  console.log(`✨ EventHandler listo → ${loaded} cargados | ${failed} errores`);
-  console.log("────────────────────────────────────────\n");
+  console.log(`EventHandler ready -> ${loaded} loaded | ${failed} errors`);
+  console.log("----------------------------------------\n");
 
   await HoshikoLogger.log({
     level: LogLevel.SUCCESS,

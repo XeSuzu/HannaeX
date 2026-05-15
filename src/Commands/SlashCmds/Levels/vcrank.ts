@@ -68,7 +68,10 @@ export default {
     const vcRank =
       (await LocalLevel.countDocuments({
         guildId: interaction.guildId!,
-        voiceXp: { $gt: voiceXp },
+        $or: [
+          { voiceMinutes: { $gt: voiceMins } },
+          { voiceMinutes: voiceMins, voiceXp: { $gt: voiceXp } },
+        ],
       })) + 1;
 
     try {

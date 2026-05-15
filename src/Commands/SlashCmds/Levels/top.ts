@@ -57,8 +57,8 @@ async function buildEmbed(
   // ✅ Sort consistente con /rank — mensajes también por xp primero
   const sort =
     type === "voice"
-      ? { voiceXp: -1, voiceLevel: -1, voiceMinutes: -1 }
-      : { level: -1, xp: -1 }; // ← era { xp: -1, messagesSent: -1 }
+      ? { voiceMinutes: -1, voiceXp: -1, voiceLevel: -1 }
+      : { messagesSent: -1, xp: -1, level: -1 }; // Top mensajes por mensajes enviados
 
   const totalUsers = await LocalLevel.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(totalUsers / perPage));
@@ -75,7 +75,7 @@ async function buildEmbed(
       const name = user?.username ?? `Usuario #${p.userId.slice(0, 8)}`;
       const displayName =
         interaction.guild?.members.cache.get(p.userId)?.displayName ??
-        user?.displayName ??
+        user?.username ??
         name;
       const position = skip + i + 1;
       // ✅ Posiciones 4+ con número limpio sin doble #
@@ -93,7 +93,7 @@ async function buildEmbed(
             `   └ ${msgs.toLocaleString()} mensajes`
           );
         }
-        return `${medal} **${displayName}** — Nv.${level} • \`${xp.toLocaleString()}\` XP`;
+        return `${medal} **${displayName}** — ${msgs.toLocaleString()} mensajes • Nv.${level} • \`${xp.toLocaleString()}\` XP`;
       } else {
         const voiceLevel = Math.max(0, p.voiceLevel ?? 0);
         const voiceXp = Math.max(0, p.voiceXp ?? 0);
@@ -107,31 +107,63 @@ async function buildEmbed(
             `   └ ${timeString} en voz`
           );
         }
-        return `${medal} **${displayName}** — Nv.VC ${voiceLevel} • ${timeString}`;
+        return `${medal} **${displayName}** — ${timeString} • Nv.VC ${voiceLevel} • \`${voiceXp.toLocaleString()}\` XP`;
       }
     }),
   );
 
   const isEmpty = lines.length === 0;
-  const title =
+  const metricLabel = type === "messages" ? "Mensajes" : "Tiempo en voz";
+  const orderLabel =
     type === "messages"
-      ? `💬 Top Mensajes — ${interaction.guild?.name}`
-      : `🎤 Top Voz — ${interaction.guild?.name}`;
+      ? "Mensajes → XP → Nivel"
+      : "Minutos de voz → XP → Nivel";
+  const title = type === "messages" ? `💬 Top Mensajes` : `🎤 Top Voz`;
 
   const description = isEmpty
     ? type === "messages"
       ? "Aún no hay usuarios con mensajes. ¡Sé el primero! 💬"
       : "Aún no hay usuarios con tiempo en voz. ¡Únete a un canal! 🎤"
-    : `**Top ${skip + 1}–${Math.min(skip + perPage, totalUsers)} de ${totalUsers.toLocaleString()} usuarios**\n\n` +
-      lines.join("\n\n");
+    : lines.join("\n\n");
 
   const embed = new EmbedBuilder()
     .setColor(0xffb7c5)
-    .setTitle(title)
-    .setDescription(description)
-    .setFooter({
-      text: `Página ${page} de ${totalPages} • Hoshiko Levels 🌸`,
+    .setAuthor({
+      name: `${interaction.guild?.name ?? "Servidor"}`,
       iconURL: interaction.guild?.iconURL() ?? undefined,
+    })
+    .setTitle(title)
+    .setThumbnail(interaction.guild?.iconURL() ?? undefined)
+    .setDescription(description)
+    .addFields(
+      {
+        name: "📌 Página",
+        value: `**${page} / ${totalPages}**`,
+        inline: true,
+      },
+      {
+        name: "👥 Usuarios rankeados",
+        value: `**${totalUsers.toLocaleString()}**`,
+        inline: true,
+      },
+      {
+        name: "🔎 Orden",
+        value: orderLabel,
+        inline: true,
+      },
+      {
+        name: "✨ Mostrando",
+        value: `Top **${skip + 1}** – **${Math.min(skip + perPage, totalUsers)}**`,
+        inline: true,
+      },
+      {
+        name: `📊 Métrica principal`,
+        value: metricLabel,
+        inline: true,
+      },
+    )
+    .setFooter({
+      text: `Hoshiko Levels 🌸 • Página ${page} de ${totalPages}`,
     })
     .setTimestamp();
 
@@ -170,6 +202,13 @@ function buildButtons(
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page === totalPages),
   );
+}
+
+function formatTime(minutes: number): string {
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
 }
 
 // ─── Handler paginado con collector ──────────────────────────────────────────

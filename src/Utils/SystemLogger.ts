@@ -1,351 +1,377 @@
 import { WebhookClient, EmbedBuilder, User } from "discord.js";
 
+/**
+ * Centralized logging system with multiple webhook channels.
+ * Supports separate channels for: command usage, system events, security alerts, and say logs.
+ */
 class HoshikoSystemLogger {
-  // 🌟 1. Guardamos las instancias de los 4 webhooks
+  // Webhook instances for different log channels
   private sayWebhook: WebhookClient | null = null;
   private cmdWebhook: WebhookClient | null = null;
   private sysWebhook: WebhookClient | null = null;
   private secWebhook: WebhookClient | null = null;
 
   constructor() {
-    // 🌟 2. Leemos las 4 variables de tu .env
+    // Initialize webhooks from environment variables
     const sayUrl = process.env.SAY_LOGS_WEBHOOK_URL;
     const cmdUrl = process.env.LOG_WEBHOOK_COMMANDS;
     const sysUrl = process.env.LOG_WEBHOOK_SYSTEM;
     const secUrl = process.env.LOG_WEBHOOK_SECURITY;
 
-    // 🌟 3. Conectamos los que estén configurados
     if (sayUrl) this.sayWebhook = new WebhookClient({ url: sayUrl });
     if (cmdUrl) this.cmdWebhook = new WebhookClient({ url: cmdUrl });
     if (sysUrl) this.sysWebhook = new WebhookClient({ url: sysUrl });
     if (secUrl) this.secWebhook = new WebhookClient({ url: secUrl });
 
-    console.log("✅ [Logger] Sistema Multi-Webhooks (4 Canales) inicializado.");
+    console.log("[Logger] Multi-webhook system initialized.");
   }
 
-  // ----------------------------------------------------------------
-  // 🗣️ 1. LOG DE COMANDO /SAY (Va a SAY_LOGS_WEBHOOK_URL)
-  // ----------------------------------------------------------------
+  /**
+   * Logs usage of the /say command.
+   */
   public async logSay(user: User, guildName: string, channelName: string, content: string) {
     if (!this.sayWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🗣️ Se usó el comando /say")
+        .setTitle("Command Used: /say")
         .setColor("#FF5555")
         .setThumbnail(user.displayAvatarURL())
         .addFields(
-          { name: "👤 Autor", value: `**${user.tag}**\nID: \`${user.id}\``, inline: true },
-          { name: "📍 Ubicación", value: `**Server:** ${guildName}\n**Canal:** #${channelName}`, inline: true },
-          { name: "💬 Mensaje", value: `\`\`\`${content}\`\`\``, inline: false }
+          { name: "User", value: `**${user.tag}**\nID: \`${user.id}\``, inline: true },
+          { name: "Location", value: `**Server:** ${guildName}\n**Channel:** #${channelName}`, inline: true },
+          { name: "Content", value: `\`\`\`${content}\`\`\``, inline: false }
         )
         .setTimestamp();
 
       await this.sayWebhook.send({
-        username: "Hoshiko Echo", // Un nombre chulo para el webhook de say
+        username: "Hoshiko Echo",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log say:", errorMessage);
+      console.error("Error in logSay:", errorMessage);
     }
   }
 
-  // ----------------------------------------------------------------
-  // 🚨 2. LOG DE SEGURIDAD (Va a LOG_WEBHOOK_SECURITY)
-  // ----------------------------------------------------------------
+  /**
+   * Logs security breaches (unauthorized access to owner commands).
+   */
   public async logSecurityBreach(user: User, commandName: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🚨 INTENTO DE ACCESO NO AUTORIZADO")
-        .setColor(0xff0000) // ROJO FURIA
-        .setDescription(`El usuario **${user.tag}** intentó ejecutar un comando de Dueño.`)
+        .setTitle("UNAUTHORIZED ACCESS ATTEMPT")
+        .setColor(0xff0000)
+        .setDescription(`User **${user.tag}** attempted to execute an owner command.`)
         .addFields(
-          { name: "👤 Culpable", value: `\`${user.tag}\` (${user.id})`, inline: true },
-          { name: "💻 Comando", value: `\`/${commandName}\``, inline: true }
+          { name: "User", value: `\`${user.tag}\` (${user.id})`, inline: true },
+          { name: "Command", value: `\`/${commandName}\``, inline: true }
         )
         .setThumbnail(user.displayAvatarURL())
         .setTimestamp();
 
       await this.secWebhook.send({
-        content: `<@${process.env.BOT_OWNER_ID}> ⚠️ **ALERTA DE SEGURIDAD**`,
+        content: `<@${process.env.BOT_OWNER_ID}> ALERT: Unauthorized access attempt`,
         username: "Hoshiko Security System",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log security:", errorMessage);
+      console.error("Error in logSecurityBreach:", errorMessage);
     }
   }
 
-  // ----------------------------------------------------------------
-  // 💎 3. LOG DE SISTEMA / TRANSACCIONES (Va a LOG_WEBHOOK_SYSTEM)
-  // ----------------------------------------------------------------
+  /**
+   * Logs premium-related transactions.
+   */
   public async logTransaction(admin: User, details: string) {
     if (!this.sysWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("💎 Gestión Premium Realizada")
-        .setColor(0x00ff00) // Verde dinero
+        .setTitle("Premium Transaction")
+        .setColor(0x00ff00)
         .setDescription(details)
         .setFooter({ text: `Admin: ${admin.tag}`, iconURL: admin.displayAvatarURL() })
         .setTimestamp();
 
       await this.sysWebhook.send({
-        username: "Hoshiko Ventas",
+        username: "Hoshiko Sales",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log transaction:", errorMessage);
+      console.error("Error in logTransaction:", errorMessage);
     }
   }
 
-  // ----------------------------------------------------------------
-  // 🎮 4. LOG DE COMANDOS GENERALES (Va a LOG_WEBHOOK_COMMANDS)
-  // ----------------------------------------------------------------
+  /**
+   * Logs general command usage.
+   */
   public async logCommandUsage(user: User, commandName: string, channelName: string) {
     if (!this.cmdWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("⚙️ Comando Ejecutado")
-        .setColor(0x3498db) // Azul
-        .setDescription(`**${user.tag}** usó \`/${commandName}\` en #${channelName}`)
+        .setTitle("Command Executed")
+        .setColor(0x3498db)
+        .setDescription(`**${user.tag}** used \`/${commandName}\` in #${channelName}`)
         .setTimestamp();
 
       await this.cmdWebhook.send({
-        username: "Hoshiko Auditoría",
+        username: "Hoshiko Audit",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log command usage:", errorMessage);
+      console.error("Error in logCommandUsage:", errorMessage);
     }
   }
 
+  /**
+   * Logs command execution errors.
+   */
   public async logCommandError(user: User, commandName: string, error: string, channelName: string) {
     if (!this.cmdWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("⚠️ Error en Comando")
-        .setColor(0xff9800) // Naranja
+        .setTitle("Command Error")
+        .setColor(0xff9800)
         .addFields(
-          { name: "👤 Usuario", value: `${user.tag}`, inline: true },
-          { name: "💻 Comando", value: `/${commandName}`, inline: true },
-          { name: "📍 Canal", value: `#${channelName}`, inline: true },
-          { name: "❌ Error", value: `\`\`\`${error.slice(0, 1024)}\`\`\``, inline: false }
+          { name: "User", value: `${user.tag}`, inline: true },
+          { name: "Command", value: `/${commandName}`, inline: true },
+          { name: "Channel", value: `#${channelName}`, inline: true },
+          { name: "Error", value: `\`\`\`${error.slice(0, 1024)}\`\`\``, inline: false }
         )
         .setTimestamp();
 
       await this.cmdWebhook.send({
-        username: "Hoshiko Auditoría",
+        username: "Hoshiko Audit",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log command error:", errorMessage);
+      console.error("Error in logCommandError:", errorMessage);
     }
   }
 
-  // ================================================================
-  // 🚨 LOGS DE SEGURIDAD - BANEOS, SILENCIAMIENTOS, ETC
-  // ================================================================
-
+  /**
+   * Logs user ban actions.
+   */
   public async logBan(moderator: User, targetUser: User, reason: string, guildName: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🔴 Usuario Baneado")
-        .setColor(0xff0000) // Rojo puro
+        .setTitle("User Banned")
+        .setColor(0xff0000)
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
-          { name: "👤 Baneado", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
-          { name: "🔨 Moderador", value: `${moderator.tag}`, inline: true },
-          { name: "📍 Servidor", value: guildName, inline: true },
-          { name: "📝 Razón", value: reason || "Sin especificar", inline: false }
+          { name: "Target", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
+          { name: "Moderator", value: `${moderator.tag}`, inline: true },
+          { name: "Server", value: guildName, inline: true },
+          { name: "Reason", value: reason || "Not specified", inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Seguridad",
+        username: "Hoshiko Security",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log ban:", errorMessage);
+      console.error("Error in logBan:", errorMessage);
     }
   }
 
+  /**
+   * Logs user mute actions.
+   */
   public async logMute(moderator: User, targetUser: User, duration: number, reason: string, guildName: string) {
     if (!this.secWebhook) return;
 
     try {
-      const durationStr = duration > 0 ? `${(duration / 1000 / 60).toFixed(0)} minutos` : "Permanente";
-      
+      const durationStr = duration > 0 ? `${(duration / 1000 / 60).toFixed(0)} minutes` : "Permanent";
+
       const embed = new EmbedBuilder()
-        .setTitle("🟡 Usuario Silenciado")
-        .setColor(0xffa500) // Naranja
+        .setTitle("User Muted")
+        .setColor(0xffa500)
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
-          { name: "👤 Silenciado", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
-          { name: "⏱️ Duración", value: durationStr, inline: true },
-          { name: "🔨 Moderador", value: `${moderator.tag}`, inline: true },
-          { name: "📍 Servidor", value: guildName, inline: true },
-          { name: "📝 Razón", value: reason || "Sin especificar", inline: false }
+          { name: "Target", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
+          { name: "Duration", value: durationStr, inline: true },
+          { name: "Moderator", value: `${moderator.tag}`, inline: true },
+          { name: "Server", value: guildName, inline: true },
+          { name: "Reason", value: reason || "Not specified", inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Seguridad",
+        username: "Hoshiko Security",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log mute:", errorMessage);
+      console.error("Error in logMute:", errorMessage);
     }
   }
 
+  /**
+   * Logs user kick actions.
+   */
   public async logKick(moderator: User, targetUser: User, reason: string, guildName: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("👢 Usuario Expulsado")
-        .setColor(0xff6b6b) // Rojo suave
+        .setTitle("User Kicked")
+        .setColor(0xff6b6b)
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
-          { name: "👤 Expulsado", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
-          { name: "🔨 Moderador", value: `${moderator.tag}`, inline: true },
-          { name: "📍 Servidor", value: guildName, inline: true },
-          { name: "📝 Razón", value: reason || "Sin especificar", inline: false }
+          { name: "Target", value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
+          { name: "Moderator", value: `${moderator.tag}`, inline: true },
+          { name: "Server", value: guildName, inline: true },
+          { name: "Reason", value: reason || "Not specified", inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Seguridad",
+        username: "Hoshiko Security",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log kick:", errorMessage);
+      console.error("Error in logKick:", errorMessage);
     }
   }
 
+  /**
+   * Logs anti-raid system activations.
+   */
   public async logAntiRaid(detectedBots: number, guildName: string, bannedCount: number) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🛡️ Anti-Raid Activado")
-        .setColor(0xf39c12) // Naranja fuerte
+        .setTitle("Anti-Raid Activated")
+        .setColor(0xf39c12)
         .addFields(
-          { name: "🤖 Bots Detectados", value: `${detectedBots}`, inline: true },
-          { name: "🔴 Bots Baneados", value: `${bannedCount}`, inline: true },
-          { name: "📍 Servidor", value: guildName, inline: false }
+          { name: "Bots Detected", value: `${detectedBots}`, inline: true },
+          { name: "Bots Banned", value: `${bannedCount}`, inline: true },
+          { name: "Server", value: guildName, inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Defensa",
+        username: "Hoshiko Defense",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log anti-raid:", errorMessage);
+      console.error("Error in logAntiRaid:", errorMessage);
     }
   }
 
+  /**
+   * Logs anti-nuke detections.
+   */
   public async logAntiNuke(suspiciousUsers: string[], guildName: string) {
     if (!this.secWebhook) return;
 
     try {
       const userList = suspiciousUsers.slice(0, 10).join("\n");
       const embed = new EmbedBuilder()
-        .setTitle("💣 Anti-Nuke Detectó Actividad Sospechosa")
-        .setColor(0xe74c3c) // Rojo oscuro
+        .setTitle("Anti-Nuke: Suspicious Activity Detected")
+        .setColor(0xe74c3c)
         .addFields(
-          { name: "👥 Usuarios Sospechosos (Top 10)", value: userList || "Ninguno", inline: false },
-          { name: "📍 Servidor", value: guildName, inline: false }
+          { name: "Suspicious Users (Top 10)", value: userList || "None", inline: false },
+          { name: "Server", value: guildName, inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Defensa",
+        username: "Hoshiko Defense",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log anti-nuke:", errorMessage);
+      console.error("Error in logAntiNuke:", errorMessage);
     }
   }
 
+  /**
+   * Logs reported confessions.
+   */
   public async logConfessionReported(confessionId: string, reporter: User, reason: string, guildName: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("📋 Confesión Reportada")
-        .setColor(0x9b59b6) // Púrpura
+        .setTitle("Confession Reported")
+        .setColor(0x9b59b6)
         .addFields(
-          { name: "📝 ID", value: `\`${confessionId}\``, inline: true },
-          { name: "👤 Reportador", value: `${reporter.tag}`, inline: true },
-          { name: "❌ Motivo", value: reason, inline: false },
-          { name: "📍 Servidor", value: guildName, inline: false }
+          { name: "Confession ID", value: `\`${confessionId}\``, inline: true },
+          { name: "Reporter", value: `${reporter.tag}`, inline: true },
+          { name: "Reason", value: reason, inline: false },
+          { name: "Server", value: guildName, inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Moderación",
+        username: "Hoshiko Moderation",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log confession reported:", errorMessage);
+      console.error("Error in logConfessionReported:", errorMessage);
     }
   }
 
+  /**
+   * Logs global blacklist additions.
+   */
   public async logBlacklistGlobal(user: User, reason: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🚫 Usuario en Blacklist Global")
-        .setColor(0x2c3e50) // Gris oscuro
+        .setTitle("User Added to Global Blacklist")
+        .setColor(0x2c3e50)
         .setThumbnail(user.displayAvatarURL())
         .addFields(
-          { name: "👤 Usuario", value: `${user.tag}\n\`${user.id}\``, inline: true },
-          { name: "⏰ Hora", value: new Date().toLocaleString(), inline: true },
-          { name: "📝 Razón", value: reason, inline: false }
+          { name: "User", value: `${user.tag}\n\`${user.id}\``, inline: true },
+          { name: "Time", value: new Date().toLocaleString(), inline: true },
+          { name: "Reason", value: reason, inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        username: "Hoshiko Seguridad Global",
+        username: "Hoshiko Global Security",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log blacklist global:", errorMessage);
+      console.error("Error in logBlacklistGlobal:", errorMessage);
     }
   }
 
+  /**
+   * Logs detected anomalies.
+   */
   public async logAnomalyDetected(type: string, description: string, serverName: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🔔 Anomalía Detectada")
-        .setColor(0xe67e22) // Naranja quemado
+        .setTitle("Anomaly Detected")
+        .setColor(0xe67e22)
         .addFields(
-          { name: "🎯 Tipo", value: type, inline: true },
-          { name: "📍 Servidor", value: serverName, inline: true },
-          { name: "📋 Detalles", value: description, inline: false }
+          { name: "Type", value: type, inline: true },
+          { name: "Server", value: serverName, inline: true },
+          { name: "Details", value: description, inline: false }
         )
         .setTimestamp();
 
@@ -355,89 +381,97 @@ class HoshikoSystemLogger {
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log anomaly:", errorMessage);
+      console.error("Error in logAnomaly:", errorMessage);
     }
   }
 
+  /**
+   * Logs critical errors to the security webhook.
+   */
   public async logCriticalError(errorType: string, errorMessage: string, stackTrace?: string) {
     if (!this.secWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🔥 Error Crítico")
-        .setColor(0xc0392b) // Rojo crítico
+        .setTitle("Critical Error")
+        .setColor(0xc0392b)
         .addFields(
-          { name: "⚠️ Tipo", value: errorType, inline: true },
-          { name: "⏰ Timestamp", value: new Date().toISOString(), inline: true },
-          { name: "💬 Mensaje", value: `\`\`\`${errorMessage.slice(0, 512)}\`\`\`` , inline: false },
-          { name: "📍 Stack", value: `\`\`\`${(stackTrace || "N/A").slice(0, 1024)}\`\`\``, inline: false }
+          { name: "Type", value: errorType, inline: true },
+          { name: "Timestamp", value: new Date().toISOString(), inline: true },
+          { name: "Message", value: `\`\`\`${errorMessage.slice(0, 512)}\`\`\``, inline: false },
+          { name: "Stack Trace", value: `\`\`\`${(stackTrace || "N/A").slice(0, 1024)}\`\`\``, inline: false }
         )
         .setTimestamp();
 
       await this.secWebhook.send({
-        content: `<@${process.env.BOT_OWNER_ID}> 🔥 **ERROR CRÍTICO DETECTADO**`,
-        username: "Hoshiko Emergencia",
+        content: `<@${process.env.BOT_OWNER_ID}> CRITICAL ERROR DETECTED`,
+        username: "Hoshiko Emergency",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log critical:", errorMessage);
+      console.error("Error in logCritical:", errorMessage);
     }
   }
 
-  // ================================================================
-  // 💎 LOGS DE SISTEMA - TRANSACCIONES, PREMIUM, CONFIG
-  // ================================================================
-
+  /**
+   * Logs premium activation events.
+   */
   public async logPremiumActivated(user: User, plan: string, duration: number) {
     if (!this.sysWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("💎 Premium Activado")
-        .setColor(0xf1c40f) // Dorado
+        .setTitle("Premium Activated")
+        .setColor(0xf1c40f)
         .setThumbnail(user.displayAvatarURL())
         .addFields(
-          { name: "👤 Usuario", value: `${user.tag}`, inline: true },
-          { name: "📦 Plan", value: plan, inline: true },
-          { name: "⏰ Duración", value: `${duration} días`, inline: true }
+          { name: "User", value: `${user.tag}`, inline: true },
+          { name: "Plan", value: plan, inline: true },
+          { name: "Duration", value: `${duration} days`, inline: true }
         )
-        .setFooter({ text: `Expira: ${new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toLocaleDateString()}` })
+        .setFooter({ text: `Expires: ${new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toLocaleDateString()}` })
         .setTimestamp();
 
       await this.sysWebhook.send({
-        username: "Hoshiko Ventas",
+        username: "Hoshiko Sales",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log premium activated:", errorMessage);
+      console.error("Error in logPremiumActivated:", errorMessage);
     }
   }
 
+  /**
+   * Logs premium expiration events.
+   */
   public async logPremiumExpired(userId: string, expiryDate: Date) {
     if (!this.sysWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("⏰ Premium Expirado")
-        .setColor(0x95a5a6) // Gris
+        .setTitle("Premium Expired")
+        .setColor(0x95a5a6)
         .addFields(
-          { name: "👤 Usuario ID", value: `\`${userId}\``, inline: true },
-          { name: "📅 Fecha Expiración", value: expiryDate.toLocaleDateString(), inline: true }
+          { name: "User ID", value: `\`${userId}\``, inline: true },
+          { name: "Expiry Date", value: expiryDate.toLocaleDateString(), inline: true }
         )
         .setTimestamp();
 
       await this.sysWebhook.send({
-        username: "Hoshiko Ventas",
+        username: "Hoshiko Sales",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log premium expired:", errorMessage);
+      console.error("Error in logPremiumExpired:", errorMessage);
     }
   }
 
+  /**
+   * Logs server configuration changes.
+   */
   public async logSetupConfigured(admin: User, serverName: string, changes: Record<string, string>) {
     if (!this.sysWebhook) return;
 
@@ -448,12 +482,12 @@ class HoshikoSystemLogger {
       }
 
       const embed = new EmbedBuilder()
-        .setTitle("⚙️ Configuración Actualizada")
-        .setColor(0x3498db) // Azul
+        .setTitle("Configuration Updated")
+        .setColor(0x3498db)
         .addFields(
-          { name: "🛠️ Admin", value: `${admin.tag}`, inline: true },
-          { name: "📍 Servidor", value: serverName, inline: true },
-          { name: "📝 Cambios", value: changesList || "Ninguno", inline: false }
+          { name: "Admin", value: `${admin.tag}`, inline: true },
+          { name: "Server", value: serverName, inline: true },
+          { name: "Changes", value: changesList || "None", inline: false }
         )
         .setTimestamp();
 
@@ -463,46 +497,52 @@ class HoshikoSystemLogger {
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log setup configured:", errorMessage);
+      console.error("Error in logSetupConfigured:", errorMessage);
     }
   }
 
+  /**
+   * Logs bot restart/reboot events.
+   */
   public async logBotRestart(reason: string) {
     if (!this.sysWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🔄 Bot Reiniciado")
-        .setColor(0x2ecc71) // Verde
+        .setTitle("Bot Restarted")
+        .setColor(0x2ecc71)
         .addFields(
-          { name: "📝 Razón", value: reason || "Mantenimiento automático", inline: false },
-          { name: "⏰ Timestamp", value: new Date().toISOString(), inline: false }
+          { name: "Reason", value: reason || "Scheduled maintenance", inline: false },
+          { name: "Timestamp", value: new Date().toISOString(), inline: false }
         )
         .setTimestamp();
 
       await this.sysWebhook.send({
-        username: "Hoshiko Sistema",
+        username: "Hoshiko System",
         embeds: [embed],
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log bot restart:", errorMessage);
+      console.error("Error in logBotRestart:", errorMessage);
     }
   }
 
+  /**
+   * Logs viral meme detection.
+   */
   public async logViralMeme(memeAuthor: User, likes: number, serverName: string, memeLink?: string) {
     if (!this.sysWebhook) return;
 
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🚀 Meme Viral Detectado")
-        .setColor(0xe91e63) // Rosa
+        .setTitle("Viral Meme Detected")
+        .setColor(0xe91e63)
         .setThumbnail(memeAuthor.displayAvatarURL())
         .addFields(
-          { name: "👤 Autor", value: `${memeAuthor.tag}`, inline: true },
-          { name: "❤️ Reacciones", value: `${likes}`, inline: true },
-          { name: "📍 Servidor", value: serverName, inline: true },
-          { name: "🔗 Link", value: memeLink || "N/A", inline: false }
+          { name: "Author", value: `${memeAuthor.tag}`, inline: true },
+          { name: "Reactions", value: `${likes}`, inline: true },
+          { name: "Server", value: serverName, inline: true },
+          { name: "Link", value: memeLink || "N/A", inline: false }
         )
         .setTimestamp();
 
@@ -512,11 +552,10 @@ class HoshikoSystemLogger {
       });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Error log viral meme:", errorMessage);
+      console.error("Error in logViralMeme:", errorMessage);
     }
   }
-
 }
 
-// 🌟 Exportamos LA MISMA instancia para todo el proyecto
+// Export singleton instance
 export const Logger = new HoshikoSystemLogger();

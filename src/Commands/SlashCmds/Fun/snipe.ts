@@ -1,13 +1,14 @@
 // src/Commands/SlashCmds/Fun/snipe.ts
-import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  EmbedBuilder,
-} from "discord.js";
+import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { SettingsManager } from "../../../Database/SettingsManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { Snipe } from "../../../Models/Snipe";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import {
+  buildSnipeEmbed,
+  buildSnipeNotFoundMessage,
+  getSnipeEntry,
+  SNIPE_MAX_ENTRIES,
+} from "../../../Utils/snipe";
 
 const command: SlashCommand = {
   category: "Fun",
@@ -18,51 +19,41 @@ const command: SlashCommand = {
     .addIntegerOption((opt) =>
       opt
         .setName("numero")
-        .setDescription("Qué mensaje ver (1 = último borrado, 2 = penúltimo...)")
+        .setDescription(
+          "Qué mensaje ver (1 = último borrado, 2 = penúltimo...)",
+        )
         .setMinValue(1)
-        .setMaxValue(10),
+        .setMaxValue(SNIPE_MAX_ENTRIES),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ) {
     // 1. Verificar si snipe está habilitado en el servidor
     const settings = await SettingsManager.getSettings(interaction.guildId!);
     if (!settings?.securityModules?.snipe) {
       await interaction.editReply({
-        content: "❌ El comando snipe está desactivado en este servidor. Un administrador puede activarlo con `/setup`.",
-      });
-      return;
-    }
-
-    // 2. Buscar mensaje borrado
-    const position = interaction.options.getInteger("numero") || 1;
-    const index    = position - 1;
-
-    const doc = await Snipe.findOne({ channelId: interaction.channelId });
-
-    if (!doc || !doc.snipes.length || !doc.snipes[index]) {
-      await interaction.editReply({
         content:
-          index === 0
-            ? "Nyaa~ no hay mensajes borrados recientes en este canal. 🧹"
-            : `Solo tengo guardados **${doc?.snipes.length || 0}** mensajes borrados aquí.`,
+          "❌ El comando snipe está desactivado en este servidor. Un administrador puede activarlo con `/setup`.",
       });
       return;
     }
 
-    const msg = doc.snipes[index];
+    const position = interaction.options.getInteger("numero") || 1;
+    const { total, entry } = await getSnipeEntry(
+      interaction.channelId,
+      position,
+    );
 
-    const embed = new EmbedBuilder()
-      .setColor("Random")
-      .setAuthor({ name: `${msg.author} borró esto:`, iconURL: msg.authorAvatar })
-      .setDescription(msg.content)
-      .setFooter({
-        text: `Snipe ${position}/${doc.snipes.length} • Hoshiko 🐾 • Expira en 1h`,
-      })
-      .setTimestamp(msg.deletedAt);
+    if (!total || !entry) {
+      await interaction.editReply({
+        content: buildSnipeNotFoundMessage(position, total),
+      });
+      return;
+    }
 
-    if (msg.image) embed.setImage(msg.image);
-
-    // Respuesta pública
+    const embed = buildSnipeEmbed(entry, position, total);
     await interaction.editReply({ embeds: [embed] });
   },
 };

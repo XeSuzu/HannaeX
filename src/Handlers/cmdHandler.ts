@@ -3,6 +3,11 @@ import path from "path";
 import { HoshikoClient } from "../index";
 import { PrefixCommand, SlashCommand } from "../Interfaces/Command";
 
+/**
+ * Recursively retrieves all TypeScript/JavaScript files in a directory.
+ * @param directory - Directory path to scan
+ * @returns Array of file paths
+ */
 function getFilesRecursively(directory: string): string[] {
   let files: string[] = [];
   if (!fs.existsSync(directory)) return files;
@@ -27,6 +32,12 @@ function getFilesRecursively(directory: string): string[] {
   return files;
 }
 
+/**
+ * Loads and validates commands from a directory.
+ * @param directoryPath - Path to commands directory
+ * @param validator - Function to validate command structure
+ * @returns Array of validated commands
+ */
 function loadCommands<T>(
   directoryPath: string,
   validator: (cmd: any) => boolean,
@@ -35,7 +46,7 @@ function loadCommands<T>(
   const allFiles = getFilesRecursively(directoryPath);
 
   console.log(
-    `[CMD HANDLER] Escaneando: ${directoryPath} (${allFiles.length} archivos)`,
+    `[CMD HANDLER] Scanning: ${directoryPath} (${allFiles.length} files)`,
   );
 
   for (const filePath of allFiles) {
@@ -49,12 +60,12 @@ function loadCommands<T>(
         commands.push(command as T);
       } else {
         console.warn(
-          `⚠️ [WARNING] El archivo ${path.basename(filePath)} fue ignorado porque no tiene la estructura correcta (le falta name, data o execute).`,
+          `[WARNING] File ${path.basename(filePath)} was ignored due to invalid structure (missing name, data, or execute).`,
         );
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error(`❌ Error al cargar ${filePath}:`, errorMessage);
+      console.error(`Error loading ${filePath}:`, errorMessage);
     }
   }
   return commands;
@@ -72,7 +83,7 @@ export default (client: HoshikoClient) => {
   for (const c of prefixCommands) {
     client.commands.set(c.name, c);
   }
-  console.log(`📜 Prefijos validados y cargados: ${client.commands.size}`);
+  console.log(`Prefix commands validated and loaded: ${client.commands.size}`);
 
   const slashPath = path.join(__dirname, "../Commands/SlashCmds");
 
@@ -97,5 +108,5 @@ export default (client: HoshikoClient) => {
     }
   }
 
-  console.log(`✨ Slash validados y cargados: ${client.slashCommands.size}`);
+  console.log(`Slash commands validated and loaded: ${client.slashCommands.size}`);
 };

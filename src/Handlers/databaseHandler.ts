@@ -4,47 +4,45 @@ import { connectWithRetry } from "../Services/mongo";
 let isConnecting = false;
 
 /**
- * Inicializa la conexión a la base de datos de Hoshiko 🌸
+ * Initializes the Hoshiko database connection.
  */
 export default async function initDatabase() {
   if (isConnecting) return;
 
-  // Si ya estamos conectados, no hace falta intentarlo de nuevo ✨
+  // If already connected, no need to retry
   if (mongoose.connection.readyState === 1) return;
 
   isConnecting = true;
 
   if (!process.env.MONGO_URI) {
     console.error(
-      "❌ ERROR CRÍTICO: Falta la variable MONGO_URI en el archivo .env",
+      "CRITICAL ERROR: MONGO_URI environment variable is missing",
     );
     return process.exit(1);
   }
 
-  // --- Configuraciones de Mongoose ---
-  mongoose.set("strictQuery", true); // Para evitar advertencias de versiones futuras ✨
+  // Mongoose configuration
+  mongoose.set("strictQuery", true);
 
-  // --- Eventos de Monitoreo ---
+  // Connection event monitoring
   mongoose.connection.on("connected", () => {
-    console.log("🍃 MongoDB: Conexión establecida.");
+    console.log("MongoDB: Connection established.");
   });
 
   mongoose.connection.on("error", (err) => {
-    console.error("🍂 MongoDB: Error de conexión:", err);
+    console.error("MongoDB: Connection error:", err);
   });
 
   mongoose.connection.on("disconnected", () => {
-    console.warn("⚠️ MongoDB: Conexión perdida. Intentando reconectar...");
+    console.warn("MongoDB: Connection lost. Attempting to reconnect...");
   });
 
-  console.log("🔍 Iniciando proceso de conexión a MongoDB...");
+  console.log("Starting MongoDB connection process...");
 
   try {
     await connectWithRetry();
-    // Nota: El log de éxito ya lo manejas con el evento 'connected' o aquí mismo
   } catch (err) {
-    console.error("❌ No se pudo establecer la conexión inicial:", err);
-    // Dependiendo de tu bot, podrías querer cerrar el proceso aquí o dejar que reintente
+    console.error("Failed to establish initial connection:", err);
   } finally {
     isConnecting = false;
   }
