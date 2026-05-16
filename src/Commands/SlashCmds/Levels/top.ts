@@ -130,7 +130,7 @@ async function buildEmbed(
     .setColor(0xffb7c5)
     .setAuthor({
       name: `${interaction.guild?.name ?? "Servidor"}`,
-      iconURL: interaction.guild?.iconURL() ?? null,
+      iconURL: interaction.guild?.iconURL() ?? undefined,
     })
     .setTitle(title)
     .setThumbnail(interaction.guild?.iconURL() ?? null)
