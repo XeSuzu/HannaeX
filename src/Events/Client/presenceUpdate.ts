@@ -1,4 +1,5 @@
 import { Events, Presence } from "discord.js";
+import { PresenceHistoryManager } from "../../Database/PresenceHistoryManager";
 import StatusConfig from "../../Models/StatutsConfig";
 
 export default {
@@ -10,6 +11,8 @@ export default {
 
     const guild = newPresence.guild;
     const member = newPresence.member; // Ya no necesitamos el "as GuildMember" porque el check de arriba lo asegura
+
+    await PresenceHistoryManager.savePresence(member.id, guild.id, newPresence);
 
     // 1. BUSCAR CONFIGURACIÓN DE ESTE SERVIDOR
     const config = await StatusConfig.findOne({ guildId: guild.id });

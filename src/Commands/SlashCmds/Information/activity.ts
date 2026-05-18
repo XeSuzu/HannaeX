@@ -8,8 +8,10 @@ import {
   SlashCommandBuilder,
   User,
 } from "discord.js";
+import { PresenceHistoryManager } from "../../../Database/PresenceHistoryManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
+import { IPresenceHistory } from "../../../Models/PresenceHistory";
 
 const STATUS_LABELS: Record<string, string> = {
   online: "🟢 En línea",
@@ -184,7 +186,31 @@ const command: SlashCommand = {
       const member =
         cachedMember ??
         (await interaction.guild.members.fetch(target.id).catch(() => null));
-      const presence = cachedMember?.presence ?? member?.presence ?? null;
+      const persistedPresence: IPresenceHistory | null =
+        !cachedMember?.presence && !member?.presence
+          ? await PresenceHistoryManager.getPresence(
+              target.id,
+              interaction.guild.id,
+            )
+          : null;
+      const presence =
+        cachedMember?.presence ??
+        member?.presence ??
+        (persistedPresence
+          ? ({
+              status: persistedPresence.status,
+              activities: persistedPresence.activities.map((activity) => ({
+                type: activity.type as ActivityType,
+                name: activity.name,
+                details: activity.details,
+                state: activity.state,
+                url: activity.url,
+                timestamps: activity.timestamps,
+                assets: activity.assets,
+                emoji: activity.emoji ? { name: activity.emoji } : undefined,
+              })),
+            } as Presence)
+          : null);
       const embed = buildActivityEmbed(
         target,
         member,
@@ -217,17 +243,39 @@ const command: SlashCommand = {
         return;
       }
 
-      const cachedMember = target
-        ? (message.guild.members.cache.get(target.id) ?? null)
-        : null;
+      const lookupTarget = target || message.author;
+      const cachedMember =
+        message.guild.members.cache.get(lookupTarget.id) ?? null;
       const member =
         cachedMember ??
-        (target
-          ? await message.guild.members.fetch(target.id).catch(() => null)
+        (await message.guild.members.fetch(lookupTarget.id).catch(() => null));
+      const persistedPresence: IPresenceHistory | null =
+        !cachedMember?.presence && !member?.presence
+          ? await PresenceHistoryManager.getPresence(
+              lookupTarget.id,
+              message.guild.id,
+            )
+          : null;
+      const presence =
+        cachedMember?.presence ??
+        member?.presence ??
+        (persistedPresence
+          ? ({
+              status: persistedPresence.status,
+              activities: persistedPresence.activities.map((activity) => ({
+                type: activity.type as ActivityType,
+                name: activity.name,
+                details: activity.details,
+                state: activity.state,
+                url: activity.url,
+                timestamps: activity.timestamps,
+                assets: activity.assets,
+                emoji: activity.emoji ? { name: activity.emoji } : undefined,
+              })),
+            } as Presence)
           : null);
-      const presence = cachedMember?.presence ?? member?.presence ?? null;
       const embed = buildActivityEmbed(
-        target || message.author,
+        lookupTarget,
         member,
         presence,
         message.author.tag,

@@ -63,7 +63,7 @@ const BOT_ID = process.env.BOT_ID || "";
 const client = new HoshikoClient({
   makeCache: Options.cacheWithLimits({
     MessageManager: 50,
-    PresenceManager: 0,
+    PresenceManager: 1000,
     UserManager: {
       maxSize: 1000,
       keepOverLimit: (user) => user.id === BOT_ID,
@@ -154,12 +154,12 @@ const loadHandlers = () => {
     startCronJobs(client);
   } catch (err) {
     console.error("CRITICAL ERROR:", err);
-  HoshikoLogger.log({
-    level: LogLevel.FATAL,
-    context: "System/Startup",
-    message: "Critical error during startup",
-    metadata: err,
-  });
+    HoshikoLogger.log({
+      level: LogLevel.FATAL,
+      context: "System/Startup",
+      message: "Critical error during startup",
+      metadata: err,
+    });
     process.exit(1);
   }
 })();
