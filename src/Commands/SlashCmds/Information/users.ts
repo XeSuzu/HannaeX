@@ -1,6 +1,7 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  GuildMember,
   Message,
   SlashCommandBuilder,
   User,
@@ -9,6 +10,44 @@ import { UserHistoryManager } from "../../../Database/UserHistoryManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
+// ─── Helper: guarda snapshot del usuario en el servidor actual ────────────────
+// Captura tanto datos globales como datos de servidor (Nitro: avatar/banner/nick)
+const snapshotUser = async (
+  target: User,
+  member: GuildMember | null,
+  guildId: string,
+  guildName: string,
+) => {
+  // Avatar de servidor (Nitro) tiene prioridad; si no, avatar global
+  const avatarUrl =
+    member?.avatarURL({ size: 256, extension: "png" }) ??
+    target.displayAvatarURL({ size: 256, extension: "png" });
+
+  // Banner de servidor (Nitro) si existe, si no el global
+  const bannerUrl =
+    (member as any)?.bannerURL?.({ size: 1024 }) ??
+    target.bannerURL({ size: 1024 }) ??
+    undefined;
+
+  // displayName: apodo en servidor > nombre global de display > username
+  const displayName = member?.nickname ?? target.globalName ?? target.username;
+
+  await UserHistoryManager.addUser(target.id, {
+    // Campos estándar
+    username: target.username,
+    discriminator: target.discriminator,
+    tag: target.tag,
+    displayName,
+    avatarUrl,
+    bannerUrl,
+    // Contexto del servidor
+    guildId,
+    guildName,
+    source: "command",
+  });
+};
+
+// ─── Embed: lista de usuarios del servidor ────────────────────────────────────
 const buildUsersEmbed = (guild: any) => {
   const members = guild.members.cache;
   const total = guild.memberCount ?? members.size;
@@ -32,7 +71,7 @@ const buildUsersEmbed = (guild: any) => {
         : "")
     : "No hay miembros en caché para mostrar.";
 
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setTitle(`👥 Usuarios de ${guild.name}`)
     .setColor(guild.members.me?.displayHexColor || 0x5865f2)
     .setThumbnail(guild.iconURL({ size: 256 }) || undefined)
@@ -59,22 +98,32 @@ const buildUsersEmbed = (guild: any) => {
     )
     .setFooter({ text: `Solicitado por ${guild.client.user?.username}` })
     .setTimestamp();
-
-  return embed;
 };
 
+// ─── Embed: historial de un usuario ──────────────────────────────────────────
 const buildUserHistoryEmbed = (
   target: User,
-  member: any,
+  member: GuildMember | null,
   history: any[],
   requester: string,
 ) => {
   const isAnimated = target.avatar?.startsWith("a_");
-  const avatarURL = target.displayAvatarURL({
-    size: 1024,
-    extension: isAnimated ? "gif" : "png",
-  });
-  const bannerURL = target.bannerURL({ size: 1024 });
+
+  // Mostrar avatar de servidor (Nitro) si existe, si no el global
+  const displayAvatarURL =
+    member?.avatarURL({ size: 1024, extension: isAnimated ? "gif" : "png" }) ??
+    target.displayAvatarURL({
+      size: 1024,
+      extension: isAnimated ? "gif" : "png",
+    });
+
+  // Banner: servidor primero, luego global
+  const bannerURL =
+    (member as any)?.bannerURL?.({ size: 1024 }) ??
+    target.bannerURL({ size: 1024 });
+
+  // Nombre a mostrar: apodo > nombre global > username
+  const displayName = member?.nickname ?? target.globalName ?? target.username;
 
   const historyLines = history.slice(0, 5).map((record, index) => {
     const guildLabel = record.guildName
@@ -85,8 +134,8 @@ const buildUserHistoryEmbed = (
     )}:R>`;
   });
 
-  const embed = new EmbedBuilder()
-    .setTitle(`👤 Historial de ${target.username}`)
+  return new EmbedBuilder()
+    .setTitle(`👤 Historial de ${displayName}`)
     .setColor(member?.displayHexColor || 0x5865f2)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .setDescription(
@@ -94,6 +143,11 @@ const buildUserHistoryEmbed = (
     )
     .addFields(
       { name: "Tag actual", value: `${target.tag}`, inline: true },
+      {
+        name: "Apodo en servidor",
+        value: member?.nickname ?? "*(sin apodo)*",
+        inline: true,
+      },
       {
         name: "Registros guardados",
         value: `${history.length}`,
@@ -115,21 +169,29 @@ const buildUserHistoryEmbed = (
       },
       {
         name: "Avatar actual",
-        value: avatarURL ? `[Ver avatar](${avatarURL})` : "No disponible",
+        value: displayAvatarURL
+          ? `[Ver avatar](${displayAvatarURL})`
+          : "No disponible",
+        inline: true,
+      },
+      {
+        name: "Avatar de servidor",
+        value: member?.avatarURL()
+          ? `[Ver avatar de servidor](${member.avatarURL({ size: 1024 })})`
+          : "*(usa el global)*",
         inline: true,
       },
       {
         name: "Banner disponible",
-        value: bannerURL ? "✅ Sí" : "❌ No",
+        value: bannerURL ? `✅ [Ver banner](${bannerURL})` : "❌ No",
         inline: true,
       },
     )
     .setFooter({ text: `Solicitado por ${requester}` })
     .setTimestamp();
-
-  return embed;
 };
 
+// ─── Resolver usuario desde args (prefix) ────────────────────────────────────
 const resolveUserFromArgs = async (
   message: Message,
   args: string[],
@@ -147,6 +209,7 @@ const resolveUserFromArgs = async (
   return message.author;
 };
 
+// ─── Comando ──────────────────────────────────────────────────────────────────
 const command: SlashCommand = {
   category: "Profiles",
   data: new SlashCommandBuilder()
@@ -173,22 +236,37 @@ const command: SlashCommand = {
       return;
     }
 
+    await interaction.deferReply();
+
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
+      // Forzar fetch para obtener banner global (requiere fetch con force:true)
       await target.fetch(true);
+
       const member = await interaction.guild.members
-        .fetch(target.id)
+        .fetch({ user: target.id, force: true })
         .catch(() => null);
+
+      // ── GUARDAR snapshot del estado actual ────────────────────────────────
+      await snapshotUser(
+        target,
+        member,
+        interaction.guild.id,
+        interaction.guild.name,
+      );
+
       const history = await UserHistoryManager.getHistory(
         target.id,
         interaction.guild.id,
       );
+
       const embed = buildUserHistoryEmbed(
         target,
         member,
         history,
         interaction.user.tag,
       );
+
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error("Error en /users:", error);
@@ -217,23 +295,38 @@ const command: SlashCommand = {
       }
 
       if (target) {
+        // Forzar fetch para datos completos (banner global, etc.)
+        await target.fetch(true).catch(() => null);
+
+        const member = await message.guild.members
+          .fetch({ user: target.id, force: true })
+          .catch(() => null);
+
+        // ── GUARDAR snapshot del estado actual ──────────────────────────────
+        await snapshotUser(
+          target,
+          member,
+          message.guild.id,
+          message.guild.name,
+        );
+
         const history = await UserHistoryManager.getHistory(
           target.id,
           message.guild.id,
         );
-        const member = await message.guild.members
-          .fetch(target.id)
-          .catch(() => null);
+
         const embed = buildUserHistoryEmbed(
           target,
           member,
           history,
           message.author.tag,
         );
+
         await message.reply({ embeds: [embed] });
         return;
       }
 
+      // Sin args → mostrar lista del servidor
       const embed = buildUsersEmbed(message.guild);
       await message.reply({ embeds: [embed] });
     } catch (error) {

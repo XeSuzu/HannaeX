@@ -9,14 +9,43 @@ import {
   Message,
   SlashCommandBuilder,
   User,
+  GuildMember,
 } from "discord.js";
 import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
+// ─── Helper: guarda snapshot de avatares del usuario ─────────────────────────
+// Guarda el avatar global Y el avatar de servidor (Nitro) si son distintos
+const snapshotAvatars = async (
+  target: User,
+  member: GuildMember | null,
+  guildId: string,
+  guildName: string,
+) => {
+  // Avatar global
+  const globalAvatar = target.displayAvatarURL({ size: 256, extension: "png" });
+  await AvatarHistoryManager.addAvatar(target.id, globalAvatar, {
+    guildId,
+    guildName,
+    source: "command",
+  });
+
+  // Avatar de servidor (Nitro) — solo si es distinto al global
+  const serverAvatar = member?.avatarURL({ size: 256, extension: "png" });
+  if (serverAvatar && serverAvatar !== globalAvatar) {
+    await AvatarHistoryManager.addAvatar(target.id, serverAvatar, {
+      guildId,
+      guildName,
+      source: "guild",
+    });
+  }
+};
+
+// ─── Embed principal ──────────────────────────────────────────────────────────
 const buildAvatarEmbed = (
   target: User,
-  member: any,
+  member: GuildMember | null,
   requester: string,
   savedAvatars: any[],
 ) => {
@@ -26,6 +55,11 @@ const buildAvatarEmbed = (
     extension: isAnimated ? "gif" : "png",
   });
   const bannerURL = target.bannerURL({ size: 1024 });
+
+  // Avatar de servidor (Nitro) si existe
+  const serverAvatarURL = member?.avatarURL({ size: 1024 }) ?? null;
+  const isServerAvatarAnimated = member?.avatar?.startsWith("a_");
+
   const statusMap: Record<string, string> = {
     online: "🟢 En línea",
     idle: "🌙 Ausente",
@@ -47,9 +81,11 @@ const buildAvatarEmbed = (
     inline: true,
   }));
 
-  const mainImage = savedAvatars.length ? savedAvatars[0].url : avatarURL;
+  const mainImage = savedAvatars.length
+    ? "attachment://saved-avatars-grid.png"
+    : avatarURL;
 
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setTitle(`✨ Avatares de ${target.username}`)
     .setColor(member?.displayHexColor || 0xffb6c1)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
@@ -76,6 +112,14 @@ const buildAvatarEmbed = (
         value: bannerURL ? "✅ Sí" : "❌ No",
         inline: true,
       },
+      // Nitro: mostrar si tiene avatar de servidor distinto
+      {
+        name: "🌟 Avatar de servidor (Nitro)",
+        value: serverAvatarURL
+          ? `[Ver](${member?.avatarURL({ size: 1024, extension: isServerAvatarAnimated ? "gif" : "png" })}) ${isServerAvatarAnimated ? "✅ GIF" : ""}`
+          : "*(usa el global)*",
+        inline: true,
+      },
       {
         name: `📚 Historial de avatares (${savedCount})`,
         value: savedSummary,
@@ -85,11 +129,10 @@ const buildAvatarEmbed = (
     )
     .setFooter({ text: `Solicitado por ${requester}` })
     .setTimestamp();
-
-  return embed;
 };
 
-const buildAvatarButtons = (target: User) => {
+// ─── Botones de descarga ──────────────────────────────────────────────────────
+const buildAvatarButtons = (target: User, member: GuildMember | null) => {
   const formats = ["png", "jpg", "webp"] as const;
   const buttons = new ActionRowBuilder<ButtonBuilder>();
 
@@ -111,6 +154,17 @@ const buildAvatarButtons = (target: User) => {
     );
   });
 
+  // Botón extra para avatar de servidor (Nitro) si existe
+  const serverAvatarURL = member?.avatarURL({ size: 1024 });
+  if (serverAvatarURL) {
+    buttons.addComponents(
+      new ButtonBuilder()
+        .setLabel("Avatar servidor")
+        .setStyle(ButtonStyle.Link)
+        .setURL(serverAvatarURL),
+    );
+  }
+
   const bannerURL = target.bannerURL({ size: 1024 });
   if (bannerURL) {
     buttons.addComponents(
@@ -124,6 +178,7 @@ const buildAvatarButtons = (target: User) => {
   return [buttons];
 };
 
+// ─── Grid de avatares guardados ───────────────────────────────────────────────
 const buildAvatarGridAttachment = async (
   savedAvatars: any[],
 ): Promise<AttachmentBuilder | null> => {
@@ -171,6 +226,7 @@ const buildAvatarGridAttachment = async (
   });
 };
 
+// ─── Resolver usuario desde args (prefix) ────────────────────────────────────
 const resolveUserFromArgs = async (
   message: Message,
   args: string[],
@@ -188,6 +244,7 @@ const resolveUserFromArgs = async (
   return message.author;
 };
 
+// ─── Comando ──────────────────────────────────────────────────────────────────
 const command: SlashCommand = {
   category: "Profiles",
   data: new SlashCommandBuilder()
@@ -214,12 +271,25 @@ const command: SlashCommand = {
       return;
     }
 
+    await interaction.deferReply();
+
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
+      // force:true para obtener banner global y datos completos
       await target.fetch(true);
+
       const member = await interaction.guild.members
-        .fetch(target.id)
+        .fetch({ user: target.id, force: true })
         .catch(() => null);
+
+      // ── GUARDAR snapshot de avatares (global + servidor si Nitro) ──────────
+      await snapshotAvatars(
+        target,
+        member,
+        interaction.guild.id,
+        interaction.guild.name,
+      );
+
       const savedAvatars = await AvatarHistoryManager.getAvatars(
         target.id,
         interaction.guild.id,
@@ -232,10 +302,7 @@ const command: SlashCommand = {
         interaction.user.tag,
         savedAvatars,
       );
-      if (attachment) {
-        embed.setImage("attachment://saved-avatars-grid.png");
-      }
-      const components = buildAvatarButtons(target);
+      const components = buildAvatarButtons(target, member);
 
       await interaction.editReply({
         embeds: [embed],
@@ -258,6 +325,7 @@ const command: SlashCommand = {
     args: string[],
   ) => {
     if (!message.guild) return;
+
     const target = await resolveUserFromArgs(message, args);
     if (!target) {
       await message.reply(
@@ -266,14 +334,21 @@ const command: SlashCommand = {
       return;
     }
 
-    await target.fetch(true);
+    // force:true para datos completos
+    await target.fetch(true).catch(() => null);
+
     const member = await message.guild.members
-      .fetch(target.id)
+      .fetch({ user: target.id, force: true })
       .catch(() => null);
+
+    // ── GUARDAR snapshot de avatares (global + servidor si Nitro) ────────────
+    await snapshotAvatars(target, member, message.guild.id, message.guild.name);
+
     const savedAvatars = await AvatarHistoryManager.getAvatars(
       target.id,
       message.guild.id,
     );
+
     const attachment = await buildAvatarGridAttachment(savedAvatars);
     const embed = buildAvatarEmbed(
       target,
@@ -281,10 +356,7 @@ const command: SlashCommand = {
       message.author.tag,
       savedAvatars,
     );
-    if (attachment) {
-      embed.setImage("attachment://saved-avatars-grid.png");
-    }
-    const components = buildAvatarButtons(target);
+    const components = buildAvatarButtons(target, member);
 
     await message.reply({
       embeds: [embed],

@@ -65,8 +65,10 @@ async function getDominantColor(imageUrl: string): Promise<string> {
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
       const isGray = saturation < 18;
       const isTooDark = brightness < 22;
+      // FIX: también filtra colores hipersaturados que generan fondos planos
       const isTooPale = brightness > 245 && saturation < 70;
-      if (isTooDark || isTooPale || isGray) continue;
+      const isHyperSaturated = saturation > 230 && brightness > 200;
+      if (isTooDark || isTooPale || isGray || isHyperSaturated) continue;
 
       const key = rgbToHex(
         Math.min(255, Math.round(r / 20) * 20),
@@ -106,13 +108,17 @@ function roundRect(
   ctx.closePath();
 }
 
+// FIX: búsqueda binaria en lugar de O(n²)
 function truncate(ctx: SKRSContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
-  let t = text;
-  while (t.length > 0 && ctx.measureText(t + "…").width > maxWidth) {
-    t = t.slice(0, -1);
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(text.slice(0, mid) + "…").width <= maxWidth) lo = mid;
+    else hi = mid - 1;
   }
-  return t + "…";
+  return text.slice(0, lo) + "…";
 }
 
 function formatMs(ms: number): string {
@@ -138,7 +144,9 @@ function drawWaveform(
   const barW = 2;
   const gap = 1.2;
   const totalBars = WAVE_HEIGHTS.length;
-  const activeBars = Math.round(progress * totalBars);
+  // FIX: Math.floor para que las barras se activen de izquierda a derecha
+  // sin adelantarse al progreso real
+  const activeBars = Math.floor(progress * totalBars);
 
   WAVE_HEIGHTS.forEach((h, i) => {
     const scaledH = Math.round((h / 20) * maxH);
@@ -163,12 +171,12 @@ export async function renderSpotifyCard(
   const H = 160;
 
   // Layout — todos los valores derivados de constantes
-  const PAD = 16; // padding exterior
-  const ART_S = 128; // portada cuadrada (ocupa toda la altura - 2*PAD)
+  const PAD = 16;
+  const ART_S = 128;
   const ART_X = PAD;
   const ART_Y = PAD;
-  const TEXT_X = ART_X + ART_S + 14; // columna de texto
-  const TEXT_W = W - TEXT_X - PAD; // ancho disponible para texto
+  const TEXT_X = ART_X + ART_S + 14;
+  const TEXT_W = W - TEXT_X - PAD;
 
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
@@ -181,12 +189,18 @@ export async function renderSpotifyCard(
   const accentDark = darken(accent, 0.6);
   const bgDeep = darken(accent, 0.86);
 
+  // FIX: validar progress contra NaN, undefined y valores fuera de rango
+  const rawProgress =
+    data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
+  const progress = isNaN(rawProgress)
+    ? 0
+    : Math.min(1, Math.max(0, rawProgress));
+
   // ── Fondo ──────────────────────────────────────────────────────────────────
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
-  // Glow muy sutil — solo en la esquina superior derecha
   const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 200);
   glow.addColorStop(0, accent + "22");
   glow.addColorStop(1, "transparent");
@@ -241,7 +255,6 @@ export async function renderSpotifyCard(
   ctx.lineWidth = 0.8;
   ctx.stroke();
 
-  // dot del badge
   ctx.beginPath();
   ctx.arc(BADGE_X + 9, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
   ctx.fillStyle = accentLight;
@@ -269,10 +282,8 @@ export async function renderSpotifyCard(
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
   // ── Waveform ───────────────────────────────────────────────────────────────
-  const WAVE_H = 10; // altura máxima de las barras
+  const WAVE_H = 10;
   const WAVE_Y = ARTIST_Y + 10;
-  const progress =
-    data.durationMs > 0 ? Math.min(1, data.progressMs / data.durationMs) : 0;
 
   drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
 
@@ -281,12 +292,15 @@ export async function renderSpotifyCard(
   const BAR_H = 2;
   const BAR_W = TEXT_W;
 
-  roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, 99);
+  // Track (fondo)
+  roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, BAR_H / 2);
   ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.fill();
 
-  const fillW = Math.max(BAR_H * 3, BAR_W * progress);
-  roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, 99);
+  // FIX: fillW no puede exceder BAR_W; radio proporcional a BAR_H
+  // evita artefactos de pill cuando el fill es muy pequeño
+  const fillW = Math.min(BAR_W, Math.max(BAR_H * 2, BAR_W * progress));
+  roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, BAR_H / 2);
   ctx.fillStyle = accentLight;
   ctx.fill();
 
