@@ -1,7 +1,10 @@
 import {
+  Activity,
   ActivityType,
+  AttachmentBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  Guild,
   GuildMember,
   Message,
   Presence,
@@ -12,6 +15,12 @@ import { PresenceHistoryManager } from "../../../Database/PresenceHistoryManager
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { IPresenceHistory } from "../../../Models/PresenceHistory";
+import {
+  renderSpotifyCard,
+  SpotifyCardData,
+} from "../../../Renderers/spotifyRenderer";
+
+type PartialPresenceLike = Pick<Presence, "status" | "activities">;
 
 const STATUS_LABELS: Record<string, string> = {
   online: "🟢 En línea",
@@ -20,38 +29,66 @@ const STATUS_LABELS: Record<string, string> = {
   offline: "⚫ Desconectado",
 };
 
-const ACTIVITY_ICONS: Record<ActivityType, string> = {
+const ACTIVITY_ICONS: Partial<Record<ActivityType, string>> = {
   [ActivityType.Playing]: "🎮",
   [ActivityType.Streaming]: "📡",
   [ActivityType.Listening]: "🎵",
   [ActivityType.Watching]: "📺",
   [ActivityType.Competing]: "🏆",
-  [ActivityType.Custom]: "✨",
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const resolveUserFromArgs = async (
   message: Message,
   args: string[],
 ): Promise<User | null> => {
   if (message.mentions.users.first()) {
-    return message.mentions.users.first() as User;
+    return message.mentions.users.first()!;
   }
   if (args[0]) {
-    try {
-      return await message.client.users.fetch(args[0]);
-    } catch {
-      return null;
-    }
+    return message.client.users.fetch(args[0]).catch(() => null);
   }
-  return message.author;
+  return null;
 };
+
+async function resolvePresence(
+  guild: Guild,
+  userId: string,
+): Promise<PartialPresenceLike | null> {
+  const cached = guild.members.cache.get(userId) ?? null;
+  const member =
+    cached ?? (await guild.members.fetch(userId).catch(() => null));
+
+  if (cached?.presence) return cached.presence;
+  if (member?.presence) return member.presence;
+
+  const persisted: IPresenceHistory | null =
+    await PresenceHistoryManager.getPresence(userId, guild.id);
+
+  if (!persisted) return null;
+
+  return {
+    status: persisted.status,
+    activities: persisted.activities.map((a) => ({
+      type: a.type as ActivityType,
+      name: a.name,
+      details: a.details,
+      state: a.state,
+      url: a.url,
+      timestamps: a.timestamps,
+      assets: a.assets,
+      emoji: a.emoji ? { name: a.emoji } : undefined,
+    })),
+  } as unknown as PartialPresenceLike;
+}
 
 function formatTimestamp(timestamp: number | undefined): string | null {
   if (!timestamp) return null;
   return `<t:${Math.floor(timestamp / 1000)}:R>`;
 }
 
-function getSpotifyCover(activity: any): string | null {
+function getSpotifyCover(activity: Activity): string | null {
   if (
     activity.type === ActivityType.Listening &&
     activity.name === "Spotify" &&
@@ -63,18 +100,28 @@ function getSpotifyCover(activity: any): string | null {
   return null;
 }
 
-function formatActivity(activity: any): string {
+function getSpotifyActivity(
+  presence: PartialPresenceLike | null,
+): Activity | null {
+  if (!presence?.activities?.length) return null;
+  return (
+    (presence.activities as Activity[]).find(
+      (a) => a.type === ActivityType.Listening && a.name === "Spotify",
+    ) ?? null
+  );
+}
+
+function formatActivity(activity: Activity): string {
   if (activity.type === ActivityType.Listening && activity.name === "Spotify") {
     const track = activity.details || "Canción desconocida";
     const artist = activity.state || "Artista desconocido";
     const album = activity.assets?.largeText
       ? `\n   ├─ Álbum: ${activity.assets.largeText}`
       : "";
-    const start = formatTimestamp(activity.timestamps?.start);
-    const end = formatTimestamp(activity.timestamps?.end);
+    const start = formatTimestamp(activity.timestamps?.start?.getTime());
+    const end = formatTimestamp(activity.timestamps?.end?.getTime());
     const startText = start ? `\n   ├─ Inició ${start}` : "";
     const endText = end ? `\n   └─ Termina ${end}` : "";
-
     return `🎧 **Spotify**\n   ├─ ${track}\n   ├─ ${artist}${album}${startText}${endText}`.trim();
   }
 
@@ -85,8 +132,8 @@ function formatActivity(activity: any): string {
   const details = activity.details ? `\n   ├─ ${activity.details}` : "";
   const state = activity.state ? `\n   ├─ ${activity.state}` : "";
   const url = activity.url ? `\n   ├─ <${activity.url}>` : "";
-  const start = formatTimestamp(activity.timestamps?.start);
-  const end = formatTimestamp(activity.timestamps?.end);
+  const start = formatTimestamp(activity.timestamps?.start?.getTime());
+  const end = formatTimestamp(activity.timestamps?.end?.getTime());
   const startText = start ? `\n   ├─ Inició ${start}` : "";
   const endText = end ? `\n   └─ Termina ${end}` : "";
   const largeText = activity.assets?.largeText
@@ -99,7 +146,7 @@ function formatActivity(activity: any): string {
   return `${icon} ${title}${details}${state}${url}${startText}${endText}${largeText}${smallText}`.trim();
 }
 
-function getActivities(presence: Presence | null): {
+function getActivities(presence: PartialPresenceLike | null): {
   text: string | null;
   total: number;
   image?: string | null;
@@ -108,53 +155,45 @@ function getActivities(presence: Presence | null): {
   if (!presence?.activities?.length)
     return { text: null, total: 0, image: null, color: null };
 
-  const visibleActivities = presence.activities.filter(
+  const visibleActivities = (presence.activities as Activity[]).filter(
     (activity) => activity.type !== ActivityType.Custom,
   );
 
   if (!visibleActivities.length)
     return { text: null, total: 0, image: null, color: null };
 
-  const maxActivities = 3;
-  const displayed = visibleActivities.slice(0, maxActivities);
+  const displayed = visibleActivities.slice(0, 3);
   const text = displayed.map(formatActivity).join("\n\n");
   const spotifyImage = visibleActivities
     .map(getSpotifyCover)
     .find((url) => url) as string | null;
   const color = visibleActivities.some(
-    (activity) =>
-      activity.type === ActivityType.Listening && activity.name === "Spotify",
+    (a) => a.type === ActivityType.Listening && a.name === "Spotify",
   )
     ? 0x1db954
     : null;
 
-  return {
-    text,
-    total: visibleActivities.length,
-    image: spotifyImage,
-    color,
-  };
+  return { text, total: visibleActivities.length, image: spotifyImage, color };
 }
 
-function getCustomStatus(presence: Presence | null): string | null {
+function getCustomStatus(presence: PartialPresenceLike | null): string | null {
   if (!presence?.activities?.length) return null;
-
-  const custom = presence.activities.find(
-    (activity) => activity.type === ActivityType.Custom,
+  const custom = (presence.activities as Activity[]).find(
+    (a) => a.type === ActivityType.Custom,
   );
   if (!custom) return null;
-
   const emoji = custom.emoji ? `${custom.emoji} ` : "";
-  const state = custom.state || "";
-  return `${emoji}${state}`.trim() || null;
+  return `${emoji}${custom.state ?? ""}`.trim() || null;
 }
+
+// ─── Builders ─────────────────────────────────────────────────────────────────
 
 const buildActivityEmbed = (
   target: User,
   member: GuildMember | null,
-  presence: Presence | null,
+  presence: PartialPresenceLike | null,
   requester: string,
-) => {
+): EmbedBuilder => {
   const status = presence?.status ?? null;
   const activityData = getActivities(presence);
   const customStatus = getCustomStatus(presence);
@@ -164,7 +203,7 @@ const buildActivityEmbed = (
     .setColor(activityData.color ?? member?.displayHexColor ?? 0x5865f2)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .setDescription(
-      `Aquí se muestra la actividad que Discord expone en tiempo real para este usuario. Incluye juegos, streaming, reproducción de música, estado personalizado y detalles de sesión cuando están disponibles.`,
+      "Aquí se muestra la actividad que Discord expone en tiempo real para este usuario. Incluye juegos, streaming, reproducción de música, estado personalizado y detalles de sesión cuando están disponibles.",
     )
     .addFields(
       {
@@ -185,9 +224,7 @@ const buildActivityEmbed = (
     .setFooter({ text: `Solicitado por ${requester}` })
     .setTimestamp();
 
-  if (activityData.image) {
-    embed.setImage(activityData.image);
-  }
+  if (activityData.image) embed.setImage(activityData.image);
 
   if (customStatus) {
     embed.addFields({
@@ -199,6 +236,53 @@ const buildActivityEmbed = (
 
   return embed;
 };
+
+async function buildActivityReply(
+  target: User,
+  member: GuildMember | null,
+  presence: PartialPresenceLike | null,
+  requester: string,
+): Promise<{ embeds: EmbedBuilder[]; files: AttachmentBuilder[] }> {
+  const spotifyActivity = getSpotifyActivity(presence);
+
+  if (spotifyActivity) {
+    const coverUrl = getSpotifyCover(spotifyActivity) ?? null;
+
+    const cardData: SpotifyCardData = {
+      track: spotifyActivity.details ?? "Canción desconocida",
+      artist: spotifyActivity.state ?? "Artista desconocido",
+      album: spotifyActivity.assets?.largeText ?? undefined,
+      coverUrl,
+      progressMs: spotifyActivity.timestamps?.start
+        ? Date.now() - spotifyActivity.timestamps.start.getTime()
+        : 0,
+      durationMs:
+        spotifyActivity.timestamps?.start && spotifyActivity.timestamps?.end
+          ? spotifyActivity.timestamps.end.getTime() -
+            spotifyActivity.timestamps.start.getTime()
+          : 0,
+      username: target.username,
+      avatarUrl: target.displayAvatarURL({ size: 64, extension: "png" }),
+    };
+
+    const buffer = await renderSpotifyCard(cardData);
+    const attachment = new AttachmentBuilder(buffer, { name: "activity.png" });
+
+    const embed = new EmbedBuilder()
+      .setColor(0x0e0e10)
+      .setImage("attachment://activity.png")
+      .setFooter({ text: `Solicitado por ${requester}` })
+      .setTimestamp();
+
+    return { embeds: [embed], files: [attachment] };
+  }
+
+  // fallback embed de texto para actividades no-Spotify
+  const embed = buildActivityEmbed(target, member, presence, requester);
+  return { embeds: [embed], files: [] };
+}
+
+// ─── Comando ──────────────────────────────────────────────────────────────────
 
 const command: SlashCommand = {
   category: "Profiles",
@@ -217,52 +301,25 @@ const command: SlashCommand = {
     client: HoshikoClient,
   ) {
     if (!interaction.guild) {
-      await interaction.reply({
+      await interaction.editReply({
         content: "❌ Este comando solo puede usarse dentro de un servidor.",
-        ephemeral: true,
       });
       return;
     }
 
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
-      const cachedMember =
-        interaction.guild.members.cache.get(target.id) ?? null;
       const member =
-        cachedMember ??
+        interaction.guild.members.cache.get(target.id) ??
         (await interaction.guild.members.fetch(target.id).catch(() => null));
-      const persistedPresence: IPresenceHistory | null =
-        !cachedMember?.presence && !member?.presence
-          ? await PresenceHistoryManager.getPresence(
-              target.id,
-              interaction.guild.id,
-            )
-          : null;
-      const presence =
-        cachedMember?.presence ??
-        member?.presence ??
-        (persistedPresence
-          ? ({
-              status: persistedPresence.status,
-              activities: persistedPresence.activities.map((activity) => ({
-                type: activity.type as ActivityType,
-                name: activity.name,
-                details: activity.details,
-                state: activity.state,
-                url: activity.url,
-                timestamps: activity.timestamps,
-                assets: activity.assets,
-                emoji: activity.emoji ? { name: activity.emoji } : undefined,
-              })),
-            } as Presence)
-          : null);
-      const embed = buildActivityEmbed(
+      const presence = await resolvePresence(interaction.guild, target.id);
+      const reply = await buildActivityReply(
         target,
-        member,
+        member ?? null,
         presence,
         interaction.user.tag,
       );
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(reply);
     } catch (error) {
       console.error("Error en /activity:", error);
       await interaction.editReply({
@@ -281,6 +338,7 @@ const command: SlashCommand = {
 
     try {
       const target = await resolveUserFromArgs(message, args);
+
       if (args.length > 0 && !target) {
         await message.reply(
           "❌ Usuario no encontrado. Menciona a alguien o usa su ID válida.",
@@ -288,44 +346,18 @@ const command: SlashCommand = {
         return;
       }
 
-      const lookupTarget = target || message.author;
-      const cachedMember =
-        message.guild.members.cache.get(lookupTarget.id) ?? null;
+      const lookupTarget = target ?? message.author;
       const member =
-        cachedMember ??
+        message.guild.members.cache.get(lookupTarget.id) ??
         (await message.guild.members.fetch(lookupTarget.id).catch(() => null));
-      const persistedPresence: IPresenceHistory | null =
-        !cachedMember?.presence && !member?.presence
-          ? await PresenceHistoryManager.getPresence(
-              lookupTarget.id,
-              message.guild.id,
-            )
-          : null;
-      const presence =
-        cachedMember?.presence ??
-        member?.presence ??
-        (persistedPresence
-          ? ({
-              status: persistedPresence.status,
-              activities: persistedPresence.activities.map((activity) => ({
-                type: activity.type as ActivityType,
-                name: activity.name,
-                details: activity.details,
-                state: activity.state,
-                url: activity.url,
-                timestamps: activity.timestamps,
-                assets: activity.assets,
-                emoji: activity.emoji ? { name: activity.emoji } : undefined,
-              })),
-            } as Presence)
-          : null);
-      const embed = buildActivityEmbed(
+      const presence = await resolvePresence(message.guild, lookupTarget.id);
+      const reply = await buildActivityReply(
         lookupTarget,
-        member,
+        member ?? null,
         presence,
         message.author.tag,
       );
-      await message.reply({ embeds: [embed] });
+      await message.reply(reply);
     } catch (error) {
       console.error("Error en prefix activity:", error);
       await message.reply(
