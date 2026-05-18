@@ -47,7 +47,7 @@ function darken(hex: string, amount: number): string {
 async function getDominantColor(imageUrl: string): Promise<string> {
   try {
     const img = await loadImage(imageUrl);
-    const size = 80;
+    const size = 90;
     const tmp = createCanvas(size, size);
     const ctx = tmp.getContext("2d");
     ctx.drawImage(img, 0, 0, size, size);
@@ -63,24 +63,23 @@ async function getDominantColor(imageUrl: string): Promise<string> {
 
       const brightness = (r + g + b) / 3;
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      const isGray = saturation < 15;
-      const isTooDark = brightness < 25;
-      const isTooPale = brightness > 240 && saturation < 80;
+      const isGray = saturation < 18;
+      const isTooDark = brightness < 22;
+      const isTooPale = brightness > 245 && saturation < 70;
       if (isTooDark || isTooPale || isGray) continue;
 
-      // clamp antes de agrupar para evitar valores > 255
       const key = rgbToHex(
-        Math.min(255, Math.round(r / 24) * 24),
-        Math.min(255, Math.round(g / 24) * 24),
-        Math.min(255, Math.round(b / 24) * 24),
+        Math.min(255, Math.round(r / 20) * 20),
+        Math.min(255, Math.round(g / 20) * 20),
+        Math.min(255, Math.round(b / 20) * 20),
       );
       freq[key] = (freq[key] ?? 0) + 1;
     }
 
     const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-    return sorted[0]?.[0] ?? "#7c3aed";
+    return sorted[0]?.[0] ?? "#1db954";
   } catch {
-    return "#7c3aed";
+    return "#1db954";
   }
 }
 
@@ -125,7 +124,7 @@ function formatMs(ms: number): string {
 
 // ─── Waveform ─────────────────────────────────────────────────────────────────
 
-const WAVE_HEIGHTS = [4, 7, 5, 9, 6, 10, 8, 5, 4, 8, 6, 9, 7, 10, 5];
+const WAVE_HEIGHTS = [4, 6, 5, 8, 6, 9, 7, 5, 4, 7, 5, 8, 6, 9, 5];
 
 function drawWaveform(
   ctx: SKRSContext2D,
@@ -137,7 +136,7 @@ function drawWaveform(
   progress: number,
 ) {
   const barW = 2;
-  const gap = 1.5;
+  const gap = 1.2;
   const totalBars = WAVE_HEIGHTS.length;
   const activeBars = Math.round(progress * totalBars);
 
@@ -177,10 +176,10 @@ export async function renderSpotifyCard(
   // ── Colores ────────────────────────────────────────────────────────────────
   const accent = data.coverUrl
     ? await getDominantColor(data.coverUrl)
-    : "#7c3aed";
-  const accentLight = lighten(accent, 0.4);
-  const accentDark = darken(accent, 0.5);
-  const bgDeep = darken(accent, 0.88);
+    : "#1db954";
+  const accentLight = lighten(accent, 0.48);
+  const accentDark = darken(accent, 0.6);
+  const bgDeep = darken(accent, 0.86);
 
   // ── Fondo ──────────────────────────────────────────────────────────────────
   roundRect(ctx, 0, 0, W, H, 16);
@@ -193,6 +192,15 @@ export async function renderSpotifyCard(
   glow.addColorStop(1, "transparent");
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = glow;
+  ctx.fill();
+
+  // ── Panel de texto ──────────────────────────────────────────────────────
+  const PANEL_X = TEXT_X - 10;
+  const PANEL_Y = PAD + 8;
+  const PANEL_W = TEXT_W + 14;
+  const PANEL_H = H - PAD * 2 - 16;
+  roundRect(ctx, PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 22);
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fill();
 
   // ── Portada ────────────────────────────────────────────────────────────────
@@ -261,15 +269,15 @@ export async function renderSpotifyCard(
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
   // ── Waveform ───────────────────────────────────────────────────────────────
-  const WAVE_H = 12; // altura máxima de las barras
-  const WAVE_Y = ARTIST_Y + 8;
+  const WAVE_H = 10; // altura máxima de las barras
+  const WAVE_Y = ARTIST_Y + 10;
   const progress =
     data.durationMs > 0 ? Math.min(1, data.progressMs / data.durationMs) : 0;
 
   drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
 
   // ── Barra de progreso ─────────────────────────────────────────────────────
-  const BAR_Y = WAVE_Y + WAVE_H + 8;
+  const BAR_Y = WAVE_Y + WAVE_H + 10;
   const BAR_H = 2;
   const BAR_W = TEXT_W;
 
