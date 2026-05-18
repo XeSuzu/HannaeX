@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
   GuildMember,
   Message,
+  Presence,
   SlashCommandBuilder,
   User,
 } from "discord.js";
@@ -70,13 +71,13 @@ function formatActivity(activity: any): string {
   return `${icon} ${title}${details}${state}${url}${startText}${endText}${largeText}${smallText}`.trim();
 }
 
-function getActivities(member: GuildMember | null): {
+function getActivities(presence: Presence | null): {
   text: string | null;
   total: number;
 } {
-  if (!member?.presence?.activities?.length) return { text: null, total: 0 };
+  if (!presence?.activities?.length) return { text: null, total: 0 };
 
-  const visibleActivities = member.presence.activities.filter(
+  const visibleActivities = presence.activities.filter(
     (activity) => activity.type !== ActivityType.Custom,
   );
 
@@ -92,10 +93,10 @@ function getActivities(member: GuildMember | null): {
   };
 }
 
-function getCustomStatus(member: GuildMember | null): string | null {
-  if (!member?.presence?.activities?.length) return null;
+function getCustomStatus(presence: Presence | null): string | null {
+  if (!presence?.activities?.length) return null;
 
-  const custom = member.presence.activities.find(
+  const custom = presence.activities.find(
     (activity) => activity.type === ActivityType.Custom,
   );
   if (!custom) return null;
@@ -108,11 +109,12 @@ function getCustomStatus(member: GuildMember | null): string | null {
 const buildActivityEmbed = (
   target: User,
   member: GuildMember | null,
+  presence: Presence | null,
   requester: string,
 ) => {
-  const status = member?.presence?.status || "offline";
-  const activityData = getActivities(member);
-  const customStatus = getCustomStatus(member);
+  const status = presence?.status ?? null;
+  const activityData = getActivities(presence);
+  const customStatus = getCustomStatus(presence);
 
   const embed = new EmbedBuilder()
     .setTitle(`🎯 Actividad actual de ${target.username}`)
@@ -124,7 +126,9 @@ const buildActivityEmbed = (
     .addFields(
       {
         name: "┌─ 📌 Estado",
-        value: `│ **${STATUS_LABELS[status] || status}**\n└─`,
+        value: status
+          ? `│ **${STATUS_LABELS[status] || status}**\n└─`
+          : "Este usuario no tiene presencia disponible o no está en caché.",
         inline: false,
       },
       {
@@ -175,10 +179,22 @@ const command: SlashCommand = {
 
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
-      const member = await interaction.guild.members
-        .fetch(target.id)
-        .catch(() => null);
-      const embed = buildActivityEmbed(target, member, interaction.user.tag);
+      const cachedMember =
+        interaction.guild.members.cache.get(target.id) ?? null;
+      const member =
+        cachedMember ??
+        (await interaction.guild.members.fetch(target.id).catch(() => null));
+      const presence =
+        cachedMember?.presence ??
+        interaction.client.presences.cache.get(target.id) ??
+        member?.presence ??
+        null;
+      const embed = buildActivityEmbed(
+        target,
+        member,
+        presence,
+        interaction.user.tag,
+      );
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error("Error en /activity:", error);
@@ -205,12 +221,23 @@ const command: SlashCommand = {
         return;
       }
 
-      const member = target
-        ? await message.guild.members.fetch(target.id).catch(() => null)
+      const cachedMember = target
+        ? (message.guild.members.cache.get(target.id) ?? null)
         : null;
+      const member =
+        cachedMember ??
+        (target
+          ? await message.guild.members.fetch(target.id).catch(() => null)
+          : null);
+      const presence =
+        cachedMember?.presence ??
+        message.client.presences.cache.get(target?.id ?? "") ??
+        member?.presence ??
+        null;
       const embed = buildActivityEmbed(
         target || message.author,
         member,
+        presence,
         message.author.tag,
       );
       await message.reply({ embeds: [embed] });

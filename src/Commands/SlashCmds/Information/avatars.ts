@@ -1,5 +1,7 @@
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
@@ -36,16 +38,24 @@ const buildAvatarEmbed = (
 
   const savedCount = savedAvatars.length;
   const savedSummary = savedCount
-    ? `Se muestran hasta 5 avatares guardados de ${savedCount}.`
+    ? `Se muestran hasta 15 avatares guardados de ${savedCount}.`
     : "No hay avatares guardados para este servidor. Es posible que el usuario sea reciente o que todavía no haya cambiado de avatar desde que el bot llegó.";
+
+  const savedAvatarFields = savedAvatars.slice(0, 15).map((record, index) => ({
+    name: `#${index + 1}`,
+    value: `Guardado <t:${Math.floor(new Date(record.createdAt).getTime() / 1000)}:R>`,
+    inline: true,
+  }));
+
+  const mainImage = savedAvatars.length ? savedAvatars[0].url : avatarURL;
 
   const embed = new EmbedBuilder()
     .setTitle(`✨ Avatares de ${target.username}`)
     .setColor(member?.displayHexColor || 0xffb6c1)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
-    .setImage(avatarURL)
+    .setImage(mainImage)
     .setDescription(
-      `📌 **Avatar actual** del usuario y el historial guardado en este servidor.`,
+      `📌 **Avatar actual** en la miniatura y hasta 15 avatares guardados mostrados en una sola imagen adjunta si hay historial.`,
     )
     .addFields(
       { name: "👤 Usuario", value: `${target.tag}`, inline: true },
@@ -71,6 +81,7 @@ const buildAvatarEmbed = (
         value: savedSummary,
         inline: false,
       },
+      ...savedAvatarFields,
     )
     .setFooter({ text: `Solicitado por ${requester}` })
     .setTimestamp();
@@ -113,18 +124,51 @@ const buildAvatarButtons = (target: User) => {
   return [buttons];
 };
 
-const buildSavedAvatarEmbeds = (savedAvatars: any[]) => {
-  return savedAvatars.slice(0, 5).map((record, index) =>
-    new EmbedBuilder()
-      .setTitle(`Avatar guardado #${index + 1}`)
-      .setColor(0xffb6c1)
-      .setDescription(
-        `Guardado <t:${Math.floor(new Date(record.createdAt).getTime() / 1000)}:R>`,
-      )
-      .setImage(record.url)
-      .setFooter({ text: `Historial de avatares` })
-      .setTimestamp(new Date(record.createdAt)),
-  );
+const buildAvatarGridAttachment = async (
+  savedAvatars: any[],
+): Promise<AttachmentBuilder | null> => {
+  if (!savedAvatars.length) return null;
+
+  const avatars = savedAvatars.slice(0, 15);
+  const columns = 5;
+  const size = 96;
+  const padding = 6;
+  const rows = Math.ceil(avatars.length / columns);
+  const width = columns * size + padding * (columns + 1);
+  const height = rows * size + padding * (rows + 1);
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#2f3136";
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < avatars.length; i++) {
+    const column = i % columns;
+    const row = Math.floor(i / columns);
+    const x = padding + column * (size + padding);
+    const y = padding + row * (size + padding);
+    try {
+      const response = await fetch(avatars[i].url);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const image = await loadImage(buffer);
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, size, size, 12);
+      ctx.clip();
+      ctx.drawImage(image, x, y, size, size);
+      ctx.restore();
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, size, size);
+    } catch {
+      ctx.fillStyle = "#202225";
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+
+  return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+    name: "saved-avatars-grid.png",
+  });
 };
 
 const resolveUserFromArgs = async (
@@ -181,18 +225,22 @@ const command: SlashCommand = {
         interaction.guild.id,
       );
 
+      const attachment = await buildAvatarGridAttachment(savedAvatars);
       const embed = buildAvatarEmbed(
         target,
         member,
         interaction.user.tag,
         savedAvatars,
       );
-      const historyEmbeds = buildSavedAvatarEmbeds(savedAvatars);
+      if (attachment) {
+        embed.setImage("attachment://saved-avatars-grid.png");
+      }
       const components = buildAvatarButtons(target);
 
       await interaction.editReply({
-        embeds: [embed, ...historyEmbeds],
+        embeds: [embed],
         components,
+        files: attachment ? [attachment] : [],
       });
     } catch (error) {
       console.error("Error en /avatars:", error);
@@ -226,16 +274,23 @@ const command: SlashCommand = {
       target.id,
       message.guild.id,
     );
+    const attachment = await buildAvatarGridAttachment(savedAvatars);
     const embed = buildAvatarEmbed(
       target,
       member,
       message.author.tag,
       savedAvatars,
     );
-    const historyEmbeds = buildSavedAvatarEmbeds(savedAvatars);
+    if (attachment) {
+      embed.setImage("attachment://saved-avatars-grid.png");
+    }
     const components = buildAvatarButtons(target);
 
-    await message.reply({ embeds: [embed, ...historyEmbeds], components });
+    await message.reply({
+      embeds: [embed],
+      components,
+      files: attachment ? [attachment] : [],
+    });
   },
 };
 
