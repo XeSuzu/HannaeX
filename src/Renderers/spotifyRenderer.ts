@@ -63,13 +63,16 @@ async function getDominantColor(imageUrl: string): Promise<string> {
 
       const brightness = (r + g + b) / 3;
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      if (brightness < 30 || brightness > 220 || saturation < 30) continue;
+      const isGray = saturation < 15;
+      const isTooDark = brightness < 25;
+      const isTooPale = brightness > 240 && saturation < 80;
+      if (isTooDark || isTooPale || isGray) continue;
 
       // clamp antes de agrupar para evitar valores > 255
       const key = rgbToHex(
-        Math.min(248, Math.round(r / 24) * 24),
-        Math.min(248, Math.round(g / 24) * 24),
-        Math.min(248, Math.round(b / 24) * 24),
+        Math.min(255, Math.round(r / 24) * 24),
+        Math.min(255, Math.round(g / 24) * 24),
+        Math.min(255, Math.round(b / 24) * 24),
       );
       freq[key] = (freq[key] ?? 0) + 1;
     }
@@ -122,7 +125,7 @@ function formatMs(ms: number): string {
 
 // ─── Waveform ─────────────────────────────────────────────────────────────────
 
-const WAVE_HEIGHTS = [5, 12, 8, 18, 14, 20, 16, 10, 6, 14, 9, 16, 12, 18, 7];
+const WAVE_HEIGHTS = [4, 7, 5, 9, 6, 10, 8, 5, 4, 8, 6, 9, 7, 10, 5];
 
 function drawWaveform(
   ctx: SKRSContext2D,
@@ -133,8 +136,8 @@ function drawWaveform(
   accentLight: string,
   progress: number,
 ) {
-  const barW = 3;
-  const gap = 2;
+  const barW = 2;
+  const gap = 1.5;
   const totalBars = WAVE_HEIGHTS.length;
   const activeBars = Math.round(progress * totalBars);
 
@@ -143,9 +146,9 @@ function drawWaveform(
     const bx = x + i * (barW + gap);
     const by = y + maxH - scaledH;
     ctx.beginPath();
-    ctx.roundRect(bx, by, barW, scaledH, 2);
+    ctx.roundRect(bx, by, barW, scaledH, 1.5);
     ctx.fillStyle = i < activeBars ? accentLight : accent;
-    ctx.globalAlpha = i < activeBars ? 1 : 0.3;
+    ctx.globalAlpha = i < activeBars ? 0.95 : 0.25;
     ctx.fill();
     ctx.globalAlpha = 1;
   });
@@ -258,15 +261,15 @@ export async function renderSpotifyCard(
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
   // ── Waveform ───────────────────────────────────────────────────────────────
-  const WAVE_H = 20; // altura máxima de las barras
-  const WAVE_Y = ARTIST_Y + 10;
+  const WAVE_H = 12; // altura máxima de las barras
+  const WAVE_Y = ARTIST_Y + 8;
   const progress =
     data.durationMs > 0 ? Math.min(1, data.progressMs / data.durationMs) : 0;
 
   drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
 
   // ── Barra de progreso ─────────────────────────────────────────────────────
-  const BAR_Y = WAVE_Y + WAVE_H + 10;
+  const BAR_Y = WAVE_Y + WAVE_H + 8;
   const BAR_H = 2;
   const BAR_W = TEXT_W;
 

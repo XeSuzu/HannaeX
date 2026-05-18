@@ -12,10 +12,6 @@ export class PresenceHistoryManager {
   ): Promise<void> {
     if (!userId || !guildId || !presence) return;
 
-    const history =
-      (await PresenceHistory.findOne({ userId, guildId })) ||
-      new PresenceHistory({ userId, guildId, activities: [] });
-
     const activities = presence.activities.map((activity) => {
       const saved: ISavedActivity = {
         type: activity.type,
@@ -37,22 +33,29 @@ export class PresenceHistoryManager {
         },
         emoji: activity.emoji?.name ?? null,
       };
-
       return saved;
     });
 
     const customActivity = presence.activities.find(
-      (activity) => activity.type === ActivityType.Custom,
+      (a) => a.type === ActivityType.Custom,
     );
 
-    history.status = presence.status ?? "offline";
-    history.activities = activities;
-    history.customStatus = customActivity
+    const customStatus = customActivity
       ? `${customActivity.emoji?.name ?? ""}${customActivity.state ? ` ${customActivity.state}` : ""}`.trim()
       : null;
-    history.updatedAt = new Date();
 
-    await history.save();
+    await PresenceHistory.findOneAndUpdate(
+      { userId, guildId },
+      {
+        $set: {
+          status: presence.status ?? "offline",
+          activities,
+          customStatus,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true },
+    );
   }
 
   static async getPresence(
