@@ -1,6 +1,6 @@
 import { createCanvas, loadImage, SKRSContext2D } from "@napi-rs/canvas";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface SpotifyCardData {
   track: string;
@@ -20,33 +20,30 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+function clamp(v: number): number {
+  return Math.min(255, Math.max(0, Math.round(v)));
+}
+
 function rgbToHex(r: number, g: number, b: number): string {
-  return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+  return (
+    "#" + [r, g, b].map((v) => clamp(v).toString(16).padStart(2, "0")).join("")
+  );
 }
 
 function lighten(hex: string, amount: number): string {
   const [r, g, b] = hexToRgb(hex);
   return rgbToHex(
-    Math.min(255, Math.round(r + (255 - r) * amount)),
-    Math.min(255, Math.round(g + (255 - g) * amount)),
-    Math.min(255, Math.round(b + (255 - b) * amount)),
+    r + (255 - r) * amount,
+    g + (255 - g) * amount,
+    b + (255 - b) * amount,
   );
 }
 
 function darken(hex: string, amount: number): string {
   const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    Math.round(r * (1 - amount)),
-    Math.round(g * (1 - amount)),
-    Math.round(b * (1 - amount)),
-  );
+  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
 }
 
-/**
- * Extrae el color dominante de una imagen ya cargada.
- * Samplea una grilla de píxeles, descarta los muy oscuros/claros/grises
- * y devuelve el hex más frecuente agrupado en celdas de 24.
- */
 async function getDominantColor(imageUrl: string): Promise<string> {
   try {
     const img = await loadImage(imageUrl);
@@ -57,23 +54,22 @@ async function getDominantColor(imageUrl: string): Promise<string> {
 
     const { data } = ctx.getImageData(0, 0, size, size);
     const freq: Record<string, number> = {};
-    const step = 4 * 4; // cada 4 píxeles
+    const step = 4 * 4;
 
     for (let i = 0; i < data.length; i += step) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
 
-      // descartá muy oscuros, muy claros o muy grises
       const brightness = (r + g + b) / 3;
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
       if (brightness < 30 || brightness > 220 || saturation < 30) continue;
 
-      // agrupá en celdas de 24 para reducir ruido
+      // clamp antes de agrupar para evitar valores > 255
       const key = rgbToHex(
-        Math.round(r / 24) * 24,
-        Math.round(g / 24) * 24,
-        Math.round(b / 24) * 24,
+        Math.min(248, Math.round(r / 24) * 24),
+        Math.min(248, Math.round(g / 24) * 24),
+        Math.min(248, Math.round(b / 24) * 24),
       );
       freq[key] = (freq[key] ?? 0) + 1;
     }
@@ -126,34 +122,30 @@ function formatMs(ms: number): string {
 
 // ─── Waveform ─────────────────────────────────────────────────────────────────
 
-// Alturas fijas para las barras — dan sensación orgánica sin ser random en cada render
-const WAVE_HEIGHTS = [6, 14, 10, 20, 16, 22, 18, 12, 8, 16, 10, 18, 14, 20, 8];
+const WAVE_HEIGHTS = [5, 12, 8, 18, 14, 20, 16, 10, 6, 14, 9, 16, 12, 18, 7];
 
 function drawWaveform(
   ctx: SKRSContext2D,
   x: number,
   y: number,
+  maxH: number,
   accent: string,
-  progress: number, // 0–1
+  accentLight: string,
+  progress: number,
 ) {
   const barW = 3;
   const gap = 2;
-  const maxH = 22;
   const totalBars = WAVE_HEIGHTS.length;
   const activeBars = Math.round(progress * totalBars);
 
   WAVE_HEIGHTS.forEach((h, i) => {
+    const scaledH = Math.round((h / 20) * maxH);
     const bx = x + i * (barW + gap);
-    const by = y + maxH - h;
+    const by = y + maxH - scaledH;
     ctx.beginPath();
-    ctx.roundRect(bx, by, barW, h, 2);
-    if (i < activeBars) {
-      ctx.fillStyle = lighten(accent, 0.3);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.fillStyle = accent;
-      ctx.globalAlpha = 0.35;
-    }
+    ctx.roundRect(bx, by, barW, scaledH, 2);
+    ctx.fillStyle = i < activeBars ? accentLight : accent;
+    ctx.globalAlpha = i < activeBars ? 1 : 0.3;
     ctx.fill();
     ctx.globalAlpha = 1;
   });
@@ -164,40 +156,44 @@ function drawWaveform(
 export async function renderSpotifyCard(
   data: SpotifyCardData,
 ): Promise<Buffer> {
+  // Dimensiones
   const W = 520;
-  const H = 150;
+  const H = 160;
+
+  // Layout — todos los valores derivados de constantes
+  const PAD = 16; // padding exterior
+  const ART_S = 128; // portada cuadrada (ocupa toda la altura - 2*PAD)
+  const ART_X = PAD;
+  const ART_Y = PAD;
+  const TEXT_X = ART_X + ART_S + 14; // columna de texto
+  const TEXT_W = W - TEXT_X - PAD; // ancho disponible para texto
+
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // Color dominante
+  // ── Colores ────────────────────────────────────────────────────────────────
   const accent = data.coverUrl
     ? await getDominantColor(data.coverUrl)
     : "#7c3aed";
-
-  const accentLight = lighten(accent, 0.35);
-  const accentDark = darken(accent, 0.55);
-  const bgDark = darken(accent, 0.82);
-  const bgDeep = darken(accent, 0.9);
+  const accentLight = lighten(accent, 0.4);
+  const accentDark = darken(accent, 0.5);
+  const bgDeep = darken(accent, 0.88);
 
   // ── Fondo ──────────────────────────────────────────────────────────────────
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
-  // Glow sutil en la base
-  const glow = ctx.createRadialGradient(W / 2, H + 20, 0, W / 2, H + 20, 180);
-  glow.addColorStop(0, accent + "40");
+  // Glow muy sutil — solo en la esquina superior derecha
+  const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 200);
+  glow.addColorStop(0, accent + "22");
   glow.addColorStop(1, "transparent");
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = glow;
   ctx.fill();
 
   // ── Portada ────────────────────────────────────────────────────────────────
-  const artX = 18;
-  const artY = 18;
-  const artS = 70;
-
-  roundRect(ctx, artX, artY, artS, artS, 10);
+  roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = accentDark;
   ctx.fill();
 
@@ -205,115 +201,103 @@ export async function renderSpotifyCard(
     try {
       const img = await loadImage(data.coverUrl);
       ctx.save();
-      roundRect(ctx, artX, artY, artS, artS, 10);
+      roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
       ctx.clip();
-      ctx.drawImage(img, artX, artY, artS, artS);
+      ctx.drawImage(img, ART_X, ART_Y, ART_S, ART_S);
       ctx.restore();
     } catch {
-      // fallback: queda el rect de color
+      /* fallback al rect de color */
     }
   } else {
-    // ícono de nota musical como fallback
-    ctx.save();
-    ctx.fillStyle = accent + "50";
-    ctx.font = "28px sans-serif";
+    ctx.font = "32px sans-serif";
+    ctx.fillStyle = accent + "60";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("♪", artX + artS / 2, artY + artS / 2);
-    ctx.restore();
+    ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
   }
 
-  // ── Badge "spotify" ────────────────────────────────────────────────────────
-  const badgeX = 106;
-  const badgeY = 16;
-  const badgeH = 18;
-  const badgeW = 74;
-  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 99);
-  ctx.fillStyle = accent + "28";
+  // ── Badge ─────────────────────────────────────────────────────────────────
+  const BADGE_H = 17;
+  const BADGE_W = 72;
+  const BADGE_X = TEXT_X;
+  const BADGE_Y = PAD;
+
+  roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
+  ctx.fillStyle = accent + "25";
   ctx.fill();
-  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 99);
-  ctx.strokeStyle = accent + "55";
-  ctx.lineWidth = 1;
+  roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
+  ctx.strokeStyle = accentLight + "55";
+  ctx.lineWidth = 0.8;
   ctx.stroke();
 
-  // dot
+  // dot del badge
   ctx.beginPath();
-  ctx.arc(badgeX + 10, badgeY + 9, 3, 0, Math.PI * 2);
+  ctx.arc(BADGE_X + 9, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
   ctx.fillStyle = accentLight;
   ctx.fill();
 
-  ctx.font = "500 9px 'sans-serif'";
+  ctx.font = "500 9px sans-serif";
   ctx.fillStyle = accentLight;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("SPOTIFY", badgeX + 17, badgeY + 9);
+  ctx.fillText("SPOTIFY", BADGE_X + 17, BADGE_Y + BADGE_H / 2);
 
-  // ── Track & artista ────────────────────────────────────────────────────────
-  ctx.textBaseline = "alphabetic";
-
-  ctx.font = "600 15px sans-serif";
+  // ── Track ─────────────────────────────────────────────────────────────────
+  const TRACK_Y = BADGE_Y + BADGE_H + 14;
+  ctx.font = "600 13px sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
-  const trackText = truncate(ctx, data.track, W - 106 - 20);
-  ctx.fillText(trackText, 106, 52);
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(truncate(ctx, data.track, TEXT_W), TEXT_X, TRACK_Y);
 
-  ctx.font = "400 11px sans-serif";
+  // ── Artista / álbum ───────────────────────────────────────────────────────
+  const ARTIST_Y = TRACK_Y + 16;
+  const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
+  ctx.font = "400 10px sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.45)";
-  const artistText = data.album
-    ? truncate(ctx, `${data.artist} · ${data.album}`, W - 106 - 20)
-    : truncate(ctx, data.artist, W - 106 - 20);
-  ctx.fillText(artistText, 106, 70);
+  ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
   // ── Waveform ───────────────────────────────────────────────────────────────
-  const waveX = 106;
-  const waveY = 82;
-  const progress = data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
-  drawWaveform(ctx, waveX, waveY, accent, progress);
+  const WAVE_H = 20; // altura máxima de las barras
+  const WAVE_Y = ARTIST_Y + 10;
+  const progress =
+    data.durationMs > 0 ? Math.min(1, data.progressMs / data.durationMs) : 0;
 
-  // ── Barra de progreso ──────────────────────────────────────────────────────
-  const barX = 106;
-  const barY = 116;
-  const barW2 = W - barX - 20;
-  const barH = 2;
+  drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
 
-  // track
-  roundRect(ctx, barX, barY, barW2, barH, 99);
+  // ── Barra de progreso ─────────────────────────────────────────────────────
+  const BAR_Y = WAVE_Y + WAVE_H + 10;
+  const BAR_H = 2;
+  const BAR_W = TEXT_W;
+
+  roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, 99);
   ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.fill();
 
-  // fill
-  const fillW = Math.max(6, barW2 * progress);
-  roundRect(ctx, barX, barY, fillW, barH, 99);
+  const fillW = Math.max(BAR_H * 3, BAR_W * progress);
+  roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, 99);
   ctx.fillStyle = accentLight;
   ctx.fill();
 
-  // ── Timestamps ─────────────────────────────────────────────────────────────
+  // ── Timestamps ────────────────────────────────────────────────────────────
+  const TIME_Y = BAR_Y + BAR_H + 5;
   ctx.font = "400 9px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
   ctx.textBaseline = "top";
-  ctx.fillText(formatMs(data.progressMs), barX, barY + 6);
+
+  ctx.textAlign = "left";
+  ctx.fillText(formatMs(data.progressMs), TEXT_X, TIME_Y);
+
   ctx.textAlign = "right";
-  ctx.fillText(formatMs(data.durationMs), barX + barW2, barY + 6);
+  ctx.fillText(formatMs(data.durationMs), TEXT_X + BAR_W, TIME_Y);
 
-  // ── Username ───────────────────────────────────────────────────────────────
-  if (data.avatarUrl) {
-    try {
-      const av = await loadImage(data.avatarUrl);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(W - 14 - 10, H - 14, 8, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(av, W - 14 - 18, H - 22, 16, 16);
-      ctx.restore();
-    } catch {}
-  }
-
+  // ── Username ──────────────────────────────────────────────────────────────
+  const USER_Y = H - PAD / 2;
   ctx.font = "400 9px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.20)";
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
-  ctx.fillText(data.username, W - 14, H - 8);
+  ctx.fillText(data.username, W - PAD, USER_Y);
 
   return canvas.toBuffer("image/png");
 }
