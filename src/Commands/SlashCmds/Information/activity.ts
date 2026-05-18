@@ -184,11 +184,7 @@ const command: SlashCommand = {
       const member =
         cachedMember ??
         (await interaction.guild.members.fetch(target.id).catch(() => null));
-      const presence =
-        cachedMember?.presence ??
-        interaction.client.presences.cache.get(target.id) ??
-        member?.presence ??
-        null;
+      const presence = cachedMember?.presence ?? member?.presence ?? null;
       const embed = buildActivityEmbed(
         target,
         member,
@@ -229,11 +225,7 @@ const command: SlashCommand = {
         (target
           ? await message.guild.members.fetch(target.id).catch(() => null)
           : null);
-      const presence =
-        cachedMember?.presence ??
-        message.client.presences.cache.get(target?.id ?? "") ??
-        member?.presence ??
-        null;
+      const presence = cachedMember?.presence ?? member?.presence ?? null;
       const embed = buildActivityEmbed(
         target || message.author,
         member,
