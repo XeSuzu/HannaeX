@@ -1,15 +1,15 @@
 import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ChatInputCommandInteraction,
+  ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ActionRowBuilder,
-  User,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
   Message,
+  SlashCommandBuilder,
+  User,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
 import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
+import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const buildAvatarEmbed = (
@@ -19,7 +19,10 @@ const buildAvatarEmbed = (
   savedAvatars: any[],
 ) => {
   const isAnimated = target.avatar?.startsWith("a_");
-  const avatarURL = target.displayAvatarURL({ size: 1024, extension: isAnimated ? "gif" : "png" });
+  const avatarURL = target.displayAvatarURL({
+    size: 1024,
+    extension: isAnimated ? "gif" : "png",
+  });
   const bannerURL = target.bannerURL({ size: 1024 });
   const statusMap: Record<string, string> = {
     online: "🟢 En línea",
@@ -28,19 +31,12 @@ const buildAvatarEmbed = (
     offline: "⚫ Offline",
   };
   const status = member?.presence?.status
-    ? statusMap[member.presence.status] ?? "⚪ Desconocido"
+    ? (statusMap[member.presence.status] ?? "⚪ Desconocido")
     : "⚪ Desconocido";
 
-  const savedText = savedAvatars.length
-    ? savedAvatars
-        .slice(0, 8)
-        .map((record, index) =>
-          `**${index + 1}.** <${record.url}> • <t:${Math.floor(
-            new Date(record.createdAt).getTime() / 1000,
-          )}:R>`,
-        )
-        .join("\n") +
-      (savedAvatars.length > 8 ? `\n...y ${savedAvatars.length - 8} más avatares guardados` : "")
+  const savedCount = savedAvatars.length;
+  const savedSummary = savedCount
+    ? `Se muestran hasta 5 avatares guardados de ${savedCount}.`
     : "No hay avatares guardados para este servidor. Es posible que el usuario sea reciente o que todavía no haya cambiado de avatar desde que el bot llegó.";
 
   const embed = new EmbedBuilder()
@@ -71,8 +67,8 @@ const buildAvatarEmbed = (
         inline: true,
       },
       {
-        name: `📚 Avatares guardados (${savedAvatars.length})`,
-        value: savedText,
+        name: `📚 Historial de avatares (${savedCount})`,
+        value: savedSummary,
         inline: false,
       },
     )
@@ -117,6 +113,20 @@ const buildAvatarButtons = (target: User) => {
   return [buttons];
 };
 
+const buildSavedAvatarEmbeds = (savedAvatars: any[]) => {
+  return savedAvatars.slice(0, 5).map((record, index) =>
+    new EmbedBuilder()
+      .setTitle(`Avatar guardado #${index + 1}`)
+      .setColor(0xffb6c1)
+      .setDescription(
+        `Guardado <t:${Math.floor(new Date(record.createdAt).getTime() / 1000)}:R>`,
+      )
+      .setImage(record.url)
+      .setFooter({ text: `Historial de avatares` })
+      .setTimestamp(new Date(record.createdAt)),
+  );
+};
+
 const resolveUserFromArgs = async (
   message: Message,
   args: string[],
@@ -138,7 +148,9 @@ const command: SlashCommand = {
   category: "Profiles",
   data: new SlashCommandBuilder()
     .setName("avatars")
-    .setDescription("📸 Ve el avatar actual de un usuario en todos los formatos disponibles.")
+    .setDescription(
+      "📸 Ve el avatar actual de un usuario en todos los formatos disponibles.",
+    )
     .addUserOption((o) =>
       o
         .setName("usuario")
@@ -146,7 +158,10 @@ const command: SlashCommand = {
         .setRequired(false),
     ),
 
-  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ) {
     if (!interaction.guild) {
       await interaction.reply({
         content: "❌ Este comando solo puede usarse en un servidor.",
@@ -158,13 +173,27 @@ const command: SlashCommand = {
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
       await target.fetch(true);
-      const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-      const savedAvatars = await AvatarHistoryManager.getAvatars(target.id, interaction.guild.id);
+      const member = await interaction.guild.members
+        .fetch(target.id)
+        .catch(() => null);
+      const savedAvatars = await AvatarHistoryManager.getAvatars(
+        target.id,
+        interaction.guild.id,
+      );
 
-      const embed = buildAvatarEmbed(target, member, interaction.user.tag, savedAvatars);
+      const embed = buildAvatarEmbed(
+        target,
+        member,
+        interaction.user.tag,
+        savedAvatars,
+      );
+      const historyEmbeds = buildSavedAvatarEmbeds(savedAvatars);
       const components = buildAvatarButtons(target);
 
-      await interaction.editReply({ embeds: [embed], components });
+      await interaction.editReply({
+        embeds: [embed, ...historyEmbeds],
+        components,
+      });
     } catch (error) {
       console.error("Error en /avatars:", error);
       await interaction.editReply({
@@ -175,21 +204,38 @@ const command: SlashCommand = {
     }
   },
 
-  prefixRun: async (client: HoshikoClient, message: Message, args: string[]) => {
+  prefixRun: async (
+    client: HoshikoClient,
+    message: Message,
+    args: string[],
+  ) => {
     if (!message.guild) return;
     const target = await resolveUserFromArgs(message, args);
     if (!target) {
-      await message.reply("❌ Usuario no encontrado. Menciona a alguien o usa su ID.");
+      await message.reply(
+        "❌ Usuario no encontrado. Menciona a alguien o usa su ID.",
+      );
       return;
     }
 
     await target.fetch(true);
-    const member = await message.guild.members.fetch(target.id).catch(() => null);
-    const savedAvatars = await AvatarHistoryManager.getAvatars(target.id, message.guild.id);
-    const embed = buildAvatarEmbed(target, member, message.author.tag, savedAvatars);
+    const member = await message.guild.members
+      .fetch(target.id)
+      .catch(() => null);
+    const savedAvatars = await AvatarHistoryManager.getAvatars(
+      target.id,
+      message.guild.id,
+    );
+    const embed = buildAvatarEmbed(
+      target,
+      member,
+      message.author.tag,
+      savedAvatars,
+    );
+    const historyEmbeds = buildSavedAvatarEmbeds(savedAvatars);
     const components = buildAvatarButtons(target);
 
-    await message.reply({ embeds: [embed], components });
+    await message.reply({ embeds: [embed, ...historyEmbeds], components });
   },
 };
 
