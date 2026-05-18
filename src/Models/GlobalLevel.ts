@@ -3,7 +3,6 @@ import { Document, Schema, model } from "mongoose";
 // ============================================
 // SISTEMA DE NIVELES GLOBAL - TIER LIST
 // ============================================
-// Tiers kawaii en japonés con temática sakura/naturaleza
 
 export interface IGlobalLevel extends Document {
   userId: string;

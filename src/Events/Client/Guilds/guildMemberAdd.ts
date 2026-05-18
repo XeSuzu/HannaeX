@@ -7,6 +7,7 @@ import {
   GuildMember,
 } from "discord.js";
 import { SettingsManager } from "../../../Database/SettingsManager";
+import { UserHistoryManager } from "../../../Database/UserHistoryManager";
 import { SentinelNetwork } from "../../../Features/sentinelNetwork";
 import {
   HoshikoLogger,
@@ -17,6 +18,28 @@ export default {
   name: Events.GuildMemberAdd,
   async execute(member: GuildMember, client: any): Promise<void> {
     if (member.user.bot) return;
+
+    try {
+      await UserHistoryManager.addUser(member.id, {
+        username: member.user.username,
+        discriminator: member.user.discriminator,
+        tag: member.user.tag,
+        displayName: member.displayName,
+        avatarUrl: member.user.displayAvatarURL({
+          size: 1024,
+          extension: member.user.avatar?.startsWith("a_") ? "gif" : "png",
+        }),
+        bannerUrl: member.user.bannerURL({ size: 1024 }),
+        guildId: member.guild.id,
+        guildName: member.guild.name,
+        source: "member",
+      });
+    } catch (error) {
+      console.error(
+        "Error guardando historial de usuario en guildMemberAdd:",
+        error,
+      );
+    }
 
     await SentinelNetwork.checkMember(member);
 
