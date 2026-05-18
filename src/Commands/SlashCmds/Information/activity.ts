@@ -51,7 +51,33 @@ function formatTimestamp(timestamp: number | undefined): string | null {
   return `<t:${Math.floor(timestamp / 1000)}:R>`;
 }
 
+function getSpotifyCover(activity: any): string | null {
+  if (
+    activity.type === ActivityType.Listening &&
+    activity.name === "Spotify" &&
+    activity.assets?.largeImage
+  ) {
+    const imageId = String(activity.assets.largeImage).replace(/^spotify:/, "");
+    return `https://i.scdn.co/image/${imageId}`;
+  }
+  return null;
+}
+
 function formatActivity(activity: any): string {
+  if (activity.type === ActivityType.Listening && activity.name === "Spotify") {
+    const track = activity.details || "Canción desconocida";
+    const artist = activity.state || "Artista desconocido";
+    const album = activity.assets?.largeText
+      ? `\n   ├─ Álbum: ${activity.assets.largeText}`
+      : "";
+    const start = formatTimestamp(activity.timestamps?.start);
+    const end = formatTimestamp(activity.timestamps?.end);
+    const startText = start ? `\n   ├─ Inició ${start}` : "";
+    const endText = end ? `\n   └─ Termina ${end}` : "";
+
+    return `🎧 **Spotify**\n   ├─ ${track}\n   ├─ ${artist}${album}${startText}${endText}`.trim();
+  }
+
   const icon = ACTIVITY_ICONS[activity.type as ActivityType] ?? "📌";
   const title = activity.name
     ? `**${activity.name}**`
@@ -76,22 +102,37 @@ function formatActivity(activity: any): string {
 function getActivities(presence: Presence | null): {
   text: string | null;
   total: number;
+  image?: string | null;
+  color?: number | null;
 } {
-  if (!presence?.activities?.length) return { text: null, total: 0 };
+  if (!presence?.activities?.length)
+    return { text: null, total: 0, image: null, color: null };
 
   const visibleActivities = presence.activities.filter(
     (activity) => activity.type !== ActivityType.Custom,
   );
 
-  if (!visibleActivities.length) return { text: null, total: 0 };
+  if (!visibleActivities.length)
+    return { text: null, total: 0, image: null, color: null };
 
   const maxActivities = 3;
   const displayed = visibleActivities.slice(0, maxActivities);
   const text = displayed.map(formatActivity).join("\n\n");
+  const spotifyImage = visibleActivities
+    .map(getSpotifyCover)
+    .find((url) => url) as string | null;
+  const color = visibleActivities.some(
+    (activity) =>
+      activity.type === ActivityType.Listening && activity.name === "Spotify",
+  )
+    ? 0x1db954
+    : null;
 
   return {
     text,
     total: visibleActivities.length,
+    image: spotifyImage,
+    color,
   };
 }
 
@@ -120,7 +161,7 @@ const buildActivityEmbed = (
 
   const embed = new EmbedBuilder()
     .setTitle(`🎯 Actividad actual de ${target.username}`)
-    .setColor(member?.displayHexColor || 0x5865f2)
+    .setColor(activityData.color ?? member?.displayHexColor ?? 0x5865f2)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .setDescription(
       `Aquí se muestra la actividad que Discord expone en tiempo real para este usuario. Incluye juegos, streaming, reproducción de música, estado personalizado y detalles de sesión cuando están disponibles.`,
@@ -143,6 +184,10 @@ const buildActivityEmbed = (
     )
     .setFooter({ text: `Solicitado por ${requester}` })
     .setTimestamp();
+
+  if (activityData.image) {
+    embed.setImage(activityData.image);
+  }
 
   if (customStatus) {
     embed.addFields({
