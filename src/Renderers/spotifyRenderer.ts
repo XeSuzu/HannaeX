@@ -194,7 +194,7 @@ export async function renderSpotifyCard(
     // apunta desde la raíz de tu proyecto hacia src
     const logoPath = join(
       process.cwd(),
-      "src/assets/Images/Icons/SpotifyLogo.png",
+      "src/assets/images/icons/SpotifyLogo.png",
     );
     // leemos el archivo como buffer primero para que canvas no intente parsearlo como url
     const logoBuffer = await readFile(logoPath);
