@@ -10,15 +10,15 @@ import { join } from "path";
 // ─── registro de fuentes ──────────────────────────────────────────────────────
 try {
   GlobalFonts.registerFromPath(
-    join(__dirname, "../assets/fonts/Nunito-Regular.ttf"),
+    join(process.cwd(), "src/assets/fonts/Nunito-Regular.ttf"),
     "sans-serif",
   );
   GlobalFonts.registerFromPath(
-    join(__dirname, "../assets/fonts/Nunito-Bold.ttf"),
+    join(process.cwd(), "src/assets/fonts/Nunito-Bold.ttf"),
     "sans-serif",
   );
-} catch {
-  // fallback silencioso
+} catch (e) {
+  console.log("error cargando fuentes:", e);
 }
 
 export interface SpotifyCardData {
@@ -191,7 +191,11 @@ export async function renderSpotifyCard(
   const logoY = PAD;
 
   try {
-    const logoPath = join(__dirname, "../assets/Images/Icons/SpotifyLogo.png");
+    // apunta desde la raíz de tu proyecto hacia src
+    const logoPath = join(
+      process.cwd(),
+      "src/assets/Images/Icons/SpotifyLogo.png",
+    );
     // leemos el archivo como buffer primero para que canvas no intente parsearlo como url
     const logoBuffer = await readFile(logoPath);
     const logoImg = await loadImage(logoBuffer);
