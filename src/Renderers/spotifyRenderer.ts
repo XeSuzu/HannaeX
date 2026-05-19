@@ -203,7 +203,7 @@ export async function renderSpotifyCard(
 
   const glow = ctx.createLinearGradient(W * 0.5, 0, W, H);
   glow.addColorStop(0, accent + "00");
-  glow.addColorStop(1, accent + "18");
+  glow.addColorStop(1, accent + "08");
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = glow;
   ctx.fill();
