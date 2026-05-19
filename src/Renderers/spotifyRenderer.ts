@@ -175,7 +175,6 @@ export async function renderSpotifyCard(
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // ── Colores ────────────────────────────────────────────────────────────────
   const accent = data.coverUrl
     ? await getDominantColor(data.coverUrl)
     : "#1db954";
@@ -189,14 +188,10 @@ export async function renderSpotifyCard(
     ? 0
     : Math.min(1, Math.max(0, rawProgress));
 
-  // ── Fondo ──────────────────────────────────────────────────────────────────
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
-  // FIX: glow eliminado — el radialGradient y linearGradient generaban
-  // artefactos visuales (estrella/franja) en @napi-rs/canvas
 
-  // ── Panel de texto ─────────────────────────────────────────────────────────
   const PANEL_X = TEXT_X - 10;
   const PANEL_Y = PAD + 8;
   const PANEL_W = TEXT_W + 14;
@@ -205,7 +200,6 @@ export async function renderSpotifyCard(
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fill();
 
-  // ── Portada ────────────────────────────────────────────────────────────────
   roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = accentDark;
   ctx.fill();
@@ -218,9 +212,7 @@ export async function renderSpotifyCard(
       ctx.clip();
       ctx.drawImage(img, ART_X, ART_Y, ART_S, ART_S);
       ctx.restore();
-    } catch {
-      /* fallback al rect de color */
-    }
+    } catch {}
   } else {
     ctx.font = "32px sans-serif";
     ctx.fillStyle = accent + "60";
@@ -229,7 +221,6 @@ export async function renderSpotifyCard(
     ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
   }
 
-  // ── Badge ──────────────────────────────────────────────────────────────────
   const BADGE_H = 17;
   const BADGE_W = 72;
   const BADGE_X = TEXT_X;
@@ -243,9 +234,6 @@ export async function renderSpotifyCard(
   ctx.lineWidth = 0.8;
   ctx.stroke();
 
-  // FIX: dot movido a +11 para que quede completamente dentro del pill
-  // (antes en +9 con radio 3, el borde izquierdo tocaba la curva del pill
-  // en @napi-rs/canvas y generaba el artefacto visual)
   ctx.beginPath();
   ctx.arc(BADGE_X + 11, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
   ctx.fillStyle = accentLight;
@@ -255,10 +243,8 @@ export async function renderSpotifyCard(
   ctx.fillStyle = accentLight;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  // FIX: texto desplazado +2px para mantener alineación con el dot
   ctx.fillText("SPOTIFY", BADGE_X + 19, BADGE_Y + BADGE_H / 2);
 
-  // ── Track ──────────────────────────────────────────────────────────────────
   const TRACK_Y = BADGE_Y + BADGE_H + 14;
   ctx.font = "600 13px sans-serif";
   ctx.fillStyle = "#ffffff";
@@ -266,20 +252,32 @@ export async function renderSpotifyCard(
   ctx.textBaseline = "alphabetic";
   ctx.fillText(truncate(ctx, data.track, TEXT_W), TEXT_X, TRACK_Y);
 
-  // ── Artista / álbum ────────────────────────────────────────────────────────
   const ARTIST_Y = TRACK_Y + 16;
   const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
   ctx.font = "400 10px sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.45)";
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
-  // ── Waveform ───────────────────────────────────────────────────────────────
   const WAVE_H = 10;
   const WAVE_Y = ARTIST_Y + 10;
 
-  drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
+  // FIX: contraste mínimo garantizado para evitar que el waveform
+  // se vea como una “estrella” o figura rara en covers oscuras/desaturadas
+  const [alR, alG, alB] = hexToRgb(accentLight);
+  const alBrightness = (alR + alG + alB) / 3;
+  const waveColorActive = alBrightness < 90 ? "#cccccc" : accentLight;
+  const waveColorInactive = alBrightness < 90 ? "#555555" : accent;
 
-  // ── Barra de progreso ──────────────────────────────────────────────────────
+  drawWaveform(
+    ctx,
+    TEXT_X,
+    WAVE_Y,
+    WAVE_H,
+    waveColorInactive,
+    waveColorActive,
+    progress,
+  );
+
   const BAR_Y = WAVE_Y + WAVE_H + 10;
   const BAR_H = 2;
   const BAR_W = TEXT_W;
@@ -293,7 +291,6 @@ export async function renderSpotifyCard(
   ctx.fillStyle = accentLight;
   ctx.fill();
 
-  // ── Timestamps ────────────────────────────────────────────────────────────
   const TIME_Y = BAR_Y + BAR_H + 5;
   ctx.font = "400 9px sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.28)";
@@ -305,7 +302,6 @@ export async function renderSpotifyCard(
   ctx.textAlign = "right";
   ctx.fillText(formatMs(data.durationMs), TEXT_X + BAR_W, TIME_Y);
 
-  // ── Username ───────────────────────────────────────────────────────────────
   const USER_Y = H - PAD / 2;
   ctx.font = "400 9px sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.18)";
