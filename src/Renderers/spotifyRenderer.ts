@@ -120,7 +120,7 @@ function truncate(ctx: SKRSContext2D, text: string, maxWidth: number): string {
 }
 
 function formatMs(ms: number): string {
-  const total = Math.floor(ms / 1000);
+  const total = Math.floor(Math.max(0, ms) / 1000);
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
@@ -140,7 +140,7 @@ function drawWaveform(
   progress: number,
 ) {
   const barW = 2;
-  const gap = 1.2;
+  const gap = 1.5;
   const totalBars = WAVE_HEIGHTS.length;
   const activeBars = Math.floor(progress * totalBars);
 
@@ -149,9 +149,9 @@ function drawWaveform(
     const bx = x + i * (barW + gap);
     const by = y + maxH - scaledH;
     ctx.beginPath();
-    ctx.roundRect(bx, by, barW, scaledH, 1.5);
+    roundRect(ctx, bx, by, barW, scaledH, 1);
     ctx.fillStyle = i < activeBars ? accentLight : accent;
-    ctx.globalAlpha = i < activeBars ? 0.95 : 0.25;
+    ctx.globalAlpha = i < activeBars ? 1.0 : 0.3;
     ctx.fill();
     ctx.globalAlpha = 1;
   });
@@ -175,23 +175,35 @@ export async function renderSpotifyCard(
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  const accent = data.coverUrl
+  // Obtener colores base
+  let accent = data.coverUrl
     ? await getDominantColor(data.coverUrl)
     : "#1db954";
+
+  // Forzar un color estético si el algoritmo devuelve tonos excesivamente oscuros o grises
+  const [r, g, b] = hexToRgb(accent);
+  const brightness = (r + g + b) / 3;
+  if (brightness < 45) {
+    accent = "#1db954"; // Fallback a verde Spotify para mantener la identidad visual vibrante
+  }
+
   const accentLight = lighten(accent, 0.48);
   const accentDark = darken(accent, 0.6);
-  const bgDeep = darken(accent, 0.86);
+  const bgDeep = darken(accent, 0.88);
 
+  // Normalizar el progreso correctamente clampiado
   const rawProgress =
     data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
   const progress = isNaN(rawProgress)
     ? 0
     : Math.min(1, Math.max(0, rawProgress));
 
+  // Fondo principal de la tarjeta
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
+  // Fondo del Arte si falla la carga
   roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = accentDark;
   ctx.fill();
@@ -204,41 +216,50 @@ export async function renderSpotifyCard(
       ctx.clip();
       ctx.drawImage(img, ART_X, ART_Y, ART_S, ART_S);
       ctx.restore();
-    } catch {}
-  } else {
-    ctx.font = "32px sans-serif";
-    ctx.fillStyle = accent + "60";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
+    } catch {
+      ctx.font = "32px sans-serif";
+      ctx.fillStyle = accent + "60";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
+    }
   }
 
-  const BADGE_H = 17;
-  const BADGE_W = 72;
+  // ─── Badge de Spotify ───────────────────────────────────────────────────────
+  const BADGE_H = 18;
+  const BADGE_W = 74;
   const BADGE_X = TEXT_X;
   const BADGE_Y = PAD;
 
+  // Renderizado del contenedor del badge
   roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
   ctx.fillStyle = accent + "25";
   ctx.fill();
+
   roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
-  ctx.strokeStyle = accentLight + "55";
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = accentLight + "40";
+  ctx.lineWidth = 1;
   ctx.stroke();
+
+  // Punto indicador dinámico
+  const [alR, alG, alB] = hexToRgb(accentLight);
+  const alBrightness = (alR + alG + alB) / 3;
+  const badgeColor = alBrightness < 140 ? "#1db954" : accentLight;
 
   ctx.beginPath();
   ctx.arc(BADGE_X + 11, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
-  ctx.fillStyle = accentLight;
+  ctx.fillStyle = badgeColor;
   ctx.fill();
 
-  ctx.font = "500 9px sans-serif";
-  ctx.fillStyle = accentLight;
+  ctx.font = "bold 9px sans-serif";
+  ctx.fillStyle = badgeColor;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("SPOTIFY", BADGE_X + 19, BADGE_Y + BADGE_H / 2);
+  ctx.fillText("SPOTIFY", BADGE_X + 20, BADGE_Y + BADGE_H / 2);
 
-  const TRACK_Y = BADGE_Y + BADGE_H + 14;
-  ctx.font = "600 13px sans-serif";
+  // ─── Información de Pista y Artista ─────────────────────────────────────────
+  const TRACK_Y = BADGE_Y + BADGE_H + 16;
+  ctx.font = "bold 14px sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
@@ -246,19 +267,18 @@ export async function renderSpotifyCard(
 
   const ARTIST_Y = TRACK_Y + 16;
   const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
-  ctx.font = "400 10px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font = "500 11px sans-serif";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
-  const WAVE_H = 10;
-  const WAVE_Y = ARTIST_Y + 10;
+  // ─── Renderizado del Waveform ───────────────────────────────────────────────
+  const WAVE_H = 12;
+  const WAVE_Y = ARTIST_Y + 8;
 
-  // FIX: contraste mínimo garantizado para evitar que el waveform
-  // se vea como una “estrella” o figura rara en covers oscuras/desaturadas
-  const [alR, alG, alB] = hexToRgb(accentLight);
-  const alBrightness = (alR + alG + alB) / 3;
-  const waveColorActive = alBrightness < 90 ? "#cccccc" : accentLight;
-  const waveColorInactive = alBrightness < 90 ? "#555555" : accent;
+  // Umbral estricto para mantener la legibilidad de las barras del ecualizador
+  const waveColorActive = alBrightness < 140 ? "#ffffff" : accentLight;
+  const waveColorInactive =
+    alBrightness < 140 ? "rgba(255, 255, 255, 0.2)" : accent;
 
   drawWaveform(
     ctx,
@@ -270,22 +290,26 @@ export async function renderSpotifyCard(
     progress,
   );
 
-  const BAR_Y = WAVE_Y + WAVE_H + 10;
-  const BAR_H = 2;
+  // ─── Barra de progreso lineal ──────────────────────────────────────────────
+  const BAR_Y = WAVE_Y + WAVE_H + 12;
+  const BAR_H = 3;
   const BAR_W = TEXT_W;
 
   roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, BAR_H / 2);
-  ctx.fillStyle = "rgba(255,255,255,0.10)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
   ctx.fill();
 
   const fillW = Math.min(BAR_W, Math.max(BAR_H * 2, BAR_W * progress));
-  roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, BAR_H / 2);
-  ctx.fillStyle = accentLight;
-  ctx.fill();
+  if (fillW > 0) {
+    roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, BAR_H / 2);
+    ctx.fillStyle = waveColorActive;
+    ctx.fill();
+  }
 
-  const TIME_Y = BAR_Y + BAR_H + 5;
-  ctx.font = "400 9px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  // ─── Tiempos e Indicadores métricos ─────────────────────────────────────────
+  const TIME_Y = BAR_Y + BAR_H + 6;
+  ctx.font = "500 10px sans-serif";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
   ctx.textBaseline = "top";
 
   ctx.textAlign = "left";
@@ -294,9 +318,10 @@ export async function renderSpotifyCard(
   ctx.textAlign = "right";
   ctx.fillText(formatMs(data.durationMs), TEXT_X + BAR_W, TIME_Y);
 
+  // Nombre de usuario en la esquina inferior derecha
   const USER_Y = H - PAD / 2;
-  ctx.font = "400 9px sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.font = "500 9px sans-serif";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
   ctx.fillText(data.username, W - PAD, USER_Y);
