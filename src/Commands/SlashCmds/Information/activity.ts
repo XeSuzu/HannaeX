@@ -37,7 +37,7 @@ const ACTIVITY_ICONS: Partial<Record<ActivityType, string>> = {
   [ActivityType.Competing]: "🏆",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
 const resolveUserFromArgs = async (
   message: Message,
@@ -65,7 +65,6 @@ async function resolvePresence(
 
   const persisted: IPresenceHistory | null =
     await PresenceHistoryManager.getPresence(userId, guild.id);
-
   if (!persisted) return null;
 
   return {
@@ -95,6 +94,7 @@ function getSpotifyCover(activity: Activity): string | null {
     activity.assets?.largeImage
   ) {
     const imageId = String(activity.assets.largeImage).replace(/^spotify:/, "");
+    // cdn directo de alta calidad forzado a resolución nativa sin compresión (640x640)
     return `https://i.scdn.co/image/${imageId}`;
   }
   return null;
@@ -158,7 +158,6 @@ function getActivities(presence: PartialPresenceLike | null): {
   const visibleActivities = (presence.activities as Activity[]).filter(
     (activity) => activity.type !== ActivityType.Custom,
   );
-
   if (!visibleActivities.length)
     return { text: null, total: 0, image: null, color: null };
 
@@ -186,7 +185,7 @@ function getCustomStatus(presence: PartialPresenceLike | null): string | null {
   return `${emoji}${custom.state ?? ""}`.trim() || null;
 }
 
-// ─── Builders ─────────────────────────────────────────────────────────────────
+// ─── builders ─────────────────────────────────────────────────────────────────
 
 const buildActivityEmbed = (
   target: User,
@@ -203,21 +202,21 @@ const buildActivityEmbed = (
     .setColor(activityData.color ?? member?.displayHexColor ?? 0x5865f2)
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .setDescription(
-      "Aquí se muestra la actividad que Discord expone en tiempo real para este usuario. Incluye juegos, streaming, reproducción de música, estado personalizado y detalles de sesión cuando están disponibles.",
+      "Aquí se muestra la actividad que Discord expone en tiempo real para este usuario.",
     )
     .addFields(
       {
         name: "┌─ 📌 Estado",
         value: status
           ? `│ **${STATUS_LABELS[status] || status}**\n└─`
-          : "Este usuario no tiene presencia disponible o no está en caché.",
+          : "Presencia no disponible.",
         inline: false,
       },
       {
         name: "┌─ 🕹️ Actividad actual",
         value: activityData.text
-          ? `│\n${activityData.text.replace(/\n/g, "\n│ ")}\n${activityData.total > 3 ? `│\n└─ Y ${activityData.total - 3} actividad(es) más no se muestran` : "└─"}`
-          : "Este usuario no tiene actividad visible en este momento.",
+          ? `│\n${activityData.text.replace(/\n/g, "\n│ ")}\n${activityData.total > 3 ? `│\n└─ Y ${activityData.total - 3} actividad(es) más` : "└─"}`
+          : "Este usuario no tiene actividad visible.",
         inline: false,
       },
     )
@@ -225,14 +224,12 @@ const buildActivityEmbed = (
     .setTimestamp();
 
   if (activityData.image) embed.setImage(activityData.image);
-
-  if (customStatus) {
+  if (customStatus)
     embed.addFields({
       name: "┌─ ✨ Estado personalizado",
       value: `│ ${customStatus}\n└─`,
       inline: false,
     });
-  }
 
   return embed;
 };
@@ -277,12 +274,11 @@ async function buildActivityReply(
     return { embeds: [embed], files: [attachment] };
   }
 
-  // fallback embed de texto para actividades no-Spotify
   const embed = buildActivityEmbed(target, member, presence, requester);
   return { embeds: [embed], files: [] };
 }
 
-// ─── Comando ──────────────────────────────────────────────────────────────────
+// ─── comando ──────────────────────────────────────────────────────────────────
 
 const command: SlashCommand = {
   category: "Profiles",
@@ -306,7 +302,6 @@ const command: SlashCommand = {
       });
       return;
     }
-
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;
       const member =
@@ -335,17 +330,12 @@ const command: SlashCommand = {
     args: string[],
   ) => {
     if (!message.guild) return;
-
     try {
       const target = await resolveUserFromArgs(message, args);
-
       if (args.length > 0 && !target) {
-        await message.reply(
-          "❌ Usuario no encontrado. Menciona a alguien o usa su ID válida.",
-        );
+        await message.reply("❌ Usuario no encontrado.");
         return;
       }
-
       const lookupTarget = target ?? message.author;
       const member =
         message.guild.members.cache.get(lookupTarget.id) ??

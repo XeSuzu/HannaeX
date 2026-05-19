@@ -1,6 +1,26 @@
-import { createCanvas, loadImage, SKRSContext2D } from "@napi-rs/canvas";
+import {
+  createCanvas,
+  GlobalFonts,
+  loadImage,
+  SKRSContext2D,
+} from "@napi-rs/canvas";
+import { join } from "path";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── registro de fuentes (nunito) ─────────────────────────────────────────────
+try {
+  GlobalFonts.registerFromPath(
+    join(__dirname, "./fonts/Nunito-Regular.ttf"),
+    "sans-serif",
+  );
+  GlobalFonts.registerFromPath(
+    join(__dirname, "./fonts/Nunito-Bold.ttf"),
+    "sans-serif",
+  );
+} catch {
+  // evita colisiones si se recarga el módulo en caliente
+}
+
+// ─── interfaces ───────────────────────────────────────────────────────────────
 
 export interface SpotifyCardData {
   track: string;
@@ -13,7 +33,7 @@ export interface SpotifyCardData {
   avatarUrl?: string | null;
 }
 
-// ─── Utilidades de color ──────────────────────────────────────────────────────
+// ─── utilidades de color y formato ────────────────────────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -63,11 +83,7 @@ async function getDominantColor(imageUrl: string): Promise<string> {
 
       const brightness = (r + g + b) / 3;
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      const isGray = saturation < 18;
-      const isTooDark = brightness < 22;
-      const isTooPale = brightness > 245 && saturation < 70;
-      const isHyperSaturated = saturation > 230 && brightness > 200;
-      if (isTooDark || isTooPale || isGray || isHyperSaturated) continue;
+      if (saturation < 18 || brightness < 22 || brightness > 245) continue;
 
       const key = rgbToHex(
         Math.min(255, Math.round(r / 20) * 20),
@@ -84,8 +100,6 @@ async function getDominantColor(imageUrl: string): Promise<string> {
   }
 }
 
-// ─── Helpers de canvas ────────────────────────────────────────────────────────
-
 function roundRect(
   ctx: SKRSContext2D,
   x: number,
@@ -94,7 +108,6 @@ function roundRect(
   h: number,
   r: number,
 ) {
-  ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
   ctx.quadraticCurveTo(x + w, y, x + w, y + r);
@@ -104,13 +117,12 @@ function roundRect(
   ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 }
 
 function truncate(ctx: SKRSContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
-  let lo = 0;
-  let hi = text.length;
+  let lo = 0,
+    hi = text.length;
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
     if (ctx.measureText(text.slice(0, mid) + "…").width <= maxWidth) lo = mid;
@@ -121,12 +133,10 @@ function truncate(ctx: SKRSContext2D, text: string, maxWidth: number): string {
 
 function formatMs(ms: number): string {
   const total = Math.floor(Math.max(0, ms) / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
 
-// ─── Waveform ─────────────────────────────────────────────────────────────────
+// ─── elementos gráficos vectoriales ──────────────────────────────────────────
 
 const WAVE_HEIGHTS = [4, 6, 5, 8, 6, 9, 7, 5, 4, 7, 5, 8, 6, 9, 5];
 
@@ -148,16 +158,52 @@ function drawWaveform(
     const scaledH = Math.round((h / 20) * maxH);
     const bx = x + i * (barW + gap);
     const by = y + maxH - scaledH;
+
     ctx.beginPath();
-    roundRect(ctx, bx, by, barW, scaledH, 1);
+    ctx.roundRect(bx, by, barW, scaledH, 1);
     ctx.fillStyle = i < activeBars ? accentLight : accent;
     ctx.globalAlpha = i < activeBars ? 1.0 : 0.3;
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.closePath();
   });
+  ctx.globalAlpha = 1;
 }
 
-// ─── Renderer principal ───────────────────────────────────────────────────────
+function drawSpotifyLogo(
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  bgDeep: string,
+) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#1db954";
+  ctx.fill();
+  ctx.closePath();
+
+  ctx.strokeStyle = bgDeep;
+  ctx.lineCap = "round";
+
+  const drawArcWave = (
+    radius: number,
+    width: number,
+    startAngle: number,
+    endAngle: number,
+  ) => {
+    ctx.beginPath();
+    ctx.lineWidth = width;
+    ctx.arc(cx + 1.5, cy + 2.5, radius, startAngle, endAngle);
+    ctx.stroke();
+    ctx.closePath();
+  };
+
+  drawArcWave(r * 0.65, 2.2, Math.PI * 1.15, Math.PI * 1.85);
+  drawArcWave(r * 0.45, 1.9, Math.PI * 1.14, Math.PI * 1.86);
+  drawArcWave(r * 0.25, 1.5, Math.PI * 1.12, Math.PI * 1.88);
+}
+
+// ─── renderer principal ───────────────────────────────────────────────────────
 
 export async function renderSpotifyCard(
   data: SpotifyCardData,
@@ -175,49 +221,47 @@ export async function renderSpotifyCard(
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // Obtener colores base
   let accent = data.coverUrl
     ? await getDominantColor(data.coverUrl)
     : "#1db954";
-
-  // Forzar un color estético si el algoritmo devuelve tonos excesivamente oscuros o grises
-  const [r, g, b] = hexToRgb(accent);
-  const brightness = (r + g + b) / 3;
-  if (brightness < 45) {
-    accent = "#1db954"; // Fallback a verde Spotify para mantener la identidad visual vibrante
-  }
+  const [rG, gG, bG] = hexToRgb(accent);
+  if ((rG + gG + bG) / 3 < 45) accent = "#1db954";
 
   const accentLight = lighten(accent, 0.48);
   const accentDark = darken(accent, 0.6);
   const bgDeep = darken(accent, 0.88);
 
-  // Normalizar el progreso correctamente clampiado
   const rawProgress =
     data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
   const progress = isNaN(rawProgress)
     ? 0
     : Math.min(1, Math.max(0, rawProgress));
 
-  // Fondo principal de la tarjeta
+  // 1. fondo
+  ctx.beginPath();
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
+  ctx.closePath();
 
-  // Fondo del Arte si falla la carga
+  // 2. arte base
+  ctx.beginPath();
   roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = accentDark;
   ctx.fill();
+  ctx.closePath();
 
   if (data.coverUrl) {
     try {
       const img = await loadImage(data.coverUrl);
       ctx.save();
+      ctx.beginPath();
       roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
       ctx.clip();
       ctx.drawImage(img, ART_X, ART_Y, ART_S, ART_S);
       ctx.restore();
     } catch {
-      ctx.font = "32px sans-serif";
+      ctx.font = "bold 32px sans-serif";
       ctx.fillStyle = accent + "60";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -225,57 +269,29 @@ export async function renderSpotifyCard(
     }
   }
 
-  // ─── Badge de Spotify ───────────────────────────────────────────────────────
-  const BADGE_H = 18;
-  const BADGE_W = 74;
-  const BADGE_X = TEXT_X;
-  const BADGE_Y = PAD;
+  // 3. logo spotify nativo (limpio y sin óvalos rotos)
+  drawSpotifyLogo(ctx, W - PAD - 12, PAD + 12, 12, bgDeep);
 
-  // Renderizado del contenedor del badge
-  roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
-  ctx.fillStyle = accent + "25";
-  ctx.fill();
-
-  roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 99);
-  ctx.strokeStyle = accentLight + "40";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Punto indicador dinámico
-  const [alR, alG, alB] = hexToRgb(accentLight);
-  const alBrightness = (alR + alG + alB) / 3;
-  const badgeColor = alBrightness < 140 ? "#1db954" : accentLight;
-
-  ctx.beginPath();
-  ctx.arc(BADGE_X + 11, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
-  ctx.fillStyle = badgeColor;
-  ctx.fill();
-
-  ctx.font = "bold 9px sans-serif";
-  ctx.fillStyle = badgeColor;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText("SPOTIFY", BADGE_X + 20, BADGE_Y + BADGE_H / 2);
-
-  // ─── Información de Pista y Artista ─────────────────────────────────────────
-  const TRACK_Y = BADGE_Y + BADGE_H + 16;
-  ctx.font = "bold 14px sans-serif";
+  // 4. textos
+  const TRACK_Y = PAD + 24;
+  ctx.font = "bold 15px sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.fillText(truncate(ctx, data.track, TEXT_W), TEXT_X, TRACK_Y);
+  ctx.fillText(truncate(ctx, data.track, TEXT_W - 30), TEXT_X, TRACK_Y);
 
-  const ARTIST_Y = TRACK_Y + 16;
+  const ARTIST_Y = TRACK_Y + 18;
   const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
-  ctx.font = "500 11px sans-serif";
+  ctx.font = "11px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
-  // ─── Renderizado del Waveform ───────────────────────────────────────────────
+  // 5. waveform
   const WAVE_H = 12;
   const WAVE_Y = ARTIST_Y + 8;
+  const [alR, alG, alB] = hexToRgb(accentLight);
+  const alBrightness = (alR + alG + alB) / 3;
 
-  // Umbral estricto para mantener la legibilidad de las barras del ecualizador
   const waveColorActive = alBrightness < 140 ? "#ffffff" : accentLight;
   const waveColorInactive =
     alBrightness < 140 ? "rgba(255, 255, 255, 0.2)" : accent;
@@ -290,25 +306,29 @@ export async function renderSpotifyCard(
     progress,
   );
 
-  // ─── Barra de progreso lineal ──────────────────────────────────────────────
+  // 6. barra lineal
   const BAR_Y = WAVE_Y + WAVE_H + 12;
   const BAR_H = 3;
   const BAR_W = TEXT_W;
 
+  ctx.beginPath();
   roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, BAR_H / 2);
   ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
   ctx.fill();
+  ctx.closePath();
 
   const fillW = Math.min(BAR_W, Math.max(BAR_H * 2, BAR_W * progress));
   if (fillW > 0) {
+    ctx.beginPath();
     roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, BAR_H / 2);
     ctx.fillStyle = waveColorActive;
     ctx.fill();
+    ctx.closePath();
   }
 
-  // ─── Tiempos e Indicadores métricos ─────────────────────────────────────────
+  // 7. marcas de tiempo e identificadores
   const TIME_Y = BAR_Y + BAR_H + 6;
-  ctx.font = "500 10px sans-serif";
+  ctx.font = "10px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
   ctx.textBaseline = "top";
 
@@ -318,9 +338,8 @@ export async function renderSpotifyCard(
   ctx.textAlign = "right";
   ctx.fillText(formatMs(data.durationMs), TEXT_X + BAR_W, TIME_Y);
 
-  // Nombre de usuario en la esquina inferior derecha
   const USER_Y = H - PAD / 2;
-  ctx.font = "500 9px sans-serif";
+  ctx.font = "9px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
   ctx.textAlign = "right";
   ctx.textBaseline = "bottom";
