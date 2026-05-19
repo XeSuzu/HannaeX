@@ -201,9 +201,9 @@ export async function renderSpotifyCard(
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
-  const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 200);
-  glow.addColorStop(0, accent + "22");
-  glow.addColorStop(1, "transparent");
+  const glow = ctx.createLinearGradient(W * 0.5, 0, W, H);
+  glow.addColorStop(0, accent + "00");
+  glow.addColorStop(1, accent + "18");
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = glow;
   ctx.fill();
