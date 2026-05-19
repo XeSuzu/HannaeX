@@ -4,6 +4,7 @@ import {
   loadImage,
   SKRSContext2D,
 } from "@napi-rs/canvas";
+import { readFile } from "fs/promises";
 import { join } from "path";
 
 // ─── registro de fuentes ──────────────────────────────────────────────────────
@@ -190,9 +191,10 @@ export async function renderSpotifyCard(
   const logoY = PAD;
 
   try {
-    // ✦ ruta exacta basada en tu estructura de carpetas
     const logoPath = join(__dirname, "../assets/Images/Icons/SpotifyLogo.png");
-    const logoImg = await loadImage(logoPath);
+    // leemos el archivo como buffer primero para que canvas no intente parsearlo como url
+    const logoBuffer = await readFile(logoPath);
+    const logoImg = await loadImage(logoBuffer);
 
     ctx.save();
     ctx.filter = "none";
