@@ -201,9 +201,15 @@ export async function renderSpotifyCard(
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
-  const glow = ctx.createLinearGradient(W * 0.5, 0, W, H);
-  glow.addColorStop(0, accent + "00");
-  glow.addColorStop(1, accent + "08");
+  // ANTES — generaba el artefacto de "estrella" / punto brillante
+  // const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 200);  ← radio 0 = foco duro
+  // const glow = ctx.createLinearGradient(W * 0.5, 0, W, H);    ← aún visible
+
+  // AHORA — gradiente horizontal muy sutil, sin foco de luz
+  const glow = ctx.createLinearGradient(0, 0, W, 0);
+  glow.addColorStop(0, "rgba(0,0,0,0)");
+  glow.addColorStop(0.6, "rgba(0,0,0,0)");
+  glow.addColorStop(1, accent + "18");
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = glow;
   ctx.fill();
