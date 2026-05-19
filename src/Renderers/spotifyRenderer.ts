@@ -65,7 +65,6 @@ async function getDominantColor(imageUrl: string): Promise<string> {
       const saturation = Math.max(r, g, b) - Math.min(r, g, b);
       const isGray = saturation < 18;
       const isTooDark = brightness < 22;
-      // FIX: también filtra colores hipersaturados que generan fondos planos
       const isTooPale = brightness > 245 && saturation < 70;
       const isHyperSaturated = saturation > 230 && brightness > 200;
       if (isTooDark || isTooPale || isGray || isHyperSaturated) continue;
@@ -108,7 +107,6 @@ function roundRect(
   ctx.closePath();
 }
 
-// FIX: búsqueda binaria en lugar de O(n²)
 function truncate(ctx: SKRSContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let lo = 0;
@@ -144,8 +142,6 @@ function drawWaveform(
   const barW = 2;
   const gap = 1.2;
   const totalBars = WAVE_HEIGHTS.length;
-  // FIX: Math.floor para que las barras se activen de izquierda a derecha
-  // sin adelantarse al progreso real
   const activeBars = Math.floor(progress * totalBars);
 
   WAVE_HEIGHTS.forEach((h, i) => {
@@ -166,11 +162,9 @@ function drawWaveform(
 export async function renderSpotifyCard(
   data: SpotifyCardData,
 ): Promise<Buffer> {
-  // Dimensiones
   const W = 520;
   const H = 160;
 
-  // Layout — todos los valores derivados de constantes
   const PAD = 16;
   const ART_S = 128;
   const ART_X = PAD;
@@ -189,7 +183,6 @@ export async function renderSpotifyCard(
   const accentDark = darken(accent, 0.6);
   const bgDeep = darken(accent, 0.86);
 
-  // FIX: validar progress contra NaN, undefined y valores fuera de rango
   const rawProgress =
     data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
   const progress = isNaN(rawProgress)
@@ -200,21 +193,10 @@ export async function renderSpotifyCard(
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.fillStyle = bgDeep;
   ctx.fill();
+  // FIX: glow eliminado — el radialGradient y linearGradient generaban
+  // artefactos visuales (estrella/franja) en @napi-rs/canvas
 
-  // ANTES — generaba el artefacto de "estrella" / punto brillante
-  // const glow = ctx.createRadialGradient(W, 0, 0, W, 0, 200);  ← radio 0 = foco duro
-  // const glow = ctx.createLinearGradient(W * 0.5, 0, W, H);    ← aún visible
-
-  // AHORA — gradiente horizontal muy sutil, sin foco de luz
-  const glow = ctx.createLinearGradient(0, 0, W, 0);
-  glow.addColorStop(0, "rgba(0,0,0,0)");
-  glow.addColorStop(0.6, "rgba(0,0,0,0)");
-  glow.addColorStop(1, accent + "18");
-  roundRect(ctx, 0, 0, W, H, 16);
-  ctx.fillStyle = glow;
-  ctx.fill();
-
-  // ── Panel de texto ──────────────────────────────────────────────────────
+  // ── Panel de texto ─────────────────────────────────────────────────────────
   const PANEL_X = TEXT_X - 10;
   const PANEL_Y = PAD + 8;
   const PANEL_W = TEXT_W + 14;
@@ -247,7 +229,7 @@ export async function renderSpotifyCard(
     ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
   }
 
-  // ── Badge ─────────────────────────────────────────────────────────────────
+  // ── Badge ──────────────────────────────────────────────────────────────────
   const BADGE_H = 17;
   const BADGE_W = 72;
   const BADGE_X = TEXT_X;
@@ -261,8 +243,11 @@ export async function renderSpotifyCard(
   ctx.lineWidth = 0.8;
   ctx.stroke();
 
+  // FIX: dot movido a +11 para que quede completamente dentro del pill
+  // (antes en +9 con radio 3, el borde izquierdo tocaba la curva del pill
+  // en @napi-rs/canvas y generaba el artefacto visual)
   ctx.beginPath();
-  ctx.arc(BADGE_X + 9, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
+  ctx.arc(BADGE_X + 11, BADGE_Y + BADGE_H / 2, 3, 0, Math.PI * 2);
   ctx.fillStyle = accentLight;
   ctx.fill();
 
@@ -270,9 +255,10 @@ export async function renderSpotifyCard(
   ctx.fillStyle = accentLight;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("SPOTIFY", BADGE_X + 17, BADGE_Y + BADGE_H / 2);
+  // FIX: texto desplazado +2px para mantener alineación con el dot
+  ctx.fillText("SPOTIFY", BADGE_X + 19, BADGE_Y + BADGE_H / 2);
 
-  // ── Track ─────────────────────────────────────────────────────────────────
+  // ── Track ──────────────────────────────────────────────────────────────────
   const TRACK_Y = BADGE_Y + BADGE_H + 14;
   ctx.font = "600 13px sans-serif";
   ctx.fillStyle = "#ffffff";
@@ -280,7 +266,7 @@ export async function renderSpotifyCard(
   ctx.textBaseline = "alphabetic";
   ctx.fillText(truncate(ctx, data.track, TEXT_W), TEXT_X, TRACK_Y);
 
-  // ── Artista / álbum ───────────────────────────────────────────────────────
+  // ── Artista / álbum ────────────────────────────────────────────────────────
   const ARTIST_Y = TRACK_Y + 16;
   const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
   ctx.font = "400 10px sans-serif";
@@ -293,18 +279,15 @@ export async function renderSpotifyCard(
 
   drawWaveform(ctx, TEXT_X, WAVE_Y, WAVE_H, accent, accentLight, progress);
 
-  // ── Barra de progreso ─────────────────────────────────────────────────────
+  // ── Barra de progreso ──────────────────────────────────────────────────────
   const BAR_Y = WAVE_Y + WAVE_H + 10;
   const BAR_H = 2;
   const BAR_W = TEXT_W;
 
-  // Track (fondo)
   roundRect(ctx, TEXT_X, BAR_Y, BAR_W, BAR_H, BAR_H / 2);
   ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.fill();
 
-  // FIX: fillW no puede exceder BAR_W; radio proporcional a BAR_H
-  // evita artefactos de pill cuando el fill es muy pequeño
   const fillW = Math.min(BAR_W, Math.max(BAR_H * 2, BAR_W * progress));
   roundRect(ctx, TEXT_X, BAR_Y, fillW, BAR_H, BAR_H / 2);
   ctx.fillStyle = accentLight;
@@ -322,7 +305,7 @@ export async function renderSpotifyCard(
   ctx.textAlign = "right";
   ctx.fillText(formatMs(data.durationMs), TEXT_X + BAR_W, TIME_Y);
 
-  // ── Username ──────────────────────────────────────────────────────────────
+  // ── Username ───────────────────────────────────────────────────────────────
   const USER_Y = H - PAD / 2;
   ctx.font = "400 9px sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.18)";
