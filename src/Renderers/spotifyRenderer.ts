@@ -6,21 +6,19 @@ import {
 } from "@napi-rs/canvas";
 import { join } from "path";
 
-// ─── registro de fuentes (nunito) ─────────────────────────────────────────────
+// ─── registro de fuentes ──────────────────────────────────────────────────────
 try {
   GlobalFonts.registerFromPath(
-    join(__dirname, "./fonts/Nunito-Regular.ttf"),
+    join(__dirname, "../assets/fonts/Nunito-Regular.ttf"),
     "sans-serif",
   );
   GlobalFonts.registerFromPath(
-    join(__dirname, "./fonts/Nunito-Bold.ttf"),
+    join(__dirname, "../assets/fonts/Nunito-Bold.ttf"),
     "sans-serif",
   );
 } catch {
-  // evita colisiones si se recarga el módulo en caliente
+  // fallback silencioso
 }
-
-// ─── interfaces ───────────────────────────────────────────────────────────────
 
 export interface SpotifyCardData {
   track: string;
@@ -33,71 +31,10 @@ export interface SpotifyCardData {
   avatarUrl?: string | null;
 }
 
-// ─── utilidades de color y formato ────────────────────────────────────────────
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.replace("#", ""), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
+// ─── utilidades ───────────────────────────────────────────────────────────────
 
 function clamp(v: number): number {
   return Math.min(255, Math.max(0, Math.round(v)));
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return (
-    "#" + [r, g, b].map((v) => clamp(v).toString(16).padStart(2, "0")).join("")
-  );
-}
-
-function lighten(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(
-    r + (255 - r) * amount,
-    g + (255 - g) * amount,
-    b + (255 - b) * amount,
-  );
-}
-
-function darken(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
-}
-
-async function getDominantColor(imageUrl: string): Promise<string> {
-  try {
-    const img = await loadImage(imageUrl);
-    const size = 90;
-    const tmp = createCanvas(size, size);
-    const ctx = tmp.getContext("2d");
-    ctx.drawImage(img, 0, 0, size, size);
-
-    const { data } = ctx.getImageData(0, 0, size, size);
-    const freq: Record<string, number> = {};
-    const step = 4 * 4;
-
-    for (let i = 0; i < data.length; i += step) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-
-      const brightness = (r + g + b) / 3;
-      const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      if (saturation < 18 || brightness < 22 || brightness > 245) continue;
-
-      const key = rgbToHex(
-        Math.min(255, Math.round(r / 20) * 20),
-        Math.min(255, Math.round(g / 20) * 20),
-        Math.min(255, Math.round(b / 20) * 20),
-      );
-      freq[key] = (freq[key] ?? 0) + 1;
-    }
-
-    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-    return sorted[0]?.[0] ?? "#1db954";
-  } catch {
-    return "#1db954";
-  }
 }
 
 function roundRect(
@@ -136,8 +73,6 @@ function formatMs(ms: number): string {
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, "0")}`;
 }
 
-// ─── elementos gráficos vectoriales ──────────────────────────────────────────
-
 const WAVE_HEIGHTS = [4, 6, 5, 8, 6, 9, 7, 5, 4, 7, 5, 8, 6, 9, 5];
 
 function drawWaveform(
@@ -169,53 +104,6 @@ function drawWaveform(
   ctx.globalAlpha = 1;
 }
 
-function drawSpotifyLogo(
-  ctx: SKRSContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  bgDeep: string,
-) {
-  // 1. Círculo base verde oficial de Spotify
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = "#1db954";
-  ctx.fill();
-  ctx.closePath();
-
-  // 2. Aislar y rotar el contexto para que las ondas se dibujen perfectas en Linux
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.42); // Rotación exacta para la inclinación característica de Spotify
-
-  ctx.strokeStyle = bgDeep;
-  ctx.lineCap = "round";
-
-  const drawWave = (
-    radius: number,
-    width: number,
-    startAngle: number,
-    endAngle: number,
-  ) => {
-    ctx.beginPath();
-    ctx.lineWidth = width;
-    // Dibujamos las ondas centradas de forma nativa
-    ctx.arc(0, r * 0.18, radius, startAngle, endAngle);
-    ctx.stroke();
-    ctx.closePath();
-  };
-
-  // Ángulos optimizados para arcos superiores limpios y simétricos
-  // Onda superior (más larga y gruesa)
-  drawWave(r * 0.62, 2.2, Math.PI * 1.22, Math.PI * 1.78);
-  // Onda media
-  drawWave(r * 0.44, 1.9, Math.PI * 1.24, Math.PI * 1.76);
-  // Onda inferior (más corta y delgada)
-  drawWave(r * 0.26, 1.5, Math.PI * 1.26, Math.PI * 1.74);
-
-  ctx.restore(); // Restauramos el lienzo a su posición original
-}
-
 // ─── renderer principal ───────────────────────────────────────────────────────
 
 export async function renderSpotifyCard(
@@ -223,7 +111,6 @@ export async function renderSpotifyCard(
 ): Promise<Buffer> {
   const W = 520;
   const H = 160;
-
   const PAD = 16;
   const ART_S = 128;
   const ART_X = PAD;
@@ -234,39 +121,27 @@ export async function renderSpotifyCard(
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // color fallback por si no hay portada
-  const defaultAccent = "#1db954";
-  const accentLight = lighten(defaultAccent, 0.48);
-
   const rawProgress =
     data.durationMs > 0 ? data.progressMs / data.durationMs : 0;
   const progress = isNaN(rawProgress)
     ? 0
     : Math.min(1, Math.max(0, rawProgress));
 
-  // 1. dibujar la base redondeada de la tarjeta
+  // 1. base y recorte de la tarjeta
   ctx.save();
   ctx.beginPath();
   roundRect(ctx, 0, 0, W, H, 16);
   ctx.clip();
   ctx.closePath();
 
-  // 2. renderizar el fondo adaptativo (blurred background)
+  // 2. fondo adaptativo desenfocado (blurred cover art)
   if (data.coverUrl) {
     try {
       const img = await loadImage(data.coverUrl);
-
-      // aplicamos el filtro de desenfoque nativo
       ctx.filter = "blur(18px)";
-
-      // dibujamos la carátula estirada para cubrir todo el fondo
-      // la desplazamos un poco hacia arriba/centro para capturar mejores tonos
       ctx.drawImage(img, -20, -20, W + 40, H + 40);
-
-      // quitamos el filtro para los siguientes elementos
       ctx.filter = "none";
     } catch {
-      // fallback si falla la carga de la imagen de fondo
       ctx.fillStyle = "#121214";
       ctx.fill();
     }
@@ -275,22 +150,21 @@ export async function renderSpotifyCard(
     ctx.fill();
   }
 
-  // 3. capa de superposición oscura (overlay) para garantizar el contraste del texto blanco
+  // 3. overlay para garantizar contraste
   ctx.beginPath();
   ctx.rect(0, 0, W, H);
-  ctx.fillStyle = "rgba(0, 0, 0, 0.62)"; // oscurece el fondo desenfocado un 62%
+  ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
   ctx.fill();
   ctx.closePath();
-  ctx.restore(); // sale del clip de las esquinas redondeadas de la tarjeta
+  ctx.restore();
 
-  // 4. placeholder/fondo del arte del álbum pequeño
+  // 4. arte del álbum en miniatura
   ctx.beginPath();
   roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
   ctx.fill();
   ctx.closePath();
 
-  // 5. dibujar el arte del álbum miniatura
   if (data.coverUrl) {
     try {
       const img = await loadImage(data.coverUrl);
@@ -310,24 +184,40 @@ export async function renderSpotifyCard(
     }
   }
 
-  // 6. logo de spotify nativo (esquina superior derecha) con fondo oscuro fijo para contraste
-  drawSpotifyLogo(ctx, W - PAD - 12, PAD + 12, 12, "#09090b");
+  // 5. cargar el logo png nativo de spotify
+  const logoSize = 26;
+  const logoX = W - PAD - logoSize;
+  const logoY = PAD;
 
-  // 7. textos principales de la canción
+  try {
+    // ✦ ruta exacta basada en tu estructura de carpetas
+    const logoPath = join(__dirname, "../assets/Images/Icons/SpotifyLogo.png");
+    const logoImg = await loadImage(logoPath);
+
+    ctx.save();
+    ctx.filter = "none";
+    ctx.globalAlpha = 1;
+    ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+    ctx.restore();
+  } catch (error) {
+    console.error("error al cargar spotify logo:", error);
+  }
+
+  // 6. textos
   const TRACK_Y = PAD + 24;
   ctx.font = "bold 15px sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.fillText(truncate(ctx, data.track, TEXT_W - 30), TEXT_X, TRACK_Y);
+  ctx.fillText(truncate(ctx, data.track, TEXT_W - 35), TEXT_X, TRACK_Y);
 
   const ARTIST_Y = TRACK_Y + 18;
   const artistStr = data.album ? `${data.artist} · ${data.album}` : data.artist;
   ctx.font = "11px sans-serif";
-  ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; // texto secundario más nítido sobre el overlay
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
-  // 8. waveform adaptativo en color blanco/translúcido fijo (estilo premium)
+  // 7. waveform con color unificado
   const WAVE_H = 12;
   const WAVE_Y = ARTIST_Y + 8;
   const waveColorActive = "#ffffff";
@@ -343,7 +233,7 @@ export async function renderSpotifyCard(
     progress,
   );
 
-  // 9. barra de progreso lineal
+  // 8. barra de progreso
   const BAR_Y = WAVE_Y + WAVE_H + 12;
   const BAR_H = 3;
   const BAR_W = TEXT_W;
@@ -363,7 +253,7 @@ export async function renderSpotifyCard(
     ctx.closePath();
   }
 
-  // 10. marcas de tiempo y usuario
+  // 9. metadatos de tiempo
   const TIME_Y = BAR_Y + BAR_H + 6;
   ctx.font = "10px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
