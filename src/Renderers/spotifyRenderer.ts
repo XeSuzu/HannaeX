@@ -192,14 +192,6 @@ export async function renderSpotifyCard(
   ctx.fillStyle = bgDeep;
   ctx.fill();
 
-  const PANEL_X = TEXT_X - 10;
-  const PANEL_Y = PAD + 8;
-  const PANEL_W = TEXT_W + 14;
-  const PANEL_H = H - PAD * 2 - 16;
-  roundRect(ctx, PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 22);
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
-  ctx.fill();
-
   roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
   ctx.fillStyle = accentDark;
   ctx.fill();
