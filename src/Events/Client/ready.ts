@@ -7,6 +7,7 @@ import { HoshikoClient } from "../../index";
 import ActiveRole from "../../Models/ActiveRole";
 import { HoshikoLogger, LogLevel } from "../../Security";
 import { Logger } from "../../Utils/SystemLogger";
+import { hydrateSnipes } from "../../Services/SnipeService";
 
 const STATUS_LIST: { text: string; type: ActivityType }[] = [
   { text: "en {servers} servidores 🏠", type: ActivityType.Watching },
@@ -83,6 +84,7 @@ export default {
     initVoiceSessionClient(client);
     await rehydrateVoiceSessions(); // <- línea nueva
     console.log("   🎤 Gestor de sesiones de voz activo");
+    await hydrateSnipes();
 
     // ─────────────────────────────────────
     // 🎀 Rotador de estados

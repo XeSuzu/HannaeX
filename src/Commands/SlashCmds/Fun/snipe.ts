@@ -41,10 +41,8 @@ const command: SlashCommand = {
     }
 
     const position = interaction.options.getInteger("numero") || 1;
-    const { total, entry } = await getSnipeEntry(
-      interaction.channelId,
-      position,
-    );
+    // ✅ ahora (leyendo directo de la ram al instante)
+    const { total, entry } = getSnipeEntry(interaction.channelId, position);
 
     if (!total || !entry) {
       await interaction.editReply({
