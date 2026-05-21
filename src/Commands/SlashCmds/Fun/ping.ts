@@ -1,4 +1,8 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  SlashCommandBuilder,
+} from "discord.js";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
@@ -7,17 +11,27 @@ const command: SlashCommand = {
   cooldown: 3,
   data: new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("🏓 Muestra la latencia del bot."),
+    .setDescription("🏓 muestra la latencia del bot."),
 
-  async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient) {
-    // El defer ya fue hecho por interactionCreate
-    // Calculamos latencia desde que Discord recibió la interacción hasta ahora
+  async execute(
+    interaction: ChatInputCommandInteraction,
+    client: HoshikoClient,
+  ) {
+    // calculamos la latencia desde que discord recibió la interacción
     const latency = Date.now() - interaction.createdTimestamp;
     const apiPing = Math.round(client.ws.ping);
 
-    await interaction.editReply({
-      content: `🏓 **Pong!**\n📶 Latencia: **${latency}ms**\n💻 API: **${apiPing}ms**`,
-    });
+    // armamos el embed minimalista
+    const embed = new EmbedBuilder()
+      .setColor(0x2b2d31)
+      .setDescription(
+        `🏓 **pong!**\n` +
+          `✉️ latencia: **${latency}ms**\n` +
+          `🌐 api: **${apiPing}ms**`,
+      );
+
+    // editamos la respuesta diferida borrando cualquier texto previo
+    await interaction.editReply({ content: null, embeds: [embed] });
   },
 };
 
