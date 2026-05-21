@@ -11,14 +11,13 @@ import {
   SlashCommandBuilder,
   User,
 } from "discord.js";
+import { join } from "path";
+import { Worker } from "worker_threads";
 import { PresenceHistoryManager } from "../../../Database/PresenceHistoryManager";
 import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { IPresenceHistory } from "../../../Models/PresenceHistory";
-import {
-  renderSpotifyCard,
-  SpotifyCardData,
-} from "../../../Renderers/spotifyRenderer";
+import { SpotifyCardData } from "../../../Renderers/spotifyRenderer";
 
 type PartialPresenceLike = Pick<Presence, "status" | "activities">;
 
@@ -36,6 +35,26 @@ const ACTIVITY_ICONS: Partial<Record<ActivityType, string>> = {
   [ActivityType.Watching]: "📺",
   [ActivityType.Competing]: "🏆",
 };
+
+// ─── worker renderer — libera el event loop del canvas ───────────────────────
+
+function renderInWorker(data: SpotifyCardData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      join(__dirname, "../../../workers/spotifyRenderer.worker.js"),
+    );
+    worker.once("message", (msg) => {
+      worker.terminate();
+      if (msg.ok) resolve(Buffer.from(msg.buffer));
+      else reject(new Error(msg.error));
+    });
+    worker.once("error", (err) => {
+      worker.terminate();
+      reject(err);
+    });
+    worker.postMessage(data);
+  });
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,13 +75,15 @@ async function resolvePresence(
   guild: Guild,
   userId: string,
 ): Promise<PartialPresenceLike | null> {
-  const cached = guild.members.cache.get(userId) ?? null;
-  const member =
-    cached ?? (await guild.members.fetch(userId).catch(() => null));
-
+  // 1. cache primero — sin ningún network call
+  const cached = guild.members.cache.get(userId);
   if (cached?.presence) return cached.presence;
+
+  // 2. solo fetch si no estaba en cache
+  const member = await guild.members.fetch(userId).catch(() => null);
   if (member?.presence) return member.presence;
 
+  // 3. DB como último recurso
   const persisted: IPresenceHistory | null =
     await PresenceHistoryManager.getPresence(userId, guild.id);
   if (!persisted) return null;
@@ -94,7 +115,6 @@ function getSpotifyCover(activity: Activity): string | null {
     activity.assets?.largeImage
   ) {
     const imageId = String(activity.assets.largeImage).replace(/^spotify:/, "");
-    // cdn directo de alta calidad forzado a resolución nativa sin compresión (640x640)
     return `https://i.scdn.co/image/${imageId}`;
   }
   return null;
@@ -262,7 +282,8 @@ async function buildActivityReply(
       avatarUrl: target.displayAvatarURL({ size: 64, extension: "png" }),
     };
 
-    const buffer = await renderSpotifyCard(cardData);
+    // render en worker — no bloquea el event loop
+    const buffer = await renderInWorker(cardData);
     const attachment = new AttachmentBuilder(buffer, { name: "activity.png" });
 
     const embed = new EmbedBuilder()
@@ -274,7 +295,7 @@ async function buildActivityReply(
     return { embeds: [embed], files: [attachment] };
   }
 
-  const embed = buildActivityEmbed(target, member, presence, requester);
+  const embed = buildActivityEmbed(target, member ?? null, presence, requester);
   return { embeds: [embed], files: [] };
 }
 

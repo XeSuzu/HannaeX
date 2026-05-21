@@ -1,6 +1,7 @@
 import {
   createCanvas,
   GlobalFonts,
+  Image,
   loadImage,
   SKRSContext2D,
 } from "@napi-rs/canvas";
@@ -30,6 +31,23 @@ export interface SpotifyCardData {
   durationMs: number;
   username: string;
   avatarUrl?: string | null;
+}
+
+// ─── logo cacheado — se carga una sola vez al módulo ─────────────────────────
+let _logoImg: Image | null = null;
+
+async function getLogoImg(): Promise<Image | null> {
+  if (_logoImg) return _logoImg;
+  try {
+    const buf = await readFile(
+      join(process.cwd(), "src/assets/images/icons/SpotifyLogo.png"),
+    );
+    _logoImg = await loadImage(buf);
+    return _logoImg;
+  } catch (e) {
+    console.error("error cargando spotify logo:", e);
+    return null;
+  }
 }
 
 // ─── utilidades ───────────────────────────────────────────────────────────────
@@ -128,6 +146,14 @@ export async function renderSpotifyCard(
     ? 0
     : Math.min(1, Math.max(0, rawProgress));
 
+  // ─── carga cover UNA sola vez, se usa en fondo y arte ────────────────────
+  const coverImage = data.coverUrl
+    ? await loadImage(data.coverUrl).catch(() => null)
+    : null;
+
+  // ─── logo cacheado ────────────────────────────────────────────────────────
+  const logoImg = await getLogoImg();
+
   // 1. base y recorte de la tarjeta
   ctx.save();
   ctx.beginPath();
@@ -136,16 +162,10 @@ export async function renderSpotifyCard(
   ctx.closePath();
 
   // 2. fondo adaptativo desenfocado (blurred cover art)
-  if (data.coverUrl) {
-    try {
-      const img = await loadImage(data.coverUrl);
-      ctx.filter = "blur(18px)";
-      ctx.drawImage(img, -20, -20, W + 40, H + 40);
-      ctx.filter = "none";
-    } catch {
-      ctx.fillStyle = "#121214";
-      ctx.fill();
-    }
+  if (coverImage) {
+    ctx.filter = "blur(18px)";
+    ctx.drawImage(coverImage, -20, -20, W + 40, H + 40);
+    ctx.filter = "none";
   } else {
     ctx.fillStyle = "#121214";
     ctx.fill();
@@ -166,47 +186,33 @@ export async function renderSpotifyCard(
   ctx.fill();
   ctx.closePath();
 
-  if (data.coverUrl) {
-    try {
-      const img = await loadImage(data.coverUrl);
-      ctx.save();
-      ctx.beginPath();
-      roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
-      ctx.clip();
-      ctx.drawImage(img, ART_X, ART_Y, ART_S, ART_S);
-      ctx.closePath();
-      ctx.restore();
-    } catch {
-      ctx.font = "bold 32px sans-serif";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
-    }
+  if (coverImage) {
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, ART_X, ART_Y, ART_S, ART_S, 10);
+    ctx.clip();
+    ctx.drawImage(coverImage, ART_X, ART_Y, ART_S, ART_S);
+    ctx.closePath();
+    ctx.restore();
+  } else {
+    ctx.font = "bold 32px sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("♪", ART_X + ART_S / 2, ART_Y + ART_S / 2);
   }
 
-  // 5. cargar el logo png nativo de spotify
+  // 5. logo de spotify (cacheado)
   const logoSize = 26;
   const logoX = W - PAD - logoSize;
   const logoY = PAD;
 
-  try {
-    // apunta desde la raíz de tu proyecto hacia src
-    const logoPath = join(
-      process.cwd(),
-      "src/assets/images/icons/SpotifyLogo.png",
-    );
-    // leemos el archivo como buffer primero para que canvas no intente parsearlo como url
-    const logoBuffer = await readFile(logoPath);
-    const logoImg = await loadImage(logoBuffer);
-
+  if (logoImg) {
     ctx.save();
     ctx.filter = "none";
     ctx.globalAlpha = 1;
     ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
     ctx.restore();
-  } catch (error) {
-    console.error("error al cargar spotify logo:", error);
   }
 
   // 6. textos
@@ -223,7 +229,7 @@ export async function renderSpotifyCard(
   ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
   ctx.fillText(truncate(ctx, artistStr, TEXT_W), TEXT_X, ARTIST_Y);
 
-  // 7. waveform con color unificado
+  // 7. waveform
   const WAVE_H = 12;
   const WAVE_Y = ARTIST_Y + 8;
   const waveColorActive = "#ffffff";

@@ -56,5 +56,8 @@ const PresenceHistorySchema = new Schema<IPresenceHistory>({
   updatedAt: { type: Date, default: Date.now },
 });
 
+// ─── índice compuesto — evita full collection scan en getPresence ─────────────
+PresenceHistorySchema.index({ userId: 1, guildId: 1 }, { unique: true });
+
 export default models.PresenceHistory ||
   model<IPresenceHistory>("PresenceHistory", PresenceHistorySchema);
