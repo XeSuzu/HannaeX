@@ -1,9 +1,8 @@
-import { ClientEvents } from "discord.js";
-import fs from "fs";
+import type { ClientEvents } from "discord.js";
 import path from "path";
-import { pathToFileURL } from "url";
-import { HoshikoClient } from "../index";
+import type { HoshikoClient } from "../client/HoshikoClient";
 import { HoshikoLogger, LogLevel } from "../Security";
+import { findEventFiles, loadEventModule } from "./eventModuleLoader";
 
 export interface EventFile<K extends keyof ClientEvents = keyof ClientEvents> {
   name: K;
@@ -13,37 +12,9 @@ export interface EventFile<K extends keyof ClientEvents = keyof ClientEvents> {
   ) => void | Promise<void>;
 }
 
-function getFilesRecursively(directory: string): string[] {
-  const files: string[] = [];
-  if (!fs.existsSync(directory)) return files;
-
-  const items = fs.readdirSync(directory, { withFileTypes: true });
-
-  for (const item of items) {
-    const fullPath = path.join(directory, item.name);
-
-    if (item.isDirectory()) {
-      files.push(...getFilesRecursively(fullPath));
-    } else if (item.isFile()) {
-      const ext = path.extname(item.name);
-      const isProd = process.env.NODE_ENV === "production";
-
-      if (
-        (isProd ? ext === ".js" : [".ts", ".js"].includes(ext)) &&
-        !item.name.endsWith(".js.map") &&
-        !item.name.endsWith(".d.ts")
-      ) {
-        files.push(fullPath);
-      }
-    }
-  }
-
-  return files;
-}
-
 export default async (client: HoshikoClient) => {
   const eventsPath = path.join(__dirname, "../Events");
-  const allEventFiles = getFilesRecursively(eventsPath);
+  const allEventFiles = findEventFiles(eventsPath);
 
   let loaded = 0;
   let failed = 0;
@@ -54,11 +25,7 @@ export default async (client: HoshikoClient) => {
 
   for (const filePath of allEventFiles) {
     try {
-      delete require.cache[require.resolve(filePath)];
-
-      const mod = await import(pathToFileURL(filePath).href);
-      const eventModule = mod.default ?? mod;
-      const event: EventFile = eventModule?.default ?? eventModule;
+      const event: EventFile = (await loadEventModule(filePath)) as EventFile;
 
       if (!event || !event.name || typeof event.execute !== "function") {
         failed++;

@@ -1,5 +1,6 @@
 import { Message, PermissionFlagsBits } from "discord.js";
 import { SettingsManager } from "../Database/SettingsManager";
+import { isAllowedByDomain } from "./linkAllowlist";
 
 const DEFAULT_ALLOWED = [
   "youtube.com",
@@ -50,8 +51,7 @@ export async function handleLinkProtection(
   const isInvite = inviteRegex.test(message.content);
 
   const isForbidden = foundLinks.some((link) => {
-    const lowerLink = link.toLowerCase();
-    return !allAllowed.some((domain) => lowerLink.includes(domain));
+    return !isAllowedByDomain(link, allAllowed);
   });
 
   if (isInvite || isForbidden) {

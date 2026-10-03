@@ -22,6 +22,14 @@ const command: PrefixCommand = {
 
     try {
       if (
+        !message.guild ||
+        !message.member?.permissions.has(PermissionsBitField.Flags.ManageMessages)
+      ) {
+        await message.reply("❌ No tienes permisos para usar este comando.");
+        return;
+      }
+
+      if (
         message.guild &&
         !botMember?.permissions.has(PermissionsBitField.Flags.SendMessages)
       ) {
@@ -55,7 +63,10 @@ const command: PrefixCommand = {
         await message.delete().catch(() => {});
       }
 
-      await channel.send(msg);
+      await channel.send({
+        content: msg,
+        allowedMentions: { parse: [] },
+      });
 
       Logger.logSay(
         message.author,
