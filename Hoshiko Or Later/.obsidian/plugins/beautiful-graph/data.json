@@ -1,0 +1,95 @@
+{
+  "version": 22,
+  "layoutRevision": 0,
+  "settings": {
+    "replaceUnderscores": true,
+    "capitalizeDirectories": true,
+    "maxLabelDirectories": 3,
+    "forces": {
+      "center": 0.5187132489703118,
+      "repel": 10,
+      "link": 1,
+      "distance": 250
+    },
+    "display": {
+      "arrows": false,
+      "textFade": 24.7,
+      "nodeSize": 4,
+      "linkThickness": 1.3,
+      "glow": 0.45,
+      "glowSize": 1.5,
+      "recenterMultiplier": 1.25,
+      "showSiblingLinks": false,
+      "showOrphans": true,
+      "showLinkedInSearch": false,
+      "lensOpacity": 0.26,
+      "lensRadius": 1.74,
+      "recenterOnFocus": false
+    },
+    "ambience": {
+      "vignette": 0.43,
+      "brightness": 1,
+      "hue": 0,
+      "saturation": 1,
+      "speed": 0.35,
+      "count": 120,
+      "irregularity": 0.6,
+      "particleSize": 1,
+      "dustFade": 0.35,
+      "dustBoost": 0.65
+    },
+    "categoryVisibility": {},
+    "groups": [],
+    "other": {
+      "visible": true,
+      "color": "#F5B82E",
+      "icon": "📂",
+      "colorMode": "palette"
+    },
+    "rootIndex": {
+      "enabled": true,
+      "color": "#FFBB00",
+      "icon": "🌱",
+      "includeLinked": false
+    },
+    "otherVisible": true,
+    "groupPalette": "Beautiful Default",
+    "groupPresets": {},
+    "panels": {
+      "groups": {
+        "visible": true,
+        "collapsed": false,
+        "pinned": true,
+        "autoHeight": true,
+        "width": 0.13
+      },
+      "forces": {
+        "visible": true,
+        "collapsed": false,
+        "pinned": true,
+        "autoHeight": true,
+        "width": 0.13
+      },
+      "display": {
+        "visible": true,
+        "collapsed": false,
+        "pinned": true,
+        "autoHeight": true,
+        "width": 0.13
+      },
+      "ambience": {
+        "visible": true,
+        "collapsed": false,
+        "pinned": true,
+        "autoHeight": true,
+        "width": 0.13
+      }
+    },
+    "forcePresets": {},
+    "displayPresets": {},
+    "ambiencePresets": {},
+    "historyLimit": 50,
+    "storedNodeCount": 0
+  },
+  "positions": {}
+}

@@ -7,7 +7,7 @@ import {
 import mongoose from "mongoose";
 import { PerformanceMonitor } from "../../../Security";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const command: SlashCommand = {
   category: "Performance",

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { UserMemoryManager } from "../../../Database/UserMemoryManager";
 
 const command: SlashCommand = {

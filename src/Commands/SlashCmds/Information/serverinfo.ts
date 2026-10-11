@@ -11,7 +11,6 @@ import {
   ChannelType,
   GuildPremiumTier,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 function formatDate(timestamp: number | null | undefined): string {

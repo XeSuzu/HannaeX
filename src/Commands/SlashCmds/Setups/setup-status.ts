@@ -6,7 +6,7 @@ import {
   ColorResolvable,
 } from "discord.js";
 import StatusConfig from "../../../Models/StatutsConfig"; // Asegúrate de que la ruta sea correcta
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

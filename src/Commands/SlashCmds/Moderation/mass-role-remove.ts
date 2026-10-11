@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 1000;

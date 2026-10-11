@@ -3,9 +3,8 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { HoshikoClient } from "../../../index";
 import { SlashCommand } from "../../../Interfaces/Command";
+import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
 
 const LANG_CHOICES = [
   ["Auto Detect", "auto"],
@@ -103,35 +102,15 @@ const command: SlashCommand = {
     }
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const langMap: Record<string, string> = {
-        auto: "",
-        en: "English",
-        es: "Spanish",
-        pt: "Portuguese",
-        fr: "French",
-        de: "German",
-        ja: "Japanese",
-        ko: "Korean",
-        "zh-CN": "Chinese",
-      };
-
-      // Detectar idioma de origen
-      const detectPrompt = `Detect the language of this text and respond with ONLY the language name in English (e.g., Spanish, English, French):\n\n${text}`;
-      const detectResult = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: detectPrompt }] }],
-      });
-      const detectedLang = detectResult.response.text().trim();
-
-      const targetLang = langMap[targetInput] || targetInput;
-      const prompt = `Translate the following text to ${targetLang}. Respond with ONLY the translated text, nothing else:\n\n${text}`;
-
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      const translated = result.response.text();
+      const targetLang =
+        targetInput === "auto"
+          ? "Spanish"
+          : LANGUAGE_MAP[targetInput] || targetInput;
+      const { detectedLang, translation: translated } = await translateText(
+        text,
+        targetLang,
+        apiKey,
+      );
 
       if (!translated) {
         await interaction.editReply("❌ No se pudo obtener la traducción.");

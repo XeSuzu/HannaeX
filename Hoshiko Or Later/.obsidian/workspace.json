@@ -1,0 +1,231 @@
+{
+  "main": {
+    "id": "ea740dabb04b9b94",
+    "type": "split",
+    "children": [
+      {
+        "id": "c9faecb0195d9fa2",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "69e12011e8e74584",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "01-Identidad/Hoshiko — Definición oficial.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Hoshiko — Definición oficial"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "4253287d30f44bcb",
+    "type": "split",
+    "children": [
+      {
+        "id": "3af366ffc80551c0",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "933522c124d61ae3",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "085c2e39680e3e1f",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          },
+          {
+            "id": "a31edfb6b51579c4",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 405.6884231567383
+  },
+  "right": {
+    "id": "0454354567852100",
+    "type": "split",
+    "children": [
+      {
+        "id": "4e9e52d67f57d9f0",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "82fe0bf7fa9937ae",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "02-Arquitectura/Arquitectura — Configuración y entorno.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "074bce3bebff40e8",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "e2f2b68872336950",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "6c9c944d251eb1b7",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "328a3113f3602ac0",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "graph-insight:Open Advanced Graph View": false,
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false,
+      "beautiful-graph:Open Beautiful Graph": false
+    }
+  },
+  "active": "69e12011e8e74584",
+  "lastOpenFiles": [
+    "04-Guias/Guías — Índice.md",
+    "02-Arquitectura/Arquitectura — Capas del sistema.md",
+    "03-Features/Utilidades/Utilidades — Administración.md",
+    "02-Arquitectura/Hoshiko — Personalidad técnica.md",
+    "03-Features/Utilidades/Utilidades — Herramientas.md",
+    "03-Features/Utilidades/Utilidades — Recordatorios.md",
+    "03-Features/Utilidades/Utilidades — Información.md",
+    "03-Features/Utilidades/Utilidades — Configuración.md",
+    "03-Features/Utilidades/Utilidades — Visión general.md",
+    "03-Features/Seguridad/Seguridad — Respuesta.md",
+    "03-Features/Utilidades",
+    "03-Features/Seguridad/Seguridad — Protección.md",
+    "03-Features/Seguridad/Seguridad — Incidentes.md",
+    "03-Features/Seguridad/Seguridad — Alertas.md",
+    "03-Features/Seguridad/Seguridad — Detección.md",
+    "03-Features/Seguridad/Seguridad — Visión general.md",
+    "03-Features/Moderacion/Moderación — Auditoría.md",
+    "03-Features/Seguridad",
+    "03-Features/Moderacion/Moderación — Roles y permisos.md",
+    "03-Features/Moderacion/Moderación — Automatizaciones.md",
+    "03-Features/Moderacion/Moderación — Casos.md",
+    "03-Features/Moderacion/Moderación — Comandos.md",
+    "03-Features/Moderacion/Moderación — Visión general.md",
+    "03-Features/Multimedia/Multimedia — Integraciones.md",
+    "03-Features/Moderacion",
+    "03-Features/Multimedia/Multimedia — Reproducción.md",
+    "03-Features/Multimedia/Multimedia — Letras y metadatos.md",
+    "03-Features/Multimedia/Multimedia — Música.md",
+    "03-Features/Multimedia/Multimedia — Visión general.md",
+    "03-Features/Multimedia",
+    "03-Features/Economia",
+    "03-Features/Voz",
+    "03-Features/Comunidad",
+    "03-Features/IA",
+    "Untitled.base",
+    "Hoshiko"
+  ]
+}

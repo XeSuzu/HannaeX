@@ -5,7 +5,7 @@ import {
   ChatInputCommandInteraction,
 } from "discord.js";
 import AFK from "../../../Models/afk";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

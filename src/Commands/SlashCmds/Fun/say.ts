@@ -5,7 +5,7 @@ import {
   TextChannel,
   MessageFlags,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { Logger } from "../../../Utils/SystemLogger";
 import { SlashCommand } from "../../../Interfaces/Command";
 

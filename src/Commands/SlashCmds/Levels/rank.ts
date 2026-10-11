@@ -4,7 +4,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import { totalXpForLevel, xpForLevel } from "../../../Features/levelHandler";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import GlobalLevel from "../../../Models/GlobalLevel";
 import LocalLevel from "../../../Models/LocalLevels";
 import { generateServerRankBanner } from "../../../Utils/LevelBanners";

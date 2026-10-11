@@ -7,7 +7,7 @@ import {
   MessageFlags,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { deleteWarning, IWarning } from "../../../Models/Warning";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 

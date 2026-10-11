@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { StreakGroup } from "../../../Models/StreakGroup";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const command: SlashCommand = {
   category: "Privado",

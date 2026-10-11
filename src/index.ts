@@ -1,23 +1,23 @@
+import { AppConfig } from "./App/config/AppConfig";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
 import { connectWithRetry } from "./Services/mongo";
 import { loadAntiCrash } from "./Utils/antiCrash";
-import { startCronJobs } from "./scripts/cronJobs";
 import { loadHandlers } from "./bootstrap/loadHandlers";
 import { createHoshikoClient, HoshikoClient } from "./client/HoshikoClient";
-import { loadEnvironment } from "./config/loadEnvironment";
 import { createHealthServer } from "./http/healthServer";
 import { installShutdownHandlers } from "./lifecycle/shutdown";
+import { startCronJobs } from "./scripts/cronJobs";
 
-loadEnvironment();
+AppConfig.load();
 loadAntiCrash();
 
-const startHealthServer = createHealthServer();
 const client = createHoshikoClient();
+const startHealthServer = createHealthServer(() => client.isReady());
 
 async function start(): Promise<void> {
   try {
     if (!client.config.token) {
-      throw new Error("TOKEN not found in .env file");
+      throw new Error("TOKEN not found in environment");
     }
 
     const stats = PerformanceMonitor.getSystemStats();
@@ -32,13 +32,13 @@ async function start(): Promise<void> {
     startHealthServer();
     await client.login(client.config.token);
     startCronJobs(client);
-  } catch (err) {
-    console.error("CRITICAL ERROR:", err);
+  } catch (error) {
+    console.error("CRITICAL ERROR:", error);
     HoshikoLogger.log({
       level: LogLevel.FATAL,
       context: "System/Startup",
       message: "Critical error during startup",
-      metadata: err,
+      metadata: error,
     });
     process.exit(1);
   }

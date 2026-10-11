@@ -1,46 +1,92 @@
 import { EmbedBuilder, WebhookClient } from "discord.js";
 
-// Webhook URL configured via ERROR_WEBHOOK_URL environment variable
 const webhookUrl = process.env.ERROR_WEBHOOK_URL;
 const webhook = webhookUrl ? new WebhookClient({ url: webhookUrl }) : null;
 
-/**
- * Loads anti-crash handlers to capture unhandled errors.
- * Sends error reports to a configured webhook if available.
- */
+function redactValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value
+      .replace(
+        /(mongodb(?:\+srv)?:\/\/)([^:@/\s]+)(?::([^@/\s]*))?@/gi,
+        "$1[REDACTED]@",
+      )
+      .replace(/(https?:\/\/[^\s:]+:)([^@\s/]+)(@)/gi, "$1[REDACTED]$3")
+      .replace(/(Authorization\s*[:=]\s*Bearer\s+)[^\s]+/gi, "$1[REDACTED]")
+      .replace(/(Cookie\s*[:=]\s*)[^\s;]+/gi, "$1[REDACTED]")
+      .replace(
+        /(token|secret|password|key|uri|webhook|mongodb)(\s*[:=]\s*)([^\s,;]+)/gi,
+        "$1$2[REDACTED]",
+      );
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactValue(entry));
+  }
+
+  if (value && typeof value === "object") {
+    const cloned: Record<string, unknown> = {};
+
+    for (const [key, nestedValue] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes("token") ||
+        lowerKey.includes("secret") ||
+        lowerKey.includes("password") ||
+        lowerKey.includes("cookie") ||
+        lowerKey.includes("authorization") ||
+        lowerKey.includes("uri") ||
+        lowerKey.includes("webhook") ||
+        lowerKey.includes("mongodb") ||
+        lowerKey.includes("key")
+      ) {
+        cloned[key] = "[REDACTED]";
+        continue;
+      }
+
+      cloned[key] = redactValue(nestedValue);
+    }
+
+    return cloned;
+  }
+
+  return value;
+}
+
 export const loadAntiCrash = () => {
-  // 1. Unhandled promise rejections
-  process.on("unhandledRejection", (reason: any, promise) => {
+  process.on("unhandledRejection", (reason: unknown) => {
     console.log("[AntiCrash] Unhandled Rejection");
     console.log(reason);
     sendErrorLog("Unhandled Rejection", reason);
   });
 
-  // 2. Uncaught exceptions
-  process.on("uncaughtException", (err, origin) => {
+  process.on("uncaughtException", (error: Error, _origin: unknown) => {
     console.log("[AntiCrash] Uncaught Exception");
-    console.log(err, origin);
-    sendErrorLog("Uncaught Exception", err);
+    console.log(error);
+    sendErrorLog("Uncaught Exception", error);
   });
 
-  // 3. Uncaught exception monitoring
-  process.on("uncaughtExceptionMonitor", (err, origin) => {
+  process.on("uncaughtExceptionMonitor", (error: Error, _origin: unknown) => {
     console.log("[AntiCrash] Uncaught Exception Monitor");
-    console.log(err, origin);
+    console.log(error);
   });
 };
 
-/**
- * Sends an error report to the configured webhook.
- * @param type - Error type classification
- * @param error - Error object or message
- */
-function sendErrorLog(type: string, error: any) {
-  if (!webhook) return;
+function sendErrorLog(type: string, error: unknown) {
+  if (!webhook) {
+    return;
+  }
 
+  const sanitizedError = redactValue(error);
   const errString =
-    (error instanceof Error ? error.stack : String(error)) ||
-    "Error without details";
+    error instanceof Error
+      ? (error.stack ?? "Error without details")
+      : typeof sanitizedError === "string"
+        ? sanitizedError
+        : JSON.stringify(
+            sanitizedError ?? { message: "Error without details" },
+          );
 
   const embed = new EmbedBuilder()
     .setTitle(`Critical Error: ${type}`)
@@ -50,5 +96,5 @@ function sendErrorLog(type: string, error: any) {
 
   webhook
     .send({ embeds: [embed] })
-    .catch(() => console.error("Failed to send log to webhook"));
+    .catch(() => console.error("[AntiCrash] Failed to send log to webhook"));
 }

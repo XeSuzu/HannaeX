@@ -10,7 +10,7 @@ import {
   Message,
   InteractionResponse,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { Logger } from "../../../Utils/SystemLogger";
 

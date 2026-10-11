@@ -7,7 +7,7 @@ import {
   totalXpForVoiceLevel,
   xpForVoiceLevel,
 } from "../../../Features/levelHandler";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import LocalLevel from "../../../Models/LocalLevels";
 import { generateVCRankBanner } from "../../../Utils/LevelBanners";
 

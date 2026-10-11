@@ -12,7 +12,7 @@ import {
   StringSelectMenuInteraction,
   StringSelectMenuOptionBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const SUPPORT_SERVER =
@@ -21,10 +21,29 @@ const BANNER_URL =
   process.env.BANNER_URL ||
   "https://i.pinimg.com/originals/2f/43/76/2f437614d7fa7239696a8b34d5e41769.gif";
 
+// Permisos usados por funciones y eventos: mensajes, embeds, archivos,
+// historial, moderación, roles, apodos, auditoría, @here y emojis externos.
+const INVITE_PERMISSIONS = PermissionsBitField.resolve([
+  PermissionsBitField.Flags.ViewChannel,
+  PermissionsBitField.Flags.SendMessages,
+  PermissionsBitField.Flags.EmbedLinks,
+  PermissionsBitField.Flags.AttachFiles,
+  PermissionsBitField.Flags.ReadMessageHistory,
+  PermissionsBitField.Flags.ManageMessages,
+  PermissionsBitField.Flags.ManageNicknames,
+  PermissionsBitField.Flags.ManageRoles,
+  PermissionsBitField.Flags.BanMembers,
+  PermissionsBitField.Flags.KickMembers,
+  PermissionsBitField.Flags.ModerateMembers,
+  PermissionsBitField.Flags.ViewAuditLog,
+  PermissionsBitField.Flags.MentionEveryone,
+  PermissionsBitField.Flags.UseExternalEmojis,
+]).toString();
+
 function getInviteLink(clientId: string | undefined): string {
   return clientId
-    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands`
-    : "https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands";
+    ? `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${INVITE_PERMISSIONS}&scope=bot%20applications.commands`
+    : `https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=${INVITE_PERMISSIONS}&scope=bot%20applications.commands`;
 }
 
 const EMOJI = {

@@ -4,7 +4,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const SEPARATOR = "╌".repeat(34);
 

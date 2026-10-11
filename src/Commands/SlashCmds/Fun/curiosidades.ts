@@ -9,7 +9,7 @@ import {
   ButtonInteraction,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 // ── Anti-spam ──────────────────────────────────────────────────
 const spamTracker = new Map<string, number[]>();

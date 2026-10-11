@@ -5,7 +5,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import { totalXpForVoiceLevel } from "../../../Features/levelHandler";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import LevelConfig from "../../../Models/LevelConfig";
 import LocalLevel from "../../../Models/LocalLevels";
 

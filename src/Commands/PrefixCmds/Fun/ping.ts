@@ -1,5 +1,5 @@
 import { EmbedBuilder, Message } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { PrefixCommand } from "../../../Interfaces/Command";
 
 const command: PrefixCommand = {

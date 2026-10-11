@@ -7,7 +7,7 @@ import {
   EmbedBuilder,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import LocalLevel from "../../../Models/LocalLevels";
 
 export default {

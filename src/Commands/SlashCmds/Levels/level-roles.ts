@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import LevelConfig from "../../../Models/LevelConfig";
 import LocalLevel from "../../../Models/LocalLevels";
 

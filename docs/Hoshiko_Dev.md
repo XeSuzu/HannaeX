@@ -1,3 +1,5 @@
+> [TODO: VALIDAR] Guía trasladada desde Licenses/. Verifica comandos, variables documentadas, entorno, scripts y rutas contra la configuración vigente antes de seguirlos. No contiene valores de secretos.
+
 # 🌸 Hoshiko — Guía de Desarrollo
 
 ## Requisitos previos

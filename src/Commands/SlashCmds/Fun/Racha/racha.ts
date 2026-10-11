@@ -12,7 +12,7 @@ import {
 import { SlashCommand } from "../../../../Interfaces/Command";
 import { StreakGroup } from "../../../../Models/StreakGroup";
 import { generateStreakCard } from "../../../../Services/CardService";
-import { HoshikoClient } from "../../../../index";
+import type { HoshikoClient } from "../../../../client/HoshikoClient";
 
 // 🛠️ Helper para obtener Nombre y Emoji del Tier desde la DB
 function getTierInfo(tier: string): { name: string; emoji: string } {

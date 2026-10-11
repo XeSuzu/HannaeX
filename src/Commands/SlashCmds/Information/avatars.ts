@@ -12,7 +12,7 @@ import {
   GuildMember,
 } from "discord.js";
 import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 // ─── Helper: guarda snapshot de avatares del usuario ─────────────────────────

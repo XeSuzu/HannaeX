@@ -5,7 +5,7 @@ import {
   NewsChannel,
   DMChannel,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { Logger } from "../../../Utils/SystemLogger";
 import { PrefixCommand } from "../../../Interfaces/Command"; 
 
