@@ -63,15 +63,16 @@ export class HealthService {
     };
   }
 
-  static getDetails(): HealthSnapshot {
+  static getDetails(discordReady: boolean): HealthSnapshot {
     const memory = process.memoryUsage();
     const env = AppConfig.get();
     const redisStatus = RedisHealthService.getStatus();
     const queueStatus = QueueService.getAvailability();
     const mongoStatus = getMongoStatus();
+    const readiness = this.getReadyState(mongoStatus, discordReady);
 
     return {
-      status: "ready",
+      status: readiness.status === "ok" ? "ready" : "degraded",
       environment: env.NODE_ENV,
       uptimeSeconds: Math.floor(process.uptime()),
       nodeVersion: process.version,
@@ -93,7 +94,7 @@ export class HealthService {
         lastError: redisStatus.lastError,
       },
       worker: {
-        availability: queueStatus,
+        availability: env.WORKER_ENABLED ? queueStatus : "disabled",
         queuesActive: QueueRegistry.getActiveQueueCount(),
       },
     };

@@ -6,10 +6,12 @@ export const SHUTDOWN_GRACE_TIMEOUT_MS = 15000;
 
 export class ShutdownService {
   private static shutdownPromise: Promise<void> | null = null;
+  private static graceTimer: NodeJS.Timeout | null = null;
 
   static async shutdown(
     signalName: string,
     destroyDiscord: () => Promise<void> | void,
+    closeHealthServer: () => Promise<void> | void = () => undefined,
   ): Promise<void> {
     if (this.shutdownPromise) {
       return this.shutdownPromise;
@@ -30,6 +32,12 @@ export class ShutdownService {
         }
 
         try {
+          await closeHealthServer();
+        } catch (error) {
+          console.error("[Shutdown] Health server close failed:", error);
+        }
+
+        try {
           await RedisClientService.close();
         } catch (error) {
           console.error("[Shutdown] Redis close failed:", error);
@@ -42,20 +50,27 @@ export class ShutdownService {
         }
       };
 
-      await Promise.race([
-        shutdownSteps(),
-        new Promise((_, reject) => {
-          setTimeout(
-            () => reject(new Error("shutdown_timeout")),
-            SHUTDOWN_GRACE_TIMEOUT_MS,
-          );
-        }),
-      ]).catch((error: unknown) => {
+      try {
+        await Promise.race([
+          shutdownSteps(),
+          new Promise<never>((_, reject) => {
+            this.graceTimer = setTimeout(
+              () => reject(new Error("shutdown_timeout")),
+              SHUTDOWN_GRACE_TIMEOUT_MS,
+            );
+          }),
+        ]);
+      } catch (error: unknown) {
         console.error(
           "[Shutdown] Graceful shutdown timed out or failed:",
           error,
         );
-      });
+      } finally {
+        if (this.graceTimer) {
+          clearTimeout(this.graceTimer);
+          this.graceTimer = null;
+        }
+      }
 
       HoshikoLogger.log({
         level: LogLevel.INFO,

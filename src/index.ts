@@ -1,4 +1,5 @@
 import { AppConfig } from "./App/config/AppConfig";
+import { RedisClientService } from "./App/infrastructure/redis/RedisClient";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
 import { connectWithRetry } from "./Services/mongo";
 import { loadAntiCrash } from "./Utils/antiCrash";
@@ -12,7 +13,7 @@ AppConfig.load();
 loadAntiCrash();
 
 const client = createHoshikoClient();
-const startHealthServer = createHealthServer(() => client.isReady());
+const healthServer = createHealthServer(() => client.isReady());
 
 async function start(): Promise<void> {
   try {
@@ -28,8 +29,15 @@ async function start(): Promise<void> {
     });
 
     await connectWithRetry();
-    loadHandlers(client);
-    startHealthServer();
+    if (AppConfig.get().REDIS_ENABLED) {
+      void RedisClientService.ensureClient().catch(() => {
+        console.warn(
+          "[Redis] Optional initialization failed; the bot will continue without Redis.",
+        );
+      });
+    }
+    await loadHandlers(client);
+    healthServer.start();
     await client.login(client.config.token);
     startCronJobs(client);
   } catch (error) {
@@ -45,7 +53,7 @@ async function start(): Promise<void> {
 }
 
 void start();
-installShutdownHandlers(client);
+installShutdownHandlers(client, () => healthServer.close());
 
 export { HoshikoClient };
 export default client;

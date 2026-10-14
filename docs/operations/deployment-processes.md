@@ -8,7 +8,7 @@ Esta configuración prepara dos procesos posibles, `hoshiko-bot` y `hoshiko-work
 
 `max_memory_restart` es una red de seguridad, no una solución para fugas. Ajusta el umbral después de medir el uso normal y diagnostica cualquier crecimiento sostenido.
 
-El worker usa `dist/worker.js`, una instancia `fork`, logs propios y `WORKER_ENABLED=false` / `REDIS_ENABLED=false` en la declaración PM2. No lo arranques en el primer despliegue. `worker.ts` conecta Mongo antes de consultar `WORKER_ENABLED`; si se inicia mientras `.env.production` habilita Redis, también puede intentar conectarse a Redis. El cargador actual permite que `.env.production` sobrescriba valores de PM2, por lo que conserva ambas variables en `false` hasta que decidas iniciar el worker.
+El bot solo intenta Redis cuando `REDIS_ENABLED=true`, y lo hace en segundo plano sin esperar a que conecte; si Redis falta o cae, el arranque normal del bot continúa. El worker usa `dist/worker.js`, una instancia `fork`, logs propios y `WORKER_ENABLED=false` / `REDIS_ENABLED=false` en la declaración PM2. No lo arranques en el primer despliegue. `worker.ts` comprueba `WORKER_ENABLED` antes de importar o conectar infraestructura. Si se activa el worker, Redis es requisito para ese proceso: con Redis deshabilitado o degradado, no inicia queues y termina con código no exitoso. Las variables ya suministradas al proceso (por ejemplo, por PM2) prevalecen sobre `.env.production`; dotenv solo completa valores faltantes.
 
 `Hoshiko-Staging` se conserva para no romper el flujo de staging existente; también queda en una instancia `fork`. No ejecutes staging y producción a la vez salvo que estén configurados con aplicaciones/credenciales Discord separadas y hayas validado cron jobs y cualquier otro efecto compartido.
 

@@ -10,6 +10,7 @@ export type MongoStatus =
 
 let mongoStatus: MongoStatus = "disconnected";
 let connectPromise: Promise<void> | null = null;
+let disconnectPromise: Promise<void> | null = null;
 
 function getMongoUri(): string {
   const mongoUri = AppConfig.get().MONGO_URI;
@@ -49,6 +50,10 @@ export async function connectWithRetry(
   retries = 6,
   delayMs = 5000,
 ): Promise<void> {
+  if (disconnectPromise) {
+    await disconnectPromise;
+  }
+
   if (mongoose.connection.readyState === mongoose.STATES.connected) {
     mongoStatus = "connected";
     return;
@@ -61,7 +66,7 @@ export async function connectWithRetry(
 
   const mongoUri = getMongoUri();
 
-  connectPromise = (async () => {
+  const connectionAttempt = (async () => {
     mongoose.set("strictQuery", true);
 
     for (let attempt = 1; attempt <= retries; attempt += 1) {
@@ -90,10 +95,14 @@ export async function connectWithRetry(
       }
     }
   })();
+  connectPromise = connectionAttempt;
 
   try {
-    await connectPromise;
+    await connectionAttempt;
   } finally {
+    if (connectPromise === connectionAttempt) {
+      connectPromise = null;
+    }
     const state = mongoose.connection.readyState as number;
     if (state !== mongoose.STATES.connected) {
       mongoStatus = "degraded";
@@ -102,17 +111,40 @@ export async function connectWithRetry(
 }
 
 export async function disconnectMongo(): Promise<void> {
-  if (mongoose.connection.readyState === mongoose.STATES.disconnected) {
-    mongoStatus = "closed";
-    return;
+  if (disconnectPromise) {
+    return disconnectPromise;
   }
 
+  const pendingConnection = connectPromise;
+  const activeDisconnect = (async () => {
+    if (pendingConnection) {
+      await pendingConnection.catch(() => undefined);
+    }
+
+    if (mongoose.connection.readyState === mongoose.STATES.disconnected) {
+      mongoStatus = "closed";
+      return;
+    }
+
+    try {
+      await mongoose.disconnect();
+      mongoStatus = "closed";
+      console.log("[Mongo] Disconnected successfully.");
+    } catch (error) {
+      mongoStatus = "degraded";
+      console.error("[Mongo] Error on disconnect:", error);
+    }
+  })();
+  disconnectPromise = activeDisconnect;
+
   try {
-    await mongoose.disconnect();
-    mongoStatus = "closed";
-    console.log("[Mongo] Disconnected successfully.");
-  } catch (error) {
-    mongoStatus = "degraded";
-    console.error("[Mongo] Error on disconnect:", error);
+    await activeDisconnect;
+  } finally {
+    if (disconnectPromise === activeDisconnect) {
+      disconnectPromise = null;
+    }
+    if (connectPromise === pendingConnection) {
+      connectPromise = null;
+    }
   }
 }

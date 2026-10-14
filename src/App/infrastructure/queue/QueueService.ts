@@ -6,7 +6,7 @@ import type { QueueAvailability, QueueJob } from "./QueueTypes";
 export class QueueService {
   static async initialize(): Promise<void> {
     const env = AppConfig.get();
-    if (!env.REDIS_ENABLED || !env.REDIS_URL) {
+    if (!env.REDIS_ENABLED) {
       return;
     }
 
@@ -18,7 +18,7 @@ export class QueueService {
   static getAvailability(): QueueAvailability {
     const env = AppConfig.get();
 
-    if (!env.REDIS_ENABLED || !env.REDIS_URL) {
+    if (!env.REDIS_ENABLED) {
       return "disabled";
     }
 
