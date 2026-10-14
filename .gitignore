@@ -21,3 +21,7 @@ reports.json
 tools/
 scripts-manuales/
 .claude/
+
+# Archivos ignorados por T1.6
+Hoshiko Or Later/.obsidian/
+tsconfig.tsbuildinfo
