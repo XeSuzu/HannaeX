@@ -55,7 +55,7 @@ Objetivo: dejar la rama estable y verificable, destrabar la creación de comando
   - Aceptación: `npm test` termina con código 0 y reporta **24 pasan, 0 fallan**; sale con código distinto de 0 si un test falla.
 - [x] **T1.4 Separar `Tests/` de `tests/`.** `git mv Tests scripts-manuales` y actualizar toda referencia (`grep -rn "Tests/"`). Hoy ambos directorios están versionados y colisionan en sistemas con archivos sin distinción de mayúsculas.
   - Aceptación: no existe `Tests/`; `tests/` queda solo con `unit/` y `support/`.
-- [ ] **T1.5 Corregir documentación.**
+- [x] **T1.5 Corregir documentación.**
   - `AGENTS.md`: `npm ci` ya funciona; añadir el comando `npm test`; actualizar la sección Estructura (incluye `src/App/`, `tests/`, `scripts-manuales/`); quitar el límite sobre `Commands/` y `Events/`.
   - `docs/operations/temp-moderation-harness-todo.md`: la línea "El sistema productivo actual ya persiste vencimientos en MongoDB…" es falsa para `master`; reescribir diciendo que `TempModerationService` y el modelo son nuevos en esta rama. Corregir también "Fuera de alcance realizado" (el commit `a6d99f7` creó ambos archivos y conectó `tempban`/`tempmute`).
   - `docs/operations/deployment-processes.md`: el párrafo de Docker dice que el worker conecta a Mongo antes de comprobar `WORKER_ENABLED`; el código comprueba primero.

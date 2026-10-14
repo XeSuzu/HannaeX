@@ -10,7 +10,7 @@
 
 HannaeX/Hoshiko es un bot Discord escrito en TypeScript y Node.js, con MongoDB/Mongoose como persistencia principal.
 
-La funcionalidad existente de moderación temporal incluye `tempban` y `tempmute`. El sistema productivo actual ya persiste vencimientos en MongoDB y usa el cron existente como reconciliador. Sin embargo, la arquitectura productiva actual todavía no cuenta con un protocolo explícito y testeado de:
+La funcionalidad existente de moderación temporal incluye `tempban` y `tempmute`. El servicio TempModerationService y el modelo TempModeration son nuevos en esta rama y persisten vencimientos en MongoDB usando el cron existente como reconciliador. Sin embargo, la arquitectura productiva actual todavía no cuenta con un protocolo explícito y testeado de:
 
 ```text
 claim atómico
@@ -376,7 +376,7 @@ Reglas operativas:
 
 ## Fuera de alcance realizado
 
-- [x] No se modificaron Commands, Events, cron existente, `TempModerationService`, modelo `TempModeration` ni conexión Mongo productiva.
+- [x] Se integraron Commands y Events con `TempModerationService` y el modelo `TempModeration` (commit a6d99f7).
 - [x] No se integró el adaptador con producción ni se inició un servicio.
 - [x] No se añadieron dependencias, scripts npm, queues, processors Discord, timers de negocio, Redis, BullMQ o workers.
 - [x] No se leyó `.env`, no se contactó Atlas y no se hizo commit.

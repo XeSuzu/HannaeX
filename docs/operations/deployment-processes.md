@@ -51,4 +51,4 @@ docker run --name hoshiko-worker --env-file /ruta/protegida/production.env \
   hoshiko:release node dist/worker.js
 ```
 
-No crees ni inicies el contenedor worker en el primer despliegue. Si más adelante lo inicias en modo disabled/idle, recuerda que el entry point conecta Mongo antes de comprobar `WORKER_ENABLED`. No se añade Compose: en este despliegue no aporta valor operativo inmediato ni sustituye los servicios gestionados de producción.
+No crees ni inicies el contenedor worker en el primer despliegue. Si más adelante lo inicias en modo disabled/idle, recuerda que el entry point comprueba `WORKER_ENABLED` antes de conectar Mongo. No se añade Compose: en este despliegue no aporta valor operativo inmediato ni sustituye los servicios gestionados de producción.
