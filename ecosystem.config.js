@@ -40,7 +40,7 @@ module.exports = {
       exec_mode: "fork",
       instances: 1,
       watch: false,
-      autorestart: true,
+      autorestart: false,
       out_file: "/root/.pm2/logs/hoshiko-worker-out.log",
       error_file: "/root/.pm2/logs/hoshiko-worker-error.log",
       // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
