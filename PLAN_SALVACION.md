@@ -74,7 +74,7 @@ Objetivo: dejar la rama estable y verificable, destrabar la creación de comando
 
 ## Fase 2 — Caché en RAM (sin Redis)
 
-- [ ] **T2.1 `getLite` usa el caché.** En `src/Database/SettingsManager.ts`, que `getLite` lea de `CacheManager` (`src/Database/CacheManager.ts`, TTL de 5 minutos) en vez de ir a Mongo cada vez. Antes, verificar qué devuelve `CacheManager.get` (¿documento Mongoose o `lean`?): los consumidores de `getLite` (`messageCreate` e `interactionCreate`) esperan un objeto plano con los campos pedidos.
+- [x] **T2.1 `getLite` usa el caché.** En `src/Database/SettingsManager.ts`, que `getLite` lea de `CacheManager` (`src/Database/CacheManager.ts`, TTL de 5 minutos) en vez de ir a Mongo cada vez. Antes, verificar qué devuelve `CacheManager.get` (¿documento Mongoose o `lean`?): los consumidores de `getLite` (`messageCreate` e `interactionCreate`) esperan un objeto plano con los campos pedidos.
   - Buscar con `grep` escrituras a `ServerConfig` que no pasen por `SettingsManager`/`CacheManager`; enrutarlas por la invalidación o reportarlas.
   - Aceptación: mismo formato de retorno para los consumidores; después de `updateSettings`, la siguiente lectura ve el cambio.
 - [ ] **T2.2 Caché de `LevelConfig`.** En `src/Features/leveling/textXp.ts`, leer `LevelConfig` con `.lean()` a través de un `LRUCache` (`lru-cache` ya es dependencia) con TTL corto (propuesto: 60 s). Invalidar la entrada en **cada** sitio que escribe `LevelConfig` (`grep -rn "LevelConfig" src`; los flujos de `src/Commands/SlashCmds/Levels/setup-levels/` y `level-roles.ts` son candidatos, verificar).

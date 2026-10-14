@@ -1,3 +1,4 @@
+import { CacheManager } from "../../../Database/CacheManager";
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
 // 👇 1. Importamos el Logger nuevo
@@ -50,6 +51,7 @@ const command: SlashCommand = {
         {}, // No cambiamos nada todavía, solo buscamos/creamos
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      CacheManager.flush(targetGuildId);
 
       if (days > 0) {
         // === SUMAR DÍAS ===

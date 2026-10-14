@@ -1,3 +1,4 @@
+import { CacheManager } from "../../../Database/CacheManager";
 import { Message, PermissionFlagsBits } from "discord.js";
 import ServerConfig from "../../../Models/serverConfig";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
@@ -37,6 +38,7 @@ const command: PrefixCommand = {
         { prefix: newPrefix },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      CacheManager.flush(message.guild.id);
 
       await message.reply(
         `✅ **¡Listo!** Prefijo actualizado a: \`${newPrefix}\`\n> Ahora usa: \`${newPrefix}ping\``,

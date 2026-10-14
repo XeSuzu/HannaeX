@@ -1,3 +1,4 @@
+import { CacheManager } from "../Database/CacheManager";
 import { Message } from "discord.js";
 import ServerConfig from "../Models/serverConfig";
 
@@ -58,6 +59,7 @@ export async function handleCulture(message: Message) {
         } as any,
       },
     );
+    CacheManager.flush(message.guildId!);
   } catch (err) {
     // Ignoramos errores de colisión menores para no detener el bot
     console.error("⚠️ Error menor en aprendizaje (ignorable):", err);

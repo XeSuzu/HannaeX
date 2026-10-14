@@ -1,3 +1,4 @@
+import { CacheManager } from "../../../Database/CacheManager";
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
@@ -42,6 +43,7 @@ const command: SlashCommand = {
         { prefix: newPrefix },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      CacheManager.flush(interaction.guildId!);
 
       // Confirmación
       await interaction.editReply({

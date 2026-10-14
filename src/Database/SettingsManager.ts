@@ -22,15 +22,9 @@ export class SettingsManager {
     guildId: string,
     fields: string,
   ): Promise<Partial<IServerConfig> | null> {
-    // 1. Consulta a Mongo optimizada
-    const result = await ServerConfig.findOne({ guildId })
-      .select(fields)
-      .lean();
-
-    // 👇 AQUÍ ESTÁ EL ARREGLO
-    // Usamos 'as any' para decirle a TypeScript:
-    // "Confía en mí, trata este objeto simple como si fuera la configuración completa"
-    return result as any;
+    const config = await CacheManager.get(guildId);
+    if (!config) return null;
+    return (typeof (config as any).toObject === 'function' ? (config as any).toObject() : config) as any;
   }
 
   /**
