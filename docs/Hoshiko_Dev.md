@@ -170,7 +170,7 @@ src/
 ├── Security/
 ├── Utils/
 ├── scripts/
-├── Tests/
+├── scripts-manuales/
 └── assets/
 ```
 

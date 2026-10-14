@@ -53,7 +53,7 @@ Objetivo: dejar la rama estable y verificable, destrabar la creación de comando
   - Referencia que funciona: `npx tsc --outDir <tmp> --rootDir . --module commonjs --target es2022 --moduleResolution node --esModuleInterop --skipLibCheck --strict <archivos>`.
   - Nota: `node --test tests/unit` (pasando el directorio) falla; pasar los archivos.
   - Aceptación: `npm test` termina con código 0 y reporta **24 pasan, 0 fallan**; sale con código distinto de 0 si un test falla.
-- [ ] **T1.4 Separar `Tests/` de `tests/`.** `git mv Tests scripts-manuales` y actualizar toda referencia (`grep -rn "Tests/"`). Hoy ambos directorios están versionados y colisionan en sistemas con archivos sin distinción de mayúsculas.
+- [x] **T1.4 Separar `Tests/` de `tests/`.** `git mv Tests scripts-manuales` y actualizar toda referencia (`grep -rn "Tests/"`). Hoy ambos directorios están versionados y colisionan en sistemas con archivos sin distinción de mayúsculas.
   - Aceptación: no existe `Tests/`; `tests/` queda solo con `unit/` y `support/`.
 - [ ] **T1.5 Corregir documentación.**
   - `AGENTS.md`: `npm ci` ya funciona; añadir el comando `npm test`; actualizar la sección Estructura (incluye `src/App/`, `tests/`, `scripts-manuales/`); quitar el límite sobre `Commands/` y `Events/`.

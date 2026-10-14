@@ -108,7 +108,7 @@ Cron encuentra candidatos potencialmente vencidos
 ### Hecho
 
 - [x] Se eligió `node:test`, sin añadir dependencias ni script npm.
-- [x] Se separó `tests/` en minúsculas; la carpeta manual `Tests/` se mantuvo intacta.
+- [x] Se separó `tests/` en minúsculas; la carpeta manual `scripts-manuales/` se mantuvo intacta.
 - [x] Se definieron contratos sin imports de Mongoose, Discord, Redis o BullMQ en `src/Services/temp-moderation/contracts/index.ts`.
 - [x] Se creó `src/Services/temp-moderation/TempModerationProcessor.ts` como harness aislado, sin callers de producción ni side effects al importar.
 - [x] Se añadieron `InMemoryTempModerationRepository`, `FakeModerationGateway`, `FakeClock` y `FakeModerationLogger` en `tests/support/`.
@@ -243,7 +243,7 @@ Cron encuentra candidatos potencialmente vencidos
 - [ ] Ejecutar pruebas de integración únicamente contra la instancia Mongo local aprobada.
 - [ ] Typecheck/build conforme a `AGENTS.md` cuando una fase de integración esté aprobada; `npm run build` limpia y regenera `dist`.
 - [ ] Revisar diff y alcance antes de cada commit; separar cambios de schema, gateway y cron en commits distintos.
-- [ ] No ejecutar scripts manuales bajo `Tests/` como tests del procesador.
+- [ ] No ejecutar scripts manuales bajo `scripts-manuales/` como tests del procesador.
 - [ ] Revisar que el bundle compilado no introduzca imports accidentales de Redis, BullMQ o clientes no autorizados.
 - [ ] Verificar con tests de reinicio que los vencimientos pendientes siguen reclamables después de reiniciar el proceso.
 - [ ] Ejecutar una revisión de seguridad de logs antes de habilitar el processor productivo.

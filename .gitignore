@@ -14,10 +14,10 @@ config.json
 /dist
 .env*
 logs/
-src/Tests/
+src/scripts-manuales/
 
 # Archivos locales
 reports.json
 tools/
-Tests/
+scripts-manuales/
 .claude/

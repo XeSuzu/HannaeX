@@ -4,7 +4,7 @@
 - Instalar: TODO: preguntar. `npm ci` falla porque `package.json` y `package-lock.json` discrepan sobre PM2 y dependencias transitivas.
 - Dev: `npm run dev` ejecuta `src/index.ts` con `nodemon` y `ts-node`; inicia el bot. No lo uses para verificaciones aisladas.
 - Build: `npm run build` (verificado; limpia y regenera `dist/`).
-- Test: no hay script `test` ni runner configurado. `Tests/` contiene scripts independientes; inspecciónalos antes de ejecutarlos.
+- Test: no hay script `test` ni runner configurado. `scripts-manuales/` contiene scripts independientes; inspecciónalos antes de ejecutarlos.
 - Test de archivo: TODO: preguntar qué convención de pruebas aisladas adoptar; no existe comando por archivo.
 - Typecheck: `npx tsc --noEmit` (verificado).
 - Lint: no hay script ni configuración de lint.
@@ -16,7 +16,7 @@
 - `src/http/`: servidor de salud.
 - `src/lifecycle/`: apagado ordenado.
 - `src/workers/`: entradas para worker threads.
-- `Tests/`: scripts manuales; no asumir que son pruebas aisladas o seguras.
+- `scripts-manuales/`: scripts manuales; no asumir que son pruebas aisladas o seguras.
 
 ## Convenciones
 - Mantén `index.ts`, handlers y eventos como coordinadores; ubica la implementación en módulos con responsabilidades acotadas.
