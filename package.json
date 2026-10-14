@@ -29,7 +29,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@napi-rs/canvas": "^0.1.90",
-    "axios": "^1.12.2",
+    "axios": "^1.20.0",
     "bullmq": "^6.3.12",
     "discord.js": "^14.25.1",
     "dotenv": "^16.4.5",
