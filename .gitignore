@@ -20,3 +20,4 @@ src/Tests/
 reports.json
 tools/
 Tests/
+.claude/
