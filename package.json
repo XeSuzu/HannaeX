@@ -4,6 +4,7 @@
   "description": "Bot de Discord",
   "main": "dist/index.js",
   "scripts": {
+    "test": "bash scripts/test.sh",
     "clean": "rimraf dist",
     "build": "npm run clean && tsc",
     "copy:assets": "copyfiles -u 1 \"src/**/*.{json,sql,env,txt,md,png,jpg,jpeg,webp,svg,ico}\" dist",
