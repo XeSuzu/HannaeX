@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../../Database/LevelConfigCache";
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
 import type { ILevelConfig } from "../../../../Models/LevelConfig";
 import LevelConfig from "../../../../Models/LevelConfig";
@@ -15,6 +16,7 @@ export async function handleChannels(
       { announceChannelId: channel.id },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0x51cf66)
@@ -32,6 +34,7 @@ export async function handleChannels(
       { announceChannelId: null },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xff6b6b)
@@ -53,6 +56,7 @@ export async function handleChannels(
         { guildId },
         { $pull: { ignoredChannels: channel.id } },
       );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
       const embed = new EmbedBuilder()
         .setColor(0x51cf66)
@@ -70,6 +74,7 @@ export async function handleChannels(
         { $addToSet: { ignoredChannels: channel.id } },
         { upsert: true },
       );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
       const embed = new EmbedBuilder()
         .setColor(0xffb7c5)
@@ -92,6 +97,7 @@ export async function handleChannels(
         { guildId },
         { $pull: { ignoredRoles: role.id } },
       );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
       const embed = new EmbedBuilder()
         .setColor(0x51cf66)
@@ -107,6 +113,7 @@ export async function handleChannels(
         { $addToSet: { ignoredRoles: role.id } },
         { upsert: true },
       );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
       const embed = new EmbedBuilder()
         .setColor(0xffb7c5)

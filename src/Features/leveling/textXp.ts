@@ -1,5 +1,6 @@
 import { EmbedBuilder, GuildMember, Message, TextChannel } from "discord.js";
 import LevelConfig from "../../Models/LevelConfig";
+import { LevelConfigCache } from "../../Database/LevelConfigCache";
 import LocalLevel from "../../Models/LocalLevels";
 import { handleGlobalXp } from "./globalTextXp";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
@@ -7,7 +8,7 @@ import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
 export async function handleLevelXp(message: Message): Promise<void> {
   if (!message.guild || message.author.bot) return;
 
-  const config = await LevelConfig.findOne({ guildId: message.guild.id });
+  const config = await LevelConfigCache.getLite(message.guild.id);
   if (!config?.enabled) return;
   if (config?.ignoreBots && message.author.bot) return;
   if (config?.ignoredChannels.includes(message.channelId)) return;

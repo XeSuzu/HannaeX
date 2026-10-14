@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../../Database/LevelConfigCache";
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
 import LevelConfig from "../../../../Models/LevelConfig";
 
@@ -13,6 +14,7 @@ export async function handleMessageXp(
       { xpPerMessage: cantidad },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -31,6 +33,7 @@ export async function handleMessageXp(
       { xpCooldown: segundos },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -51,6 +54,7 @@ export async function handleMessageXp(
       { xpMinLength: caracteres },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -71,6 +75,7 @@ export async function handleMessageXp(
       { xpMultiplier: valor },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -92,6 +97,7 @@ export async function handleMessageXp(
       { xpMentionBonus: xp, xpMentionMaxBonus: xp * 5 },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)

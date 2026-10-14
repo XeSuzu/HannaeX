@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../../Database/LevelConfigCache";
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
 import LevelConfig from "../../../../Models/LevelConfig";
 
@@ -13,6 +14,7 @@ export async function handleVoiceXp(
       { xpVoiceEnabled: activo },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(activo ? 0x51cf66 : 0xff6b6b)
@@ -37,6 +39,7 @@ export async function handleVoiceXp(
       { xpPerMinuteVoice: cantidad },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
@@ -55,6 +58,7 @@ export async function handleVoiceXp(
       { xpVoiceMinMinutes: minutos },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)

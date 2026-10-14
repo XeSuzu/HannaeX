@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../Database/LevelConfigCache";
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -77,6 +78,7 @@ export default {
 
     let config = await LevelConfig.findOne({ guildId });
     if (!config) config = await LevelConfig.create({ guildId });
+    LevelConfigCache.invalidate(guildId);
 
     // ==================== ADD ====================
     if (sub === "add") {

@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../../Database/LevelConfigCache";
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
 import LevelConfig from "../../../../Models/LevelConfig";
 
@@ -13,6 +14,7 @@ export async function handleSystem(
       { enabled: activo },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(activo ? 0x51cf66 : 0xff6b6b)
@@ -38,6 +40,7 @@ export async function handleSystem(
       { announceMode: modo },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const modosTexto: Record<string, string> = {
       all: "todos los niveles",
@@ -62,6 +65,7 @@ export async function handleSystem(
       { announceDM: activo },
       { upsert: true },
     );
+    LevelConfigCache.invalidate(interaction.guildId!);
 
     const embed = new EmbedBuilder()
       .setColor(activo ? 0x51cf66 : 0xff6b6b)

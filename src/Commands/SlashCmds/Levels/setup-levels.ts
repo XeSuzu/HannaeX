@@ -1,3 +1,4 @@
+import { LevelConfigCache } from "../../../Database/LevelConfigCache";
 import {
   ChannelType,
   ChatInputCommandInteraction,
@@ -244,6 +245,7 @@ export default {
 
     let config = await LevelConfig.findOne({ guildId });
     if (!config) config = await LevelConfig.create({ guildId });
+    LevelConfigCache.invalidate(guildId);
 
     if (sub === "view") return handleView(interaction, sub, config);
     if (subcommandGroup === "sistema") {
