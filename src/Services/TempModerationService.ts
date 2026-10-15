@@ -1,11 +1,15 @@
 import cron from "node-cron";
 import type { HoshikoClient } from "../client/HoshikoClient";
 import TempModeration, {
-  FailureCode,
   ITempModeration,
   TempModerationType,
 } from "../Models/TempModeration";
 import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
+import {
+  UNKNOWN_BAN_CODE,
+  UNKNOWN_MEMBER_CODE,
+  calculateNextTransition,
+} from "./TempModerationTransition";
 
 interface ScheduleTempModerationInput {
   guildId: string;
@@ -17,11 +21,6 @@ interface ScheduleTempModerationInput {
   roleId?: string;
   duration: string;
 }
-
-const UNKNOWN_BAN_CODE = 10026;
-const UNKNOWN_MEMBER_CODE = 10007;
-const MAX_ATTEMPTS = 5;
-const BACKOFF_DELAYS_MS = [30000, 60000, 120000, 300000];
 
 function hasDiscordCode(error: unknown, code: number): boolean {
   if (!error || typeof error !== "object") return false;
@@ -35,16 +34,6 @@ function hasDiscordCode(error: unknown, code: number): boolean {
   );
 }
 
-function getFailureCode(error: any): FailureCode {
-  const code = Number(error?.code || error?.rawError?.code);
-  if (code === 50013) return "MissingPermissions";
-  if (code === 10004) return "UnknownGuild";
-  if (code === 10011) return "UnknownRole";
-  if (error?.status === 429) return "RateLimited";
-  if (code === UNKNOWN_MEMBER_CODE) return "UnknownUser";
-  return "Other";
-}
-
 export class TempModerationService {
   private static isProcessing = false;
 
@@ -52,9 +41,13 @@ export class TempModerationService {
     input: ScheduleTempModerationInput,
   ): Promise<ITempModeration> {
     const { guildId, userId, tipo } = input;
+    // T4.2: Limpiar errores pasados si se actualiza el castigo
     const record = await TempModeration.findOneAndUpdate(
       { guildId, userId, tipo },
-      { $set: input },
+      {
+        $set: { ...input, attempts: 0, status: "pending" },
+        $unset: { nextAttemptAt: 1, failureCode: 1 },
+      },
       {
         upsert: true,
         new: true,
@@ -90,15 +83,16 @@ export class TempModerationService {
         try {
           await this.processRecord(client, record, now);
         } catch (error) {
-          record.attempts = (record.attempts || 0) + 1;
-
-          if (record.attempts >= MAX_ATTEMPTS) {
-            record.status = "permanentFailure";
-            record.failureCode = getFailureCode(error);
-          } else {
-            const backoff = BACKOFF_DELAYS_MS[record.attempts - 1] || 300000;
-            record.nextAttemptAt = new Date(Date.now() + backoff);
-          }
+          const transition = calculateNextTransition(
+            record.attempts || 0,
+            error,
+          );
+          record.attempts = transition.attempts;
+          record.status = transition.status;
+          if (transition.failureCode)
+            record.failureCode = transition.failureCode;
+          if (transition.nextAttemptAt)
+            record.nextAttemptAt = transition.nextAttemptAt;
           await record.save();
         }
       }

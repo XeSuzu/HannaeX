@@ -115,8 +115,8 @@ Prerrequisitos: T0.3 hecho (respaldo). Probar en el servidor de pruebas antes de
   - Éxito: se mantiene el comportamiento actual (borrar el registro).
   - `schedule` (upsert) debe reiniciar `attempts`, `status` y `nextAttemptAt` al reprogramar.
   - Aceptación: un registro que falla no bloquea a los demás; tras 5 fallos deja de ser candidato y se conserva para revisión; `tempban`/`tempmute` no cambian de cara al usuario.
-- [ ] **T4.3 Pruebas.** Extraer el cálculo de transición (intentos, backoff, permanente) a una función pura y cubrirla en `tests/unit/` (sin Mongo ni Discord). Entra en `npm test`.
-- [ ] **T4.4 [DECISIÓN de Amy] Harness aislado.** Con T4.2 resuelto, `src/Services/temp-moderation/` y su doc quedan sin uso. Opciones: dejarlo intacto sin conectar, o borrarlo (queda en el historial de git). Si se conserva, quitar el escalón `600_000` de `MODERATION_RETRY_BACKOFF_MS` en `contracts/index.ts` (con 5 intentos nunca se usa) y ajustar los tests.
+- [x] **T4.3 Pruebas.** Extraer el cálculo de transición (intentos, backoff, permanente) a una función pura y cubrirla en `tests/unit/` (sin Mongo ni Discord). Entra en `npm test`.
+- [x] **T4.4 [DECISIÓN de Amy] Harness aislado.** Con T4.2 resuelto, `src/Services/temp-moderation/` y su doc quedan sin uso. Opciones: dejarlo intacto sin conectar, o borrarlo (queda en el historial de git). Si se conserva, quitar el escalón `600_000` de `MODERATION_RETRY_BACKOFF_MS` en `contracts/index.ts` (con 5 intentos nunca se usa) y ajustar los tests.
 
 ### Checkpoint
 - [ ] Gates en verde.
