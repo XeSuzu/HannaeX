@@ -132,7 +132,7 @@ Cada archivo: sin cambio de comportamiento, divido por responsabilidad, el origi
 - [x] **T5.2** `src/Events/Client/voiceStateUpdate.ts` (322).
 - [x] **T5.3** `src/Utils/SystemLogger.ts` (561).
 - [x] **T5.4** `src/Commands/SlashCmds/Love/shipRenderer.ts` (652): los splits anteriores solo movieron código; dividir por trabajo real.
-- [ ] **T5.5 en adelante**, de mayor a menor: `Fun/help.ts` (493), `Information/activity.ts` (381), `Information/serverinfo.ts` (374), `Information/avatars.ts` (369), `Moderation/setup.ts` (365), `Canvas/post-instagram.ts` (358), `Information/users.ts` (341), `Fun/Racha/racha.ts` (334).
+- [x] **T5.5 en adelante**, de mayor a menor: `Fun/help.ts` (493), `Information/activity.ts` (381), `Information/serverinfo.ts` (374), `Information/avatars.ts` (369), `Moderation/setup.ts` (365), `Canvas/post-instagram.ts` (358), `Information/users.ts` (341), `Fun/Racha/racha.ts` (334).
 
 ### Checkpoint
 - [ ] Gates en verde y revisión de Amy tras cada 2-3 archivos.

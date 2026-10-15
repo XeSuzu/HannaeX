@@ -10,6 +10,7 @@ import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Information",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("sugerencia")
     .setDescription("💡 Envía una sugerencia para mejorar el bot, nyaa!"),
