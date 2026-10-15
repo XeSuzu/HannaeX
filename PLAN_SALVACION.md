@@ -128,7 +128,7 @@ Prerrequisitos: T0.3 hecho (respaldo). Probar en el servidor de pruebas antes de
 
 Cada archivo: sin cambio de comportamiento, divido por responsabilidad, el original queda como coordinador delgado.
 
-- [ ] **T5.1** `src/Events/Client/interactionCreate.ts` (624 líneas): separar por tipo de interacción (autocompletado, comandos, botones, menús, modales) y dejar el evento como coordinador.
+- [x] **T5.1** `src/Events/Client/interactionCreate.ts` (624 líneas): separar por tipo de interacción (autocompletado, comandos, botones, menús, modales) y dejar el evento como coordinador.
 - [ ] **T5.2** `src/Events/Client/voiceStateUpdate.ts` (322).
 - [ ] **T5.3** `src/Utils/SystemLogger.ts` (561).
 - [ ] **T5.4** `src/Commands/SlashCmds/Love/shipRenderer.ts` (652): los splits anteriores solo movieron código; dividir por trabajo real.
