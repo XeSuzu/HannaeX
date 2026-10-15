@@ -10,6 +10,7 @@ export function installShutdownHandlers(
   };
 
   process.on("SIGTERM", () => {
+    setTimeout(() => { console.log('[KillSwitch] Forzando cierre tras 5s.'); process.exit(0); }, 5000);
     void ShutdownService.shutdown(
       "SIGTERM",
       destroyDiscord,
@@ -18,6 +19,7 @@ export function installShutdownHandlers(
   });
 
   process.on("SIGINT", () => {
+    setTimeout(() => { console.log('[KillSwitch] Forzando cierre tras 5s.'); process.exit(0); }, 5000);
     void ShutdownService.shutdown(
       "SIGINT",
       destroyDiscord,

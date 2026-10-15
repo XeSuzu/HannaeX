@@ -114,30 +114,7 @@ const event: EventFile<Events.InteractionCreate> = {
 
       const cmdName = cmd.data.name;
 
-      // 🌟 Comandos que abren modales — NO se deferirán
-      const commandsWithModals = ["sugerencia", "report", "racha"];
-      const opensModal = commandsWithModals.includes(cmdName);
-
-      const isEphemeral = Boolean(
-        (cmd as any).options?.ephemeral ||
-        (cmd as any).options?.adminOnly ||
-        (cmd as any).ephemeral ||
-        (cmd as any).adminOnly
-      );
-
-      // 🔥 DEFER centralizado (solo si NO abre modal)
-      if (!opensModal) {
-        try {
-          await interaction.deferReply({
-            flags: isEphemeral ? MessageFlags.Ephemeral : undefined,
-          });
-        } catch (err) {
-          console.error(`❌ [${cmdName}] Defer fallido:`, err);
-          return;
-        }
-      }
-
-      // 🕐 COOLDOWN
+      // 🕐 COOLDOWN (Movido antes del defer para T3.1)
       const { cooldowns } = client;
       if (!cooldowns.has(cmdName)) cooldowns.set(cmdName, new Collection());
 
@@ -152,15 +129,34 @@ const event: EventFile<Events.InteractionCreate> = {
         if (now < expirationTime) {
           const timeLeft = (expirationTime - now) / 1000;
           const text = `⏳ ¡Hey, más despacio, cerebrito! Espera \`${timeLeft.toFixed(1)}\` segunditos antes de usarme otra vez, nyaa~.`;
-          if (interaction.deferred) {
-            await interaction.editReply({ content: text }).catch(() => {});
-          } else {
-            await interaction.reply({ content: text, flags: MessageFlags.Ephemeral }).catch(() => {});
-          }
+          // Al estar antes del defer, respondemos directamente de forma efímera
+          await interaction.reply({ content: text, flags: MessageFlags.Ephemeral }).catch(() => {});
           return;
         }
       }
 
+      // Evaluamos propiedades del comando (T3.2)
+      const explicitNoDefer = cmd.defer === false || (cmd.options && cmd.options.defer === false);
+      const isEphemeral = Boolean(
+        (cmd as any).options?.ephemeral ||
+        (cmd as any).options?.adminOnly ||
+        (cmd as any).ephemeral ||
+        (cmd as any).adminOnly
+      );
+
+      // 🔥 DEFER centralizado
+      if (!explicitNoDefer) {
+        try {
+          await interaction.deferReply({
+            flags: isEphemeral ? MessageFlags.Ephemeral : undefined,
+          });
+        } catch (err) {
+          console.error(`❌ [${cmdName}] Defer fallido:`, err);
+          return;
+        }
+      }
+
+      // Validado el cooldown y el defer, registramos el timestamp
       timestamps.set(interaction.user.id, now);
       setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 

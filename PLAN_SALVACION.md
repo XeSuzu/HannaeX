@@ -88,17 +88,17 @@ Objetivo: dejar la rama estable y verificable, destrabar la creación de comando
 
 ## Fase 3 — Router de interacciones
 
-- [ ] **T3.1 Defer por propiedad y cooldown antes del defer.** En `src/Events/Client/interactionCreate.ts`:
+- [x] **T3.1 Defer por propiedad y cooldown antes del defer.** En `src/Events/Client/interactionCreate.ts`:
   - Si `cmd.defer === false` (o `cmd.options?.defer === false`), no diferir. Añadir la propiedad opcional a la interfaz en `src/Interfaces/Command.ts`. Mantener la lista fija como respaldo mientras se migra.
   - Mover la comprobación de cooldown **antes** de `deferReply`; al disparar, responder con `reply` efímero (hoy el mensaje se edita sobre un defer público y lo ve todo el canal).
   - Mantener el `InteractionLock` donde está (protege contra procesos duplicados).
   - Aceptación: `timestamps.set` solo ocurre si el comando procede; el resto del flujo no cambia.
-- [ ] **T3.2 Migrar y borrar la lista.** Añadir `defer: false` a los comandos `sugerencia`, `report` y `racha` (localizarlos por `setName`), y borrar el array `commandsWithModals`.
+- [x] **T3.2 Migrar y borrar la lista.** Añadir `defer: false` a los comandos `sugerencia`, `report` y `racha` (localizarlos por `setName`), y borrar el array `commandsWithModals`.
   - Aceptación: `grep -rn commandsWithModals src` no devuelve nada.
   - **[HUMANO]** En el bot de pruebas: abrir los tres modales y provocar un cooldown en un comando público (el aviso debe ser efímero).
 
 ### Checkpoint B — listo para crear comandos nuevos
-- [ ] Gates en verde y pruebas manuales de T3.2 hechas.
+- [x] Gates en verde y pruebas manuales de T3.2 hechas.
 - [ ] A partir de aquí se pueden crear comandos nuevos en paralelo con las fases siguientes. Un comando que toque `tempban` o `tempmute` espera a la Fase 4. Un comando con modal declara `defer: false` en su propio archivo.
 
 ---

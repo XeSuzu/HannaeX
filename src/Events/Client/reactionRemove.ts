@@ -1,6 +1,6 @@
 import { Events, MessageReaction, PartialUser, User } from "discord.js";
 
-export = {
+export default {
   // Usamos el enum 'Events' para mayor seguridad y claridad
   name: Events.MessageReactionRemove,
 
