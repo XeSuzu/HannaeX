@@ -107,8 +107,8 @@ Objetivo: dejar la rama estable y verificable, destrabar la creación de comando
 
 Prerrequisitos: T0.3 hecho (respaldo). Probar en el servidor de pruebas antes de producción.
 
-- [ ] **T4.1 Campos en el modelo.** En `src/Models/TempModeration.ts` añadir `attempts` (número, default 0), `nextAttemptAt` (fecha, opcional), `status` (`pending` | `permanentFailure`, default `pending`) y `failureCode` (string de una lista cerrada). **Pedir confirmación antes** (cambio de esquema). Los registros sin los campos nuevos se tratan como `pending` con 0 intentos.
-- [ ] **T4.2 Reintentos con tope.** En `src/Services/TempModerationService.ts`:
+- [x] **T4.1 Campos en el modelo.** En `src/Models/TempModeration.ts` añadir `attempts` (número, default 0), `nextAttemptAt` (fecha, opcional), `status` (`pending` | `permanentFailure`, default `pending`) y `failureCode` (string de una lista cerrada). **Pedir confirmación antes** (cambio de esquema). Los registros sin los campos nuevos se tratan como `pending` con 0 intentos.
+- [x] **T4.2 Reintentos con tope.** En `src/Services/TempModerationService.ts`:
   - Constantes: máximo 5 intentos; backoff 30 s, 60 s, 120 s, 300 s.
   - Consulta de candidatos: `status` pendiente (o ausente), `expiresAt <= now` y `nextAttemptAt` ausente o `<= now`; orden `expiresAt` ascendente; límite 100.
   - Error transitorio: incrementar `attempts`; si llega a 5, `status = permanentFailure` y `failureCode`; si no, `nextAttemptAt = now + backoff`. Nunca persistir `error.message`, stack ni contenido de Discord.
