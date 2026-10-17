@@ -6,9 +6,9 @@ import {
   SlashCommandBuilder,
   StringSelectMenuInteraction,
 } from "discord.js";
-import { IAConfigManager } from "../../../Database/IAConfigManager";
-import { PremiumManager } from "../../../Database/PremiumManager";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { IAConfigManager } from "../../../Database/ai/IAConfigManager";
+import { PremiumManager } from "../../../Database/guild/PremiumManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { handleSnipeToggle } from "./setupUtils/snipe";
 import { generateSetupUI, SetupMenus } from "./setupUtils/ui";

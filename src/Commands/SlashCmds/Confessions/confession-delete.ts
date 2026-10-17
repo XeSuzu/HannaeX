@@ -5,8 +5,8 @@ import {
   TextChannel,
   EmbedBuilder,
 } from "discord.js";
-import Confession from "../../../Models/Confession";
-import ServerConfig from "../../../Models/serverConfig";
+import Confession from "../../../Database/community/confession.model";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

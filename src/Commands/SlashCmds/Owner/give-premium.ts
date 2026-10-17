@@ -1,6 +1,6 @@
-import { CacheManager } from "../../../Database/CacheManager";
+import { CacheManager } from "../../../Database/guild/CacheManager";
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import ServerConfig from "../../../Models/serverConfig";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 // 👇 1. Importamos el Logger nuevo
 import { Logger } from "../../../Utils/SystemLogger";
 import { SlashCommand } from "../../../Interfaces/Command";

@@ -1,4 +1,4 @@
-import { LevelConfigCache } from "../../../Database/LevelConfigCache";
+import { LevelConfigCache } from "../../../Database/leveling/LevelConfigCache";
 import {
   ChannelType,
   ChatInputCommandInteraction,
@@ -6,7 +6,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import LevelConfig from "../../../Models/LevelConfig";
+import LevelConfig from "../../../Database/leveling/levelConfig.model";
 import { handleView } from "./setup-levels/viewFlow";
 import { handleSystem } from "./setup-levels/systemFlow";
 import { handleMessageXp } from "./setup-levels/messageXpFlow";

@@ -1,5 +1,5 @@
 import { EmbedBuilder } from "discord.js";
-import { getAchievement, GLOBAL_TIERS } from "../../Models/GlobalLevel";
+import { getAchievement, GLOBAL_TIERS } from "../../Database/leveling/globalLevel.model";
 
 export async function announceAchievements(
   user: any,

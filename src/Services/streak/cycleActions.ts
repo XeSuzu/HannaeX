@@ -1,7 +1,6 @@
 import { ClientSession } from "mongoose";
-import { StreakGroup, IStreakGroup, StreakTier } from "../../Models/StreakGroup";
-import { StreakMember } from "../../Models/StreakMember";
-import { Counter } from "../../Models/Counter";
+import { StreakGroup, IStreakGroup, StreakTier } from "../../Database/streaks/streakGroup.model";
+import { StreakMember, Counter } from "../../Database/streaks/streakMember.model";
 import { getStreakTier, isCyclePunctual, getCurrentCycleIndex, meetsHofRequirements } from "../../Utils/streakTier";
 import { withTransaction } from "./transactions";
 

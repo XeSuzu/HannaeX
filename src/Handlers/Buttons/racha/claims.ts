@@ -6,8 +6,8 @@ import {
   StringSelectMenuInteraction,
   StringSelectMenuOptionBuilder,
 } from "discord.js";
-import { IStreakGroup, StreakGroup } from "../../../Models/StreakGroup";
-import { IStreakMember, StreakMember } from "../../../Models/StreakMember";
+import { IStreakGroup, StreakGroup } from "../../../Database/streaks/streakGroup.model";
+import { IStreakMember, StreakMember } from "../../../Database/streaks/streakMember.model";
 import { claimStreak } from "../../../Services/StreakService";
 import type { HoshikoClient } from "../../..";
 import { getTierEmoji } from "./views";

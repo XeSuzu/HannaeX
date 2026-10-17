@@ -1,5 +1,5 @@
 import { VoiceState } from "discord.js";
-import ActiveVoiceSession from "../../../../Models/ActiveVoiceSession";
+import ActiveVoiceSession from "../../../../Database/leveling/activeVoiceSession.model";
 
 export function sessionKey(userId: string, guildId: string): string {
   return `${userId}:${guildId}`;

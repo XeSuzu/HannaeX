@@ -5,8 +5,8 @@ import {
   User,
   WebhookClient,
 } from "discord.js";
-import { SettingsManager } from "../../Database/SettingsManager";
-import { ILogChannels, IServerConfig } from "../../Models/serverConfig";
+import { SettingsManager } from "../../Database/guild/SettingsManager";
+import { ILogChannels, IServerConfig } from "../../Database/guild/serverConfig.model";
 import { LocalStorage } from "./LocalStorage";
 export enum LogLevel {
   INFO = "INFO",

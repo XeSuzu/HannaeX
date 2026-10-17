@@ -8,8 +8,8 @@ import {
   ColorResolvable,
   ThreadAutoArchiveDuration,
 } from "discord.js";
-import Confession from "../Models/Confession";
-import ServerConfig from "../Models/serverConfig";
+import Confession from "../Database/community/confession.model";
+import ServerConfig from "../Database/guild/serverConfig.model";
 
 export class ConfessionManager {
   // 🎨 PALETA AESTHETIC (Colores Pastel para Anónimos)

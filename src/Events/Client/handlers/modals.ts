@@ -5,10 +5,10 @@ import {
   TextChannel,
   WebhookClient,
 } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { ConfessionManager } from "../../../Features/ConfessionManager";
 import { HoshikoClient } from "../../../index";
-import Suggestion from "../../../Models/suggestion";
+import Suggestion from "../../../Database/community/suggestion.model";
 
 export async function handleModals(
   interaction: ModalSubmitInteraction,

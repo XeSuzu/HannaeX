@@ -1,6 +1,6 @@
 import { EmbedBuilder } from "discord.js";
-import { StreakGroup } from "../../Models/StreakGroup";
-import { StreakMember } from "../../Models/StreakMember";
+import { StreakGroup } from "../../Database/streaks/streakGroup.model";
+import { StreakMember } from "../../Database/streaks/streakMember.model";
 import { getStreakTier, getCurrentCycleIndex } from "../../Utils/streakTier";
 import { HoshikoClient } from "../..";
 import { withTransaction } from "./transactions";

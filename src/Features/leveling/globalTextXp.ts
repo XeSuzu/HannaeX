@@ -2,8 +2,8 @@ import { Message } from "discord.js";
 import GlobalLevel, {
   getTierForLevel,
   globalTotalXpForLevel,
-} from "../../Models/GlobalLevel";
-import LocalLevel from "../../Models/LocalLevels";
+} from "../../Database/leveling/globalLevel.model";
+import LocalLevel from "../../Database/leveling/localLevel.model";
 import { getCurrentWeekStart } from "./xpRules";
 import {
   announceAchievements,

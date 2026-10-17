@@ -3,7 +3,7 @@ import {
   HoshikoLogger,
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 
 const roleDeletionTracker = new Map<
   string,

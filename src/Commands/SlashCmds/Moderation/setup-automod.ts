@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GuildConfig from "../../../Models/GuildConfig";
+import GuildConfig from "../../../Database/guild/guildConfig.model";
 import { AutomodManager } from "../../../Features/AutomodManager";
 
 const command: SlashCommand = {

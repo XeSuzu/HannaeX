@@ -1,5 +1,5 @@
 import { Events, Message } from "discord.js";
-import { SettingsManager } from "../../Database/SettingsManager";
+import { SettingsManager } from "../../Database/guild/SettingsManager";
 import {
   checkReplyingToBot,
   hasCommandArguments,

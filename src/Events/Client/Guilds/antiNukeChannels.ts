@@ -8,7 +8,7 @@ import {
   HoshikoLogger,
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 
 // Estructura para rastrear quién borra qué y cuándo
 const deletionTracker = new Map<

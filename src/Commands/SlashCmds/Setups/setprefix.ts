@@ -1,10 +1,10 @@
-import { CacheManager } from "../../../Database/CacheManager";
+import { CacheManager } from "../../../Database/guild/CacheManager";
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
 } from "discord.js";
-import ServerConfig from "../../../Models/serverConfig";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 

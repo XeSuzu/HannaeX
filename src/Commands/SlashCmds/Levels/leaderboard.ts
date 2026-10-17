@@ -8,7 +8,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import LocalLevel from "../../../Models/LocalLevels";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PER_PAGE = 10;

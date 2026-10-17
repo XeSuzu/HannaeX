@@ -5,7 +5,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { StreakGroup } from "../../../Models/StreakGroup";
+import { StreakGroup } from "../../../Database/streaks/streakGroup.model";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const command: SlashCommand = {

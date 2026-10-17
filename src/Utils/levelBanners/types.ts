@@ -1,4 +1,4 @@
-import type { GLOBAL_TIERS } from "../../Models/GlobalLevel";
+import type { GLOBAL_TIERS } from "../../Database/leveling/globalLevel.model";
 
 export interface ServerRankData {
   username: string;

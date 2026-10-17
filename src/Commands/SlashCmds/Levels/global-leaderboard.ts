@@ -4,7 +4,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GlobalLevel, { getTierForLevel } from "../../../Models/GlobalLevel";
+import GlobalLevel, { getTierForLevel } from "../../../Database/leveling/globalLevel.model";
 
 export default {
   data: new SlashCommandBuilder()

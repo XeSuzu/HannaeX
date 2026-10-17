@@ -1,6 +1,6 @@
 import { EmbedBuilder, Message, PermissionsBitField } from "discord.js";
-import { SettingsManager } from "../Database/SettingsManager";
-import AFK from "../Models/afk";
+import { SettingsManager } from "../Database/guild/SettingsManager";
+import AFK from "../Database/tracking/afk.model";
 import {
   buildSnipeEmbed,
   buildSnipeNotFoundMessage,

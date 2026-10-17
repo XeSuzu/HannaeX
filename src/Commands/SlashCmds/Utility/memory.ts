@@ -3,7 +3,7 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
 } from "discord.js";
-import { UserMemoryManager } from "../../../Database/UserMemoryManager";
+import { UserMemoryManager } from "../../../Database/ai/UserMemoryManager";
 
 export default {
   data: new SlashCommandBuilder()

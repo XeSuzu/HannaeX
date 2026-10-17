@@ -6,8 +6,8 @@ import {
   Events,
   GuildMember,
 } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
-import { UserHistoryManager } from "../../../Database/UserHistoryManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { UserHistoryManager } from "../../../Database/tracking/UserHistoryManager";
 import { SentinelNetwork } from "../../../Features/sentinelNetwork";
 import {
   HoshikoLogger,

@@ -1,9 +1,9 @@
 import { Message } from "discord.js";
-import { IAConfigManager } from "../Database/IAConfigManager";
-import { PremiumManager } from "../Database/PremiumManager";
-import { UserMemoryManager } from "../Database/UserMemoryManager";
+import { IAConfigManager } from "../Database/ai/IAConfigManager";
+import { PremiumManager } from "../Database/guild/PremiumManager";
+import { UserMemoryManager } from "../Database/ai/UserMemoryManager";
 import type { HoshikoClient } from "../client/HoshikoClient";
-import ServerConfig from "../Models/serverConfig";
+import ServerConfig from "../Database/guild/serverConfig.model";
 import { extractFacts } from "../Services/gemini";
 import { parseLyricsCommand } from "../Services/Lyrics";
 import { containsPromptInjection } from "../Utils/triggerConditions";

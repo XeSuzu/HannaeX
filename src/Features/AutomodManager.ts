@@ -1,5 +1,5 @@
 import { Guild, User, GuildMember, TextChannel } from "discord.js";
-import { SettingsManager } from "../Database/SettingsManager";
+import { SettingsManager } from "../Database/guild/SettingsManager";
 import { isAllowedByDomain } from "./linkAllowlist";
 import {
   executeAutomodActionSafely,

@@ -5,7 +5,7 @@ import {
   ReadonlyCollection,
   ChannelType,
 } from "discord.js";
-import { SettingsManager } from "../../../../Database/SettingsManager";
+import { SettingsManager } from "../../../../Database/guild/SettingsManager";
 import {
   publishSnipeNotice,
   isPublicChannel,

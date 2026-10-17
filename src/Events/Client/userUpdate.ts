@@ -1,6 +1,6 @@
 import { Events, User } from "discord.js";
-import { AvatarHistoryManager } from "../../Database/AvatarHistoryManager";
-import { UserHistoryManager } from "../../Database/UserHistoryManager";
+import { AvatarHistoryManager } from "../../Database/tracking/AvatarHistoryManager";
+import { UserHistoryManager } from "../../Database/tracking/UserHistoryManager";
 
 export default {
   name: Events.UserUpdate,

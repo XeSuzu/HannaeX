@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
   EmbedBuilder,
 } from "discord.js";
-import Confession from "../../../Models/Confession";
+import Confession from "../../../Database/community/confession.model";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

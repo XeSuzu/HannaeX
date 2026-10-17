@@ -1,6 +1,6 @@
 // src/Commands/SlashCmds/Fun/snipe.ts
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import {

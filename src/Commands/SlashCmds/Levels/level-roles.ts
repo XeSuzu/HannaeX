@@ -1,4 +1,4 @@
-import { LevelConfigCache } from "../../../Database/LevelConfigCache";
+import { LevelConfigCache } from "../../../Database/leveling/LevelConfigCache";
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -6,8 +6,8 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import LevelConfig from "../../../Models/LevelConfig";
-import LocalLevel from "../../../Models/LocalLevels";
+import LevelConfig from "../../../Database/leveling/levelConfig.model";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 
 export default {
   data: new SlashCommandBuilder()

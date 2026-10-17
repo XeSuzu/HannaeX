@@ -1,6 +1,6 @@
-import GlobalBlacklist from "../Models/GlobalBlacklist";
+import GlobalBlacklist from "../Database/moderation/globalBlacklist.model";
 import { GuildMember, TextChannel } from "discord.js";
-import { SettingsManager } from "../Database/SettingsManager";
+import { SettingsManager } from "../Database/guild/SettingsManager";
 
 export class SentinelNetwork {
   /**

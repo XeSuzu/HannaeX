@@ -12,7 +12,7 @@ import {
   User,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import Couple from "../../../Models/couple";
+import Couple from "../../../Database/community/couple.model";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { getAnimeGif } from "../../../Utils/animeGif";
 

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import Suggestion from "../../../Models/suggestion";
+import Suggestion from "../../../Database/community/suggestion.model";
 
 const command: SlashCommand = {
   category: "Privado",

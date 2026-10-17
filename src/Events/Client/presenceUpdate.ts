@@ -1,6 +1,6 @@
 import { Events, Presence } from "discord.js";
-import { PresenceHistoryManager } from "../../Database/PresenceHistoryManager";
-import StatusConfig from "../../Models/StatutsConfig";
+import { PresenceHistoryManager } from "../../Database/tracking/PresenceHistoryManager";
+import StatusConfig from "../../Database/guild/statusConfig.model";
 
 export default {
   name: Events.PresenceUpdate,

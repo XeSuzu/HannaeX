@@ -5,9 +5,9 @@ import {
   EmbedBuilder,
   StringSelectMenuBuilder,
 } from "discord.js";
-import { IAConfigManager } from "../../../../Database/IAConfigManager";
-import { PremiumManager } from "../../../../Database/PremiumManager";
-import { SettingsManager } from "../../../../Database/SettingsManager";
+import { IAConfigManager } from "../../../../Database/ai/IAConfigManager";
+import { PremiumManager } from "../../../../Database/guild/PremiumManager";
+import { SettingsManager } from "../../../../Database/guild/SettingsManager";
 
 const GLOBAL_BANNER =
   "https://i.pinimg.com/originals/2f/43/76/2f437614d7fa7239696a8b34d5e41769.gif";

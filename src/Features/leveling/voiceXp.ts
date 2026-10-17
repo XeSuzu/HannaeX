@@ -1,4 +1,4 @@
-import LocalLevel from "../../Models/LocalLevels";
+import LocalLevel from "../../Database/leveling/localLevel.model";
 import { getCurrentWeekStart, totalXpForVoiceLevel } from "./xpRules";
 
 export async function handleVoiceXp(

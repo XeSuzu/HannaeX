@@ -9,8 +9,8 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
-import { StreakGroup } from "../../../Models/StreakGroup";
-import { StreakMember } from "../../../Models/StreakMember";
+import { StreakGroup } from "../../../Database/streaks/streakGroup.model";
+import { StreakMember } from "../../../Database/streaks/streakMember.model";
 import { useFreeze } from "../../../Services/StreakService";
 import { SafeReply } from "./views";
 

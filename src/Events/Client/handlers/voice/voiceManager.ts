@@ -1,7 +1,7 @@
 import { Client } from "discord.js";
 import { handleVoiceXp } from "../../../../Features/levelHandler";
-import ActiveVoiceSession from "../../../../Models/ActiveVoiceSession";
-import LevelConfig from "../../../../Models/LevelConfig";
+import ActiveVoiceSession from "../../../../Database/leveling/activeVoiceSession.model";
+import LevelConfig from "../../../../Database/leveling/levelConfig.model";
 import {
   isValidVoiceStateNow,
   persistSession,

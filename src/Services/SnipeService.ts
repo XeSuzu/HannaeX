@@ -1,5 +1,5 @@
 import { Collection, EmbedBuilder, Message, PartialMessage } from "discord.js";
-import { ISnipeEntry, Snipe } from "../Models/Snipe";
+import { ISnipeEntry, Snipe } from "../Database/moderation/snipe.model";
 
 export const SNIPE_MAX_ENTRIES = 100;
 const SNIPE_EXPIRE_MS = 1000 * 60 * 60; // 1 hora

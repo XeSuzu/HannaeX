@@ -1,5 +1,5 @@
 import { Events, Message, PermissionFlagsBits } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 
 export default {
   name: Events.MessageCreate,

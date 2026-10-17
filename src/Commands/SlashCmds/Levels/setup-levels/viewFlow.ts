@@ -1,5 +1,5 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
-import type { ILevelConfig } from "../../../../Models/LevelConfig";
+import type { ILevelConfig } from "../../../../Database/leveling/levelConfig.model";
 
 export async function handleView(
   interaction: ChatInputCommandInteraction,

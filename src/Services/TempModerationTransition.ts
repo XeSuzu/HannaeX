@@ -1,4 +1,4 @@
-import type { FailureCode } from "../Models/TempModeration";
+import type { FailureCode } from "../Database/moderation/tempModeration.model";
 
 export const UNKNOWN_BAN_CODE = 10026;
 export const UNKNOWN_MEMBER_CODE = 10007;

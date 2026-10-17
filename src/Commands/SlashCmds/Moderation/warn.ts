@@ -10,7 +10,7 @@ import {
 import { AutomodManager } from "../../../Features/AutomodManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { addWarning } from "../../../Models/Warning";
+import { addWarning } from "../../../Database/moderation/warning.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { Logger } from "../../../Utils/SystemLogger";
 
@@ -91,7 +91,7 @@ const command: SlashCommand = {
         reason: reason,
       });
 
-      const { getWarnings } = await import("../../../Models/Warning.js");
+      const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
       const total = (await getWarnings(interaction.guild.id, target.id)).length;
 
       const embed = new EmbedBuilder()
@@ -161,7 +161,7 @@ const command: SlashCommand = {
       reason,
     });
 
-    const { getWarnings } = await import("../../../Models/Warning.js");
+    const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
     const total = (await getWarnings(message.guild.id, target.id)).length;
 
     const embed = new EmbedBuilder()

@@ -8,7 +8,7 @@ import GlobalLevel, {
   ACHIEVEMENTS,
   getTierForLevel,
   GLOBAL_TIERS,
-} from "../../../Models/GlobalLevel";
+} from "../../../Database/leveling/globalLevel.model";
 
 export default {
   data: new SlashCommandBuilder()

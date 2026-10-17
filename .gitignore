@@ -25,3 +25,4 @@ scripts-manuales/
 # Archivos ignorados por T1.6
 Hoshiko Or Later/.obsidian/
 tsconfig.tsbuildinfo
+backups/

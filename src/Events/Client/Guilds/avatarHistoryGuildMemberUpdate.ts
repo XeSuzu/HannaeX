@@ -1,5 +1,5 @@
 import { Events, GuildMember } from "discord.js";
-import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
+import { AvatarHistoryManager } from "../../../Database/tracking/AvatarHistoryManager";
 
 export default {
   name: Events.GuildMemberUpdate,

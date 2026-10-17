@@ -1,6 +1,6 @@
 import { Guild, User, GuildMember } from "discord.js";
-import { addWarning } from "../../Models/Warning";
-import GuildConfig from "../../Models/GuildConfig";
+import { addWarning } from "../../Database/moderation/warning.model";
+import GuildConfig from "../../Database/guild/guildConfig.model";
 import type { ActionLogEntry, AutomodAction } from "../AutomodManager";
 
 export async function isWhitelisted(guildId: string, userId: string): Promise<boolean> {
@@ -52,7 +52,7 @@ export async function getActionHistory(
   limit: number = 10
 ): Promise<ActionLogEntry[]> {
   try {
-    const { getWarnings } = await import("../../Models/Warning.js");
+    const { getWarnings } = await import("../../Database/moderation/warning.model.js");
     const warnings = await getWarnings(guildId, userId);
     return warnings.slice(0, limit).map((w) => ({
       userId: w.userId,

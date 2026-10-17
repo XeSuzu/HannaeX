@@ -1,7 +1,7 @@
 import { EmbedBuilder, GuildMember, Message, TextChannel } from "discord.js";
-import LevelConfig from "../../Models/LevelConfig";
-import { LevelConfigCache } from "../../Database/LevelConfigCache";
-import LocalLevel from "../../Models/LocalLevels";
+import LevelConfig from "../../Database/leveling/levelConfig.model";
+import { LevelConfigCache } from "../../Database/leveling/LevelConfigCache";
+import LocalLevel from "../../Database/leveling/localLevel.model";
 import { handleGlobalXp } from "./globalTextXp";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
 

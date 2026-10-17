@@ -3,7 +3,7 @@ import {
   HoshikoLogger,
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { Logger } from "../../../Utils/SystemLogger";
 
 const banTracker = new Map<string, { count: number; lastBan: number }>();

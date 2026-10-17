@@ -4,7 +4,7 @@ import {
   rehydrateVoiceSessions,
 } from "../../Events/Client/voiceStateUpdate";
 import { HoshikoClient } from "../../index";
-import ActiveRole from "../../Models/ActiveRole";
+import { ActiveRole } from "../../Database/community/reactionRoles.models";
 import { HoshikoLogger, LogLevel } from "../../Security";
 import { Logger } from "../../Utils/SystemLogger";
 import { hydrateSnipes } from "../../Services/SnipeService";

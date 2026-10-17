@@ -5,7 +5,7 @@ import {
   Image,
   CanvasRenderingContext2D,
 } from "@napi-rs/canvas";
-import { StreakGroup } from "../Models/StreakGroup";
+import { StreakGroup } from "../Database/streaks/streakGroup.model";
 import { HoshikoClient } from "..";
 import { User } from "discord.js";
 

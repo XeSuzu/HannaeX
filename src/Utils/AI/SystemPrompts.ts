@@ -1,4 +1,4 @@
-import { IServerConfig } from "../../Models/serverConfig";
+import { IServerConfig } from "../../Database/guild/serverConfig.model";
 
 export interface SystemPromptContext {
   guildName?: string;

@@ -1,6 +1,6 @@
 import { EmbedBuilder, Events, Message, PartialMessage } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
-import GlobalProfile from "../../../Models/Globalprofile";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import GlobalProfile from "../../../Database/moderation/globalProfile.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { sendFirstDeleteNotice } from "../../../Services/SnipeConsentService";
 import { recordDeletedMessage } from "../../../Services/SnipeService";

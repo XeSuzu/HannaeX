@@ -3,7 +3,7 @@ import type { HoshikoClient } from "../client/HoshikoClient";
 import TempModeration, {
   ITempModeration,
   TempModerationType,
-} from "../Models/TempModeration";
+} from "../Database/moderation/tempModeration.model";
 import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
 import {
   UNKNOWN_BAN_CODE,

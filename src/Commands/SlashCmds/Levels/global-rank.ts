@@ -10,8 +10,8 @@ import GlobalLevel, {
   GLOBAL_TIERS,
   globalTotalXpForLevel,
   globalXpForLevel,
-} from "../../../Models/GlobalLevel";
-import LocalLevel from "../../../Models/LocalLevels";
+} from "../../../Database/leveling/globalLevel.model";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 import { generateGlobalRankBanner } from "../../../Utils/LevelBanners";
 
 export default {

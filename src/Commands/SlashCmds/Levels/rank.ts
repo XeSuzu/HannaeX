@@ -5,8 +5,8 @@ import {
 } from "discord.js";
 import { totalXpForLevel, xpForLevel } from "../../../Features/levelHandler";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GlobalLevel from "../../../Models/GlobalLevel";
-import LocalLevel from "../../../Models/LocalLevels";
+import GlobalLevel from "../../../Database/leveling/globalLevel.model";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 import { generateServerRankBanner } from "../../../Utils/LevelBanners";
 
 export default {

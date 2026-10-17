@@ -4,7 +4,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import LocalLevel from "../../../Models/LocalLevels";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 
 export default {
   data: new SlashCommandBuilder()

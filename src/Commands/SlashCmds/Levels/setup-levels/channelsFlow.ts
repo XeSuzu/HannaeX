@@ -1,7 +1,7 @@
-import { LevelConfigCache } from "../../../../Database/LevelConfigCache";
+import { LevelConfigCache } from "../../../../Database/leveling/LevelConfigCache";
 import { EmbedBuilder, type ChatInputCommandInteraction } from "discord.js";
-import type { ILevelConfig } from "../../../../Models/LevelConfig";
-import LevelConfig from "../../../../Models/LevelConfig";
+import type { ILevelConfig } from "../../../../Database/leveling/levelConfig.model";
+import LevelConfig from "../../../../Database/leveling/levelConfig.model";
 
 export async function handleChannels(
   interaction: ChatInputCommandInteraction,

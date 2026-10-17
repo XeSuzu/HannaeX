@@ -4,7 +4,7 @@ import {
   MessageFlags,
 } from "discord.js";
 import { HoshikoClient } from "../../../index";
-import { InteractionLock } from "../../../Models/InteractionLock";
+import { InteractionLock } from "../../../Database/system/system.models";
 import { Logger } from "../../../Utils/SystemLogger";
 import { AnyCtx, safeRespond, handleCommandError } from "./utils";
 

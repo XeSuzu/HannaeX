@@ -4,7 +4,7 @@ import {
   PermissionsBitField,
   ChatInputCommandInteraction,
 } from "discord.js";
-import AFK from "../../../Models/afk";
+import AFK from "../../../Database/tracking/afk.model";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 

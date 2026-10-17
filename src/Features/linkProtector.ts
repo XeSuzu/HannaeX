@@ -1,5 +1,5 @@
 import { Message, PermissionFlagsBits } from "discord.js";
-import { SettingsManager } from "../Database/SettingsManager";
+import { SettingsManager } from "../Database/guild/SettingsManager";
 import { isAllowedByDomain } from "./linkAllowlist";
 
 const DEFAULT_ALLOWED = [

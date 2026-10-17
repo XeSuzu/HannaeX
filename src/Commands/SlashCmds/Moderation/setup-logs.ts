@@ -16,8 +16,8 @@ import {
   ChannelType,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { SettingsManager } from "../../../Database/SettingsManager";
-import { PremiumManager } from "../../../Database/PremiumManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { PremiumManager } from "../../../Database/guild/PremiumManager";
 
 const FREE_LOGS = ["all", "modlog", "serverlog", "confesslog", "joinlog"];
 const PREMIUM_LOGS = ["messagelog", "voicelog", "boostlog", "levellog"];

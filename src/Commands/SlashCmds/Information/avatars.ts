@@ -11,7 +11,7 @@ import {
   User,
   GuildMember,
 } from "discord.js";
-import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
+import { AvatarHistoryManager } from "../../../Database/tracking/AvatarHistoryManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 

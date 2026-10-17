@@ -10,7 +10,7 @@ import {
   ComponentType,
 } from "discord.js";
 import { SlashCommand } from "../../../../Interfaces/Command";
-import { StreakGroup } from "../../../../Models/StreakGroup";
+import { StreakGroup } from "../../../../Database/streaks/streakGroup.model";
 import { generateStreakCard } from "../../../../Services/CardService";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
 

@@ -1,6 +1,6 @@
-import { CacheManager } from "../Database/CacheManager";
+import { CacheManager } from "../Database/guild/CacheManager";
 import { Message } from "discord.js";
-import ServerConfig from "../Models/serverConfig";
+import ServerConfig from "../Database/guild/serverConfig.model";
 
 const IGNORE_WORDS = [
   "pero",

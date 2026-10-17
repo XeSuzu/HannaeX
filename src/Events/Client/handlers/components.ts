@@ -8,7 +8,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { handleRachaButton } from "../../../Handlers/Buttons/racha";
 import { HoshikoClient } from "../../../index";
 import {

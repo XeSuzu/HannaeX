@@ -6,7 +6,7 @@ import {
   SlashCommandBuilder,
   User,
 } from "discord.js";
-import { UserHistoryManager } from "../../../Database/UserHistoryManager";
+import { UserHistoryManager } from "../../../Database/tracking/UserHistoryManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 

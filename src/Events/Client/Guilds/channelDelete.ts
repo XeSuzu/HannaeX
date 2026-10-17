@@ -1,6 +1,6 @@
 import { DMChannel, EmbedBuilder, Events, GuildChannel } from "discord.js";
 import { HoshikoClient } from "../../../index";
-import ServerConfig from "../../../Models/serverConfig";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 import {
   HoshikoLogger,
   LogLevel,

@@ -1,9 +1,9 @@
 import type { Content } from "@google/generative-ai";
 import type { Message } from "discord.js";
-import { UserMemoryManager } from "../../Database/UserMemoryManager";
+import { UserMemoryManager } from "../../Database/ai/UserMemoryManager";
 import { SystemPrompts } from "../../Utils/AI/SystemPrompts";
 import type { SystemPromptContext } from "../../Utils/AI/SystemPrompts";
-import type { IServerConfig } from "../../Models/serverConfig";
+import type { IServerConfig } from "../../Database/guild/serverConfig.model";
 import type { HoshikoClient } from "../../client/HoshikoClient";
 
 const EMPTY_MENTION_RESPONSES = ["¿Me llamaste?", "Dime~", "¿Qué pasó?", "Aquí estoy~ ¿en qué te ayudo?", "¿Sí?"];
