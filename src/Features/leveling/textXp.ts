@@ -24,21 +24,23 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const multiplier = config?.xpMultiplier ?? 1.0;
   const now = new Date();
 
-  let profile = await LocalLevel.findOne({
-    userId: message.author.id,
-    guildId: message.guild.id,
-  });
-
-  if (!profile) {
-    profile = await LocalLevel.create({
+  const profile = await LocalLevel.findOneAndUpdate(
+    {
       userId: message.author.id,
       guildId: message.guild.id,
-      xp: 0,
-      level: 0,
-      messagesSent: 0,
-      lastXpGain: new Date(0),
-    });
-  }
+    },
+    {
+      $setOnInsert: {
+        userId: message.author.id,
+        guildId: message.guild.id,
+        xp: 0,
+        level: 0,
+        messagesSent: 0,
+        lastXpGain: new Date(0),
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
 
   const secondsSinceLast =
     (now.getTime() - profile.lastXpGain.getTime()) / 1000;

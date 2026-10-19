@@ -76,8 +76,11 @@ export default {
     const guildId = interaction.guildId!;
     const guild = interaction.guild!;
 
-    let config = await LevelConfig.findOne({ guildId });
-    if (!config) config = await LevelConfig.create({ guildId });
+    const config = await LevelConfig.findOneAndUpdate(
+      { guildId },
+      { $setOnInsert: { guildId } },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
     LevelConfigCache.invalidate(guildId);
 
     // ==================== ADD ====================

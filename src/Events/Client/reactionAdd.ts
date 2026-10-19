@@ -127,19 +127,13 @@ export default {
       ) {
         const reactionXp = levelConfig.xpPerReaction;
         try {
-          let userProfile = await LocalLevel.findOne({
-            userId: user.id,
-            guildId,
-          });
-          if (!userProfile) {
-            userProfile = await LocalLevel.create({
-              userId: user.id,
-              guildId,
-            });
-          }
           await LocalLevel.updateOne(
             { userId: user.id, guildId },
-            { $inc: { xp: reactionXp } },
+            {
+              $inc: { xp: reactionXp },
+              $setOnInsert: { userId: user.id, guildId },
+            },
+            { upsert: true, setDefaultsOnInsert: true },
           );
         } catch (err) {
           console.error(`[reactionXp] Error dando XP por reacción:`, err);

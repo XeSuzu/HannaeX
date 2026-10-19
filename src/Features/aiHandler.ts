@@ -31,10 +31,12 @@ export default async (
 
   // --- ✨ BÚSQUEDA DE IMÁGENES ---
   const prefix = config.prefix || "x";
-  const imgAskMatch = message.content.match(/^(?:hoshi ask img|neko ask img)\s+(.+)/i);
-  // TODO: revisar el escape del prefijo x en una fase aprobada; preservar ahora el trigger literal.
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const imgAskMatch = message.content.match(
+    /^(?:hoshi(?:\s+ask)?\s+img|neko\s+ask\s+img)\s+(.+)/i,
+  );
   const prefixCommandMatch = message.content.match(
-    new RegExp(`^\\${prefix}(img|ximg)\\s+(.+)`, "i"),
+    new RegExp(`^(?:${escapedPrefix}|x)\\s*(img|ximg)\\s+(.+)`, "i"),
   );
   if (imgAskMatch || prefixCommandMatch) {
     processedMessages.add(message.id);
@@ -60,8 +62,12 @@ export default async (
 
   // --- 🚨 DETECCIÓN DE GATILLOS ---
   const isMentioned = message.mentions.users.has(client.user!.id);
-  const prefixMatch = message.content.toLowerCase().startsWith("hoshi ask ") &&
-    !message.content.toLowerCase().startsWith("hoshi ask img ");
+  const askRegex = new RegExp(
+    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
+    "i",
+  );
+  const prefixMatch =
+    askRegex.test(message.content.trim()) && !imgAskMatch && !prefixCommandMatch;
   let isReplyToMe = false;
   if (message.reference?.messageId && !message.mentions.everyone) {
     try {

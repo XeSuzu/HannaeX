@@ -42,17 +42,19 @@ export async function handleVoiceXp(
 
   if (earned <= 0) return;
 
-  let profile = await LocalLevel.findOne({
-    userId: member.id,
-    guildId: member.guild.id,
-  });
-
-  if (!profile) {
-    profile = await LocalLevel.create({
+  const profile = await LocalLevel.findOneAndUpdate(
+    {
       userId: member.id,
       guildId: member.guild.id,
-    });
-  }
+    },
+    {
+      $setOnInsert: {
+        userId: member.id,
+        guildId: member.guild.id,
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
 
   const newVoiceXp = (profile.voiceXp ?? 0) + earned;
   let newVoiceLevel = profile.voiceLevel ?? 0;

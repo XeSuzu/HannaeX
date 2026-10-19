@@ -19,25 +19,31 @@ export async function handleGlobalXp(
   const userId = message.author.id;
   const now = new Date();
 
-  let globalProfile = await GlobalLevel.findOne({ userId });
-  const isNewGlobalProfile = !globalProfile;
+  const existingProfile = await GlobalLevel.findOne({ userId });
+  const isNewGlobalProfile = !existingProfile;
 
-  if (!globalProfile) {
-    globalProfile = await GlobalLevel.create({
-      userId,
-      globalXp: 0,
-      globalLevel: 0,
-      totalMessages: 0,
-      serversJoined: 1,
-      achievements: [],
-      currentTier: "mihon",
-      globalStreak: 0,
-      lastGlobalXpGain: now,
-      weeklyXp: 0,
-      weeklyMessages: 0,
-      weekStartDate: new Date(0),
-    });
-  }
+  const globalProfile =
+    existingProfile ??
+    (await GlobalLevel.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          userId,
+          globalXp: 0,
+          globalLevel: 0,
+          totalMessages: 0,
+          serversJoined: 1,
+          achievements: [],
+          currentTier: "mihon",
+          globalStreak: 0,
+          lastGlobalXpGain: now,
+          weeklyXp: 0,
+          weeklyMessages: 0,
+          weekStartDate: new Date(0),
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    ))!;
 
   if (!isNewGlobalProfile) {
     const localProfile = await LocalLevel.findOne({

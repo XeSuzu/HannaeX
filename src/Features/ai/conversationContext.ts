@@ -36,9 +36,17 @@ export async function buildConversationContext(
     historyForApi.push({ role, parts: [{ text: finalWord || "..." }] });
   }
   let userMessage = message.content.replace(new RegExp(`<@!?${client.user!.id}>`, "g"), "").trim();
-  if (!userMessage && options.isMentioned) userMessage = EMPTY_MENTION_RESPONSES[Math.floor(Math.random() * EMPTY_MENTION_RESPONSES.length)];
-  if (options.prefixMatch) userMessage = message.content.substring(10).trim();
-  else if (userMessage.toLowerCase().startsWith("hoshi ask ")) userMessage = userMessage.substring(10).trim();
+  const escapedPrefix = (config.prefix || "x").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const triggerPrefixRegex = new RegExp(
+    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
+    "i",
+  );
+  if (triggerPrefixRegex.test(userMessage)) {
+    userMessage = userMessage.replace(triggerPrefixRegex, "").trim();
+  }
+  if (!userMessage) {
+    userMessage = EMPTY_MENTION_RESPONSES[Math.floor(Math.random() * EMPTY_MENTION_RESPONSES.length)];
+  }
   if (message.attachments.size > 0 && message.attachments.first()?.contentType?.startsWith("image/")) {
     try {
       const imgResponse = await fetch(message.attachments.first()!.url);

@@ -8,6 +8,7 @@ interface CachedEntry {
 export class CacheManager {
   // Caché en memoria para reducir lecturas a la base de datos
   private static cache = new Map<string, CachedEntry>();
+  private static inFlight = new Map<string, Promise<IServerConfig>>();
 
   // TTL por defecto: 5 minutos
   private static TTL = 1000 * 60 * 5;
@@ -25,21 +26,31 @@ export class CacheManager {
       if (now - entry.lastFetch < this.TTL) return entry.data;
     }
 
-    // En caso contrario, leer/crear en la DB
-    let config = await ServerConfig.findOne({ guildId });
+    // Deduplicar peticiones simultáneas para el mismo guildId
+    const existingPromise = this.inFlight.get(guildId);
+    if (existingPromise) return existingPromise;
 
-    // Si es un server nuevo y no tiene config, la creamos
-    if (!config) {
-      config = await ServerConfig.create({ guildId });
-    }
+    const fetchPromise = (async () => {
+      try {
+        const config = await ServerConfig.findOneAndUpdate(
+          { guildId },
+          { $setOnInsert: { guildId } },
+          { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
 
-    // C) Guardamos en memoria para la próxima vez
-    this.cache.set(guildId, {
-      data: config,
-      lastFetch: now,
-    });
+        this.cache.set(guildId, {
+          data: config,
+          lastFetch: Date.now(),
+        });
 
-    return config;
+        return config;
+      } finally {
+        this.inFlight.delete(guildId);
+      }
+    })();
+
+    this.inFlight.set(guildId, fetchPromise);
+    return fetchPromise;
   }
 
   /**

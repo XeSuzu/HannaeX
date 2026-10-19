@@ -243,8 +243,11 @@ export default {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId!;
 
-    let config = await LevelConfig.findOne({ guildId });
-    if (!config) config = await LevelConfig.create({ guildId });
+    const config = await LevelConfig.findOneAndUpdate(
+      { guildId },
+      { $setOnInsert: { guildId } },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
     LevelConfigCache.invalidate(guildId);
 
     if (sub === "view") return handleView(interaction, sub, config);

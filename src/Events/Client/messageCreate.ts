@@ -73,8 +73,14 @@ export default {
 
       // ─── Fase 3: Detección de prefix y comandos ───────────────────────────
       const currentPrefix = settings?.prefix || "x";
-      const validPrefixes = [currentPrefix, "x", "hoshi ", "Hoshi ", "h! "];
-      const prefix = validPrefixes.find((p) => message.content.startsWith(p));
+      const validPrefixes = [currentPrefix, "x", "hoshi ", "h! "];
+      const lowerMessage = message.content.toLowerCase();
+      const matchedPrefix = validPrefixes.find((p) =>
+        lowerMessage.startsWith(p.toLowerCase()),
+      );
+      const prefix = matchedPrefix
+        ? message.content.slice(0, matchedPrefix.length)
+        : undefined;
 
       let isHoshiCall = false;
 
@@ -97,11 +103,8 @@ export default {
           return;
         }
 
-        if (
-          prefixIsHoshi &&
-          isCommandPassthrough(commandName) &&
-          hasCommandArguments(message, prefix.length, commandName)
-        ) {
+        // Permitir que xask / x ask / ximg / x img / hoshi ask / hoshi img pasen a aiHandler
+        if (commandName === "ximg" || isCommandPassthrough(commandName)) {
           isHoshiCall = true;
         } else {
           const command =
@@ -127,12 +130,20 @@ export default {
             }
             return;
           }
-          return;
+
+          // Si usó "hoshi <mensaje>" y no es un comando registrado, pásalo a la IA
+          if (prefixIsHoshi) {
+            isHoshiCall = true;
+          } else {
+            return;
+          }
         }
       } else {
         // ✅ FIX #3 — triggers unificados con los que usa aiHandler
         const lowerContent = message.content.toLowerCase();
         if (
+          lowerContent === "hoshi" ||
+          lowerContent === "hoshi ask" ||
           lowerContent.startsWith("hoshi ask ") ||
           lowerContent.startsWith("neko ask img ")
         ) {
