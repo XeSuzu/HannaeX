@@ -1,6 +1,6 @@
 import GlobalBlacklist from "../Database/moderation/globalBlacklist.model";
-import { GuildMember, TextChannel } from "discord.js";
-import { SettingsManager } from "../Database/guild/SettingsManager";
+import { GuildMember } from "discord.js";
+import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
 
 export class SentinelNetwork {
   /**
@@ -10,25 +10,18 @@ export class SentinelNetwork {
     const isBlacklisted = await GlobalBlacklist.findOne({ userId: member.id });
 
     if (isBlacklisted) {
-      const settings = await SettingsManager.getSettings(member.guild.id);
-
       // Acción: Banear automáticamente si es una amenaza HIGH
       try {
         await member.ban({
           reason: `Sentinel Network: ${isBlacklisted.reason}`,
         });
 
-        // Avisar al canal de logs
-        if (settings.modLogChannel) {
-          const logChannel = member.guild.channels.cache.get(
-            settings.modLogChannel,
-          );
-          if (logChannel?.isTextBased()) {
-            await (logChannel as any).send(
-              `📡 **SENTINEL NETWORK**\nEl usuario \`${member.user.tag}\` ha sido baneado automáticamente al entrar. Está en la lista negra global por: *${isBlacklisted.reason}*`,
-            );
-          }
-        }
+        await HoshikoLogger.sendLog(
+          member.guild,
+          "SECURITY",
+          `📡 **SENTINEL NETWORK**\nEl usuario \`${member.user.tag}\` ha sido baneado automáticamente al entrar.\n**Motivo en lista negra global:** *${isBlacklisted.reason}*`,
+          member.user,
+        );
       } catch (err) {
         console.error("Error al ejecutar ban global:", err);
       }

@@ -39,6 +39,8 @@ export const envSchema = z.object({
   REDIS_ENABLED: booleanString.default(false),
   WORKER_ENABLED: booleanString.default(false),
   HEALTH_DETAILS_TOKEN: blankToUndefined,
+  GEMINI_MODERATION_API_KEY: blankToUndefined,
+  GOOGLE_SAFE_BROWSING_KEY: blankToUndefined,
 });
 
 export type AppEnvironment = z.infer<typeof envSchema>;

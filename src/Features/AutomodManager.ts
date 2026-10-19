@@ -5,6 +5,7 @@ import {
   executeAutomodActionSafely,
 } from "./automod/automodActionExecutor";
 import {
+  checkCrossChannelSpam,
   checkSpamForUser,
   getSpamTrackerStats,
 } from "./automod/automodState";
@@ -91,6 +92,16 @@ export class AutomodManager {
 
   static async checkSpam(guild: Guild, userId: string): Promise<AutomodAction | null> {
     return checkSpamForUser(guild, userId);
+  }
+
+  static async checkCrossChannel(
+    guild: Guild,
+    userId: string,
+    channelId: string,
+    content: string,
+    attachmentSizes: number[] = [],
+  ): Promise<AutomodAction | null> {
+    return checkCrossChannelSpam(guild, userId, channelId, content, attachmentSizes);
   }
 
   static async recordManualAction(

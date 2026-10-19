@@ -8,6 +8,11 @@ import {
 } from "discord.js";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { UserHistoryManager } from "../../../Database/tracking/UserHistoryManager";
+import { isServerLockedDown } from "../../../Features/automod/aiModeration";
+import {
+  addServerStress,
+  isIrregularName,
+} from "../../../Features/automod/automodState";
 import { SentinelNetwork } from "../../../Features/sentinelNetwork";
 import {
   HoshikoLogger,
@@ -43,24 +48,60 @@ export default {
 
     await SentinelNetwork.checkMember(member);
 
+    const accountAgeMs = Date.now() - member.user.createdTimestamp;
+    const isYoungAccount = accountAgeMs < 1000 * 60 * 60 * 24; // < 24h
+    const hasNoAvatar = !member.user.avatar;
+
+    // Pilar 2.1: Sumar estrés por metadatos sospechosos al entrar
+    let joinStress = 0;
+    if (hasNoAvatar) joinStress += 10;
+    if (isYoungAccount) joinStress += 20;
+    if (isIrregularName(member.user.username) || isIrregularName(member.displayName)) {
+      joinStress += 15;
+    }
+    if (joinStress > 0) {
+      void addServerStress(member.guild.id, joinStress);
+    }
+
     const settings = await SettingsManager.getSettings(member.guild.id);
     if (!settings) return;
+
+    // Pilar 4 (Nivel 4): con El Torniquete activo se cierran las puertas a nuevos miembros
+    if (
+      settings.securityModules?.securityLevel === 4 &&
+      (await isServerLockedDown(member.guild.id))
+    ) {
+      if (member.kickable) {
+        await member
+          .send(
+            `🔒 **${member.guild.name}** está en modo de emergencia y no acepta nuevos miembros por ahora. Intenta de nuevo más tarde.`,
+          )
+          .catch(() => null);
+        await member.kick("Hoshiko Nivel 4: servidor en Lockdown").catch(() => null);
+        await HoshikoLogger.sendLog(
+          member.guild,
+          "SECURITY",
+          `🚪 **Entrada bloqueada (Lockdown Nvl 4):** ${member.user.tag} fue expulsado al entrar.`,
+          member.user,
+        );
+      }
+      return;
+    }
 
     // ─── 1. ANTI-ALT ────────────────────────────────────────────────────────
     if (settings.securityModules?.antiAlt) {
       const MIN_AGE = 1000 * 60 * 60 * 24 * 2; // 2 días
-      const accountAge = Date.now() - member.user.createdTimestamp;
 
-      if (accountAge < MIN_AGE) {
+      if (accountAgeMs < MIN_AGE) {
         try {
-          const ageInHours = (accountAge / (1000 * 60 * 60)).toFixed(1);
+          const ageInHours = (accountAgeMs / (1000 * 60 * 60)).toFixed(1);
 
           const verifyEmbed = new EmbedBuilder()
             .setTitle("🌸 Verificación de Seguridad")
             .setDescription(
               `¡Hola! Tu cuenta es muy reciente (${ageInHours}h). Para evitar ataques, necesitamos que confirmes que eres humano.`,
             )
-            .setColor(0xffa500)
+            .setColor(0xfaa61a)
             .setFooter({ text: "Hoshiko Sentinel • Seguridad Activa" });
 
           const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -83,7 +124,6 @@ export default {
             });
           }
 
-          // Log al canal joinlog via sendLog (ANTI_ALT ya mapea a joinlog en LOG_TYPE_CHANNEL)
           await HoshikoLogger.sendLog(
             member.guild,
             "ANTI_ALT",
@@ -97,68 +137,79 @@ export default {
     }
 
     // ─── 2. AUTO-JOIN ────────────────────────────────────────────────────────
-    if (!settings.autoJoin?.enabled || settings.autoJoin.roles.length === 0)
-      return;
-
     const rolesToGive: string[] = [];
     const rolesGivenNames: string[] = [];
     let errorOccurred: string | null = null;
 
-    try {
-      const botMember = member.guild.members.me;
-      if (!botMember) throw new Error("No puedo encontrarme en el servidor.");
+    if (settings.autoJoin?.enabled && settings.autoJoin.roles.length > 0) {
+      try {
+        const botMember = member.guild.members.me;
+        if (!botMember) throw new Error("No puedo encontrarme en el servidor.");
 
-      const botHighestRole = botMember.roles.highest.position;
+        const botHighestRole = botMember.roles.highest.position;
 
-      for (const roleId of settings.autoJoin.roles) {
-        const role = member.guild.roles.cache.get(roleId);
-        if (role && role.position < botHighestRole) {
-          rolesToGive.push(roleId);
-          rolesGivenNames.push(role.name);
-        } else if (role) {
-          console.warn(`[AutoJoin] Rol "${role.name}" omitido por jerarquía.`);
+        for (const roleId of settings.autoJoin.roles) {
+          const role = member.guild.roles.cache.get(roleId);
+          if (role && role.position < botHighestRole) {
+            rolesToGive.push(roleId);
+            rolesGivenNames.push(role.name);
+          } else if (role) {
+            console.warn(`[AutoJoin] Rol "${role.name}" omitido por jerarquía.`);
+          }
         }
-      }
 
-      if (rolesToGive.length > 0) {
-        await member.roles.add(rolesToGive, "🤖 Hoshiko Auto-Join");
-      } else {
-        errorOccurred =
-          "No pude dar ningún rol. Verifica que mi rol esté por encima de los roles a asignar.";
+        if (rolesToGive.length > 0) {
+          await member.roles.add(rolesToGive, "🤖 Hoshiko Auto-Join");
+        } else {
+          errorOccurred =
+            "No pude dar ningún rol. Verifica que mi rol esté por encima de los roles a asignar.";
+        }
+      } catch (error: any) {
+        console.error(`❌ Error en Auto-Join (${member.guild.name}):`, error);
+        errorOccurred = error.message || "Error desconocido.";
       }
-    } catch (error: any) {
-      console.error(`❌ Error en Auto-Join (${member.guild.name}):`, error);
-      errorOccurred = error.message || "Error desconocido.";
     }
 
-    // Log Auto-Join al canal joinlog
-    if (rolesGivenNames.length > 0 || errorOccurred) {
-      const logEmbed = new EmbedBuilder().setTimestamp().setFooter({
-        text: "Auto-Join • Hoshiko",
-        iconURL: member.user.displayAvatarURL(),
+    // ─── 3. LOG DE ENTRADA EN JOINLOG ────────────────────────────────────────
+    const createdTimestampSec = Math.floor(
+      member.user.createdTimestamp / 1000,
+    );
+    const joinEmbed = new EmbedBuilder()
+      .setTitle("🚪 Nuevo Miembro")
+      .setColor(errorOccurred ? 0xed4245 : 0x57f287)
+      .setThumbnail(member.user.displayAvatarURL())
+      .addFields(
+        {
+          name: "Usuario",
+          value: `${member.user.tag} \`(${member.user.id})\``,
+          inline: true,
+        },
+        {
+          name: "Cuenta creada",
+          value: `<t:${createdTimestampSec}:R>`,
+          inline: true,
+        },
+        {
+          name: "Miembro #",
+          value: `\`${member.guild.memberCount}\``,
+          inline: true,
+        },
+      )
+      .setTimestamp()
+      .setFooter({ text: "Hoshiko • Join Log" });
+
+    if (rolesGivenNames.length > 0) {
+      joinEmbed.addFields({
+        name: "Roles Auto-Join",
+        value: rolesGivenNames.map((r) => `\`@${r}\``).join(", "),
       });
-
-      if (errorOccurred) {
-        logEmbed
-          .setTitle("⚠️ Error en Auto-Join")
-          .setColor(0xff0000)
-          .setDescription(`No pude asignar roles a **${member.user.tag}**.`)
-          .addFields({ name: "Error", value: `\`${errorOccurred}\`` });
-      } else {
-        logEmbed
-          .setTitle("✅ Roles Asignados")
-          .setColor(0x00ff00)
-          .setDescription(
-            `**${member.user.tag}** recibió roles automáticamente.`,
-          )
-          .addFields({
-            name: "Roles",
-            value: rolesGivenNames.map((r) => `\`@${r}\``).join(", "),
-          });
-      }
-
-      // ✅ Usa joinlog en lugar de modLogChannel deprecado
-      await HoshikoLogger.sendToChannel(member.guild, "joinlog", logEmbed);
+    } else if (errorOccurred) {
+      joinEmbed.addFields({
+        name: "⚠️ Error Auto-Join",
+        value: `\`${errorOccurred}\``,
+      });
     }
+
+    await HoshikoLogger.sendToChannel(member.guild, "joinlog", joinEmbed);
   },
 };

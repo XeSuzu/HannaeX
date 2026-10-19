@@ -2,13 +2,12 @@ import {
   EmbedBuilder,
   MessageFlags,
   ModalSubmitInteraction,
-  TextChannel,
   WebhookClient,
 } from "discord.js";
-import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { ConfessionManager } from "../../../Features/ConfessionManager";
 import { HoshikoClient } from "../../../index";
 import Suggestion from "../../../Database/community/suggestion.model";
+import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
 export async function handleModals(
   interaction: ModalSubmitInteraction,
@@ -77,42 +76,37 @@ export async function handleModals(
   }
 
   if (interaction.customId.startsWith("reportModal_")) {
-    if (!interaction.guildId) return;
+    if (!interaction.guild) return;
     const targetId = interaction.customId.split("_")[1];
     const reason = interaction.fields.getTextInputValue("reportReason");
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const settings = await SettingsManager.getLite(
-        interaction.guildId,
-        "confessions",
+      const alertEmbed = new EmbedBuilder()
+        .setTitle("🚨 REPORTE DE CONFESIÓN")
+        .setDescription(`Reporte sobre **Publicación #${targetId}**.`)
+        .setColor(0xed4245)
+        .addFields(
+          {
+            name: "👮‍♂️ Reportado por",
+            value: `<@${interaction.user.id}> (\`${interaction.user.id}\`)`,
+            inline: true,
+          },
+          { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
+          {
+            name: "🛠️ Acción",
+            value: `Usa \`/confession-check id:${targetId}\` o \`/confession-delete id:${targetId}\` para intervenir.`,
+          },
+        )
+        .setTimestamp();
+
+      await HoshikoLogger.sendToChannel(
+        interaction.guild,
+        "confesslog",
+        alertEmbed,
       );
-      if (settings?.confessions?.logsChannelId) {
-        const logsChannel = interaction.guild!.channels.cache.get(
-          settings.confessions.logsChannelId,
-        ) as TextChannel;
-        if (logsChannel) {
-          const alertEmbed = new EmbedBuilder()
-            .setTitle("🚨 REPORTE DE SEGURIDAD")
-            .setDescription(`Reporte sobre **Publicación #${targetId}**.`)
-            .setColor("#FF0000")
-            .addFields(
-              {
-                name: "👮‍♂️ Reportado por",
-                value: `<@${interaction.user.id}>`,
-                inline: true,
-              },
-              { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
-              {
-                name: "🛠️ Acción",
-                value: `Usa \`/confession-check id:${targetId}\` para investigar.`,
-              },
-            )
-            .setTimestamp();
-          await logsChannel.send({ content: "@here", embeds: [alertEmbed] });
-        }
-      }
+
       await interaction.editReply(
         "✅ ¡Reporte enviado! Gracias por cuidar la comunidad. Mis mods lo revisarán pronto. 👮‍♀️",
       );

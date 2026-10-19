@@ -21,8 +21,15 @@ import { handleLevelXp } from "../../Features/levelHandler";
 import { handleLinkProtection } from "../../Features/linkProtector";
 // Security
 import { AutomodManager } from "../../Features/AutomodManager";
+import { evaluateHighStressMessage } from "../../Features/automod/aiModeration";
+import {
+  markTextActivity,
+  rememberDeletedMessage,
+} from "../../Features/automod/automodState";
 import { Blacklist } from "../../Security/Defense/Blacklist";
 import { RateLimiter } from "../../Security/Defense/RateLimiter";
+import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
+import { isOverloaded } from "../../Utils/loadShedding";
 
 export default {
   name: Events.MessageCreate,
@@ -44,7 +51,42 @@ export default {
         "prefix aiModule securityModules allowedLinks",
       )) as LiteSettings | null;
 
-      // Spam check
+      markTextActivity(message.guild.id, message.author.id);
+
+      // 1. Entropía de Acción: Cross-Channel Spam (mismo mensaje/archivo en 3+ canales en <12s)
+      if (message.member && settings?.securityModules?.antiSpam) {
+        const xChanAction = await AutomodManager.checkCrossChannel(
+          message.guild,
+          message.author.id,
+          message.channel.id,
+          message.content,
+          message.attachments.map((a) => a.size),
+        );
+        if (xChanAction) {
+          rememberDeletedMessage(
+            message.guild.id,
+            message.author.id,
+            message.channel.id,
+            message.content,
+          );
+          await message.delete().catch(() => null);
+          await AutomodManager.executeAction(
+            message.guild,
+            message.member,
+            xChanAction,
+            "CrossChannelSpam",
+          );
+          await HoshikoLogger.sendLog(
+            message.guild,
+            "AUTOMOD",
+            `🚨 **Cross-Channel Spam detectado:** <@${message.author.id}> envió el mismo mensaje en múltiples canales simultáneamente.\n**Extracto:** \`${message.content.slice(0, 100) || "(solo adjuntos)"}\``,
+            message.author,
+          );
+          return;
+        }
+      }
+
+      // 2. Spam check clásico por frecuencia
       if (message.member && settings?.securityModules?.antiSpam) {
         const spamAction = await AutomodManager.checkSpam(
           message.guild,
@@ -70,6 +112,12 @@ export default {
       }
 
       if (settings && (await handleLinkProtection(message, settings))) return;
+
+      // 3. Moderación IA Asistida (Solo se activa si el Medidor de Estrés supera el umbral del servidor)
+      void evaluateHighStressMessage(
+        message,
+        settings?.securityModules?.securityLevel ?? 2,
+      );
 
       // ─── Fase 3: Detección de prefix y comandos ───────────────────────────
       const currentPrefix = settings?.prefix || "x";
@@ -154,7 +202,7 @@ export default {
       // ─── Fase 4: Features ─────────────────────────────────────────────────
       await handleCulture(message);
       if (!isHoshiCall && (await handleAfk(message))) return;
-      await handleLevelXp(message);
+      if (!isOverloaded()) await handleLevelXp(message);
 
       // ─── Fase 5: Módulo IA ────────────────────────────────────────────────
       const isAiEnabled = settings?.aiModule?.enabled !== false;

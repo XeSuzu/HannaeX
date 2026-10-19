@@ -3,37 +3,72 @@ import path from "path";
 import { LogEntry } from "./HoshikoLogger";
 
 const LOG_DIR = path.join(process.cwd(), "logs");
-const LOG_FILE = path.join(LOG_DIR, "hoshiko-logs.jsonl");
 
 export class LocalStorage {
+  private static currentDateKey = "";
+  private static stream: fs.WriteStream | null = null;
+  private static dirEnsured = false;
+
+  private static getStream(): fs.WriteStream | null {
+    try {
+      if (!this.dirEnsured) {
+        if (!fs.existsSync(LOG_DIR)) {
+          fs.mkdirSync(LOG_DIR, { recursive: true });
+        }
+        this.dirEnsured = true;
+      }
+
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      if (this.currentDateKey !== today || !this.stream) {
+        if (this.stream) {
+          this.stream.end();
+        }
+        this.currentDateKey = today;
+        const filePath = path.join(LOG_DIR, `hoshiko-${today}.jsonl`);
+        this.stream = fs.createWriteStream(filePath, {
+          flags: "a",
+          encoding: "utf8",
+        });
+        this.stream.on("error", (err) => {
+          console.error("❌ LocalStorage stream error:", err.message);
+          this.stream = null;
+        });
+      }
+
+      return this.stream;
+    } catch (err) {
+      console.error(
+        "❌ LocalStorage.getStream falló:",
+        (err as Error).message || err,
+      );
+      return null;
+    }
+  }
+
   /**
-   * Guarda una entrada de log en un archivo físico .jsonl
+   * Guarda una entrada de log de forma asíncrona no bloqueante en archivo rotativo .jsonl
    */
   static save(entry: LogEntry) {
     try {
-      // 1. Crear la carpeta de logs si no existe 📁
-      if (!fs.existsSync(LOG_DIR)) {
-        fs.mkdirSync(LOG_DIR, { recursive: true });
+      const line =
+        JSON.stringify({
+          timestamp:
+            entry.timestamp instanceof Date
+              ? entry.timestamp.toISOString()
+              : entry.timestamp,
+          level: entry.level,
+          context: entry.context,
+          message: entry.message,
+          guildId: entry.guildId ?? null,
+          userId: entry.userId ?? null,
+          metadata: entry.metadata ?? null,
+        }) + "\n";
+
+      const stream = this.getStream();
+      if (stream) {
+        stream.write(line);
       }
-
-      // 2. Formatear la línea (incluyendo la metadata que faltaba) ✨
-      const line = JSON.stringify({
-        timestamp:
-          entry.timestamp instanceof Date
-            ? entry.timestamp.toISOString()
-            : entry.timestamp,
-        level: entry.level,
-        context: entry.context,
-        message: entry.message,
-        guildId: entry.guildId ?? null,
-        userId: entry.userId ?? null,
-        metadata: entry.metadata ?? null, // ✅ Ahora TS lo reconoce
-      });
-
-      // 3. Escribir al final del archivo
-      fs.appendFileSync(LOG_FILE, line + "\n", { encoding: "utf8" });
     } catch (err) {
-      // El logger nunca debe detener la aplicación 🛡️
       console.error(
         "❌ LocalStorage.save falló:",
         (err as Error).message || err,
@@ -41,3 +76,4 @@ export class LocalStorage {
     }
   }
 }
+

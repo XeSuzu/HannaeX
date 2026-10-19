@@ -3,25 +3,48 @@ import {
   Collection,
   MessageFlags,
 } from "discord.js";
+import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
+import { RedisClientService } from "../../../App/infrastructure/redis/RedisClient";
+import { buildRedisKey } from "../../../App/infrastructure/redis/RedisKeys";
 import { HoshikoClient } from "../../../index";
-import { InteractionLock } from "../../../Database/system/system.models";
 import { Logger } from "../../../Utils/SystemLogger";
 import { AnyCtx, safeRespond, handleCommandError } from "./utils";
+
+const localInteractionLocks = new LocalCacheService<{ locked: true }>(
+  "interaction_locks",
+  { max: 5000, ttlMs: 15_000 },
+);
+
+async function acquireInteractionLock(interactionId: string): Promise<boolean> {
+  if (localInteractionLocks.get(interactionId)) return false;
+  localInteractionLocks.set(interactionId, { locked: true });
+
+  if (RedisClientService.getState() === "ready") {
+    const redis = RedisClientService.getClient();
+    if (redis) {
+      try {
+        const res = await redis.set(
+          buildRedisKey("ix_lock", interactionId),
+          "1",
+          "EX",
+          15,
+          "NX",
+        );
+        return res === "OK";
+      } catch {
+        // Si falla Redis, el lock L1 local ya protege este proceso
+      }
+    }
+  }
+  return true;
+}
 
 export async function handleCommands(
   interaction: AnyCtx,
   client: HoshikoClient,
 ) {
-  try {
-    await InteractionLock.create({ _id: interaction.id });
-  } catch (error: any) {
-    if (error.code === 11000) return;
-    console.error(
-      `❌ Error al intentar adquirir cerrojo para interacción ${interaction.id}:`,
-      error,
-    );
-    return;
-  }
+  const locked = await acquireInteractionLock(interaction.id);
+  if (!locked) return;
 
   const lag = Date.now() - interaction.createdTimestamp;
   if (lag > 2000) {

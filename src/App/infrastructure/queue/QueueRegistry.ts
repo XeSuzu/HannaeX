@@ -1,12 +1,16 @@
 export class QueueRegistry {
-  private static readonly activeQueues: readonly string[] = Object.freeze([]);
+  private static readonly registeredQueues = new Set<string>();
+
+  static markActive(queueName: string): void {
+    this.registeredQueues.add(queueName);
+  }
 
   static getActiveQueues(): readonly string[] {
-    return this.activeQueues;
+    return Object.freeze(Array.from(this.registeredQueues));
   }
 
   static getActiveQueueCount(): number {
-    return this.activeQueues.length;
+    return this.registeredQueues.size;
   }
 
   static getStatus(): {
@@ -15,7 +19,7 @@ export class QueueRegistry {
     queues: readonly string[];
   } {
     return {
-      enabled: false,
+      enabled: this.registeredQueues.size > 0,
       queuesActive: this.getActiveQueueCount(),
       queues: this.getActiveQueues(),
     };

@@ -1,13 +1,23 @@
 import {
+  ActionRowBuilder,
+  AuditLogEvent,
+  ButtonBuilder,
+  ButtonStyle,
   EmbedBuilder,
   Guild,
+  PermissionFlagsBits,
   TextChannel,
   User,
   WebhookClient,
 } from "discord.js";
+import { PremiumManager } from "../../Database/guild/PremiumManager";
 import { SettingsManager } from "../../Database/guild/SettingsManager";
-import { ILogChannels, IServerConfig } from "../../Database/guild/serverConfig.model";
+import {
+  ILogChannels,
+  IServerConfig,
+} from "../../Database/guild/serverConfig.model";
 import { LocalStorage } from "./LocalStorage";
+
 export enum LogLevel {
   INFO = "INFO",
   SUCCESS = "SUCCESS",
@@ -39,8 +49,7 @@ export type LogType =
   | "ANTI_NUKE"
   | "VERIFICATION";
 
-// Mapeo de LogType al canal correspondiente en logChannels
-const LOG_TYPE_CHANNEL: Record<LogType, string> = {
+const LOG_TYPE_CHANNEL: Record<LogType, keyof ILogChannels> = {
   BAN: "modlog",
   KICK: "modlog",
   MUTE: "modlog",
@@ -54,31 +63,56 @@ const LOG_TYPE_CHANNEL: Record<LogType, string> = {
   VERIFICATION: "joinlog",
 };
 
-// ⚙️ Helper para resolución de canales de log
-// Primero busca específico → luego fallback a "all" → luego null
+export const PREMIUM_LOG_CHANNELS = new Set<keyof ILogChannels>([
+  "messagelog",
+  "voicelog",
+  "boostlog",
+  "levellog",
+]);
+
+/**
+ * Resolución híbrida de canales de log:
+ * 1. Canal específico (modlog, serverlog, etc.)
+ * 2. Fallback a "all" (salvo confesslog para proteger privacidad de confesiones)
+ * 3. Fallback a campos deprecados (modLogChannel / confessions.logsChannelId)
+ */
 export function resolveLogChannel(
   settings: IServerConfig,
   channelType: keyof ILogChannels,
 ): string | null {
   const channels = settings.logChannels;
-  if (!channels) return null;
 
-  // 1. Buscar canal específico (modlog, serverlog, etc.)
-  if (channels[channelType]) return channels[channelType];
+  if (channels?.[channelType]) return channels[channelType];
 
-  // 2. Fallback al canal general "all"
-  if (channels.all) return channels.all;
-
-  // 3. Fallback al campo deprecado (para migración)
+  // Fallback a campos antiguos antes del canal general "all"
   if (channelType === "modlog" && (settings as any).modLogChannel) {
     return (settings as any).modLogChannel;
+  }
+  if (
+    channelType === "confesslog" &&
+    settings.confessions?.logsChannelId
+  ) {
+    return settings.confessions.logsChannelId;
+  }
+
+  // Confesslog es privado: no cae al canal público "all" a menos que se configure explícitamente
+  if (channelType !== "confesslog" && channels?.all) {
+    return channels.all;
   }
 
   return null;
 }
 
+interface QueuedBatch {
+  channel: TextChannel;
+  embeds: EmbedBuilder[];
+  timer: NodeJS.Timeout;
+}
+
 export class HoshikoLogger {
   private static webhookClient: WebhookClient | null = null;
+  private static batchQueues = new Map<string, QueuedBatch>();
+  private static readonly BATCH_WINDOW_MS = 1200;
 
   static {
     if (process.env.LOGS_WEBHOOK_URL) {
@@ -92,23 +126,47 @@ export class HoshikoLogger {
   }
 
   private static readonly COLORS: Record<LogType, number> = {
-    BAN: 0xff0000,
+    BAN: 0xed4245,
     KICK: 0xff5500,
-    MUTE: 0xffa500,
-    WARN: 0xffff00,
-    UNWARN: 0x00ff00,
+    MUTE: 0xfaa61a,
+    WARN: 0xfee75c,
+    UNWARN: 0x57f287,
     AUTOMOD: 0xff69b4,
-    CONFIG: 0x0099ff,
-    SECURITY: 0x000000,
-    ANTI_ALT: 0xffa500,
-    ANTI_NUKE: 0xff0000,
-    VERIFICATION: 0x00ff00,
+    CONFIG: 0x5865f2,
+    SECURITY: 0x2b2d31,
+    ANTI_ALT: 0xfaa61a,
+    ANTI_NUKE: 0xed4245,
+    VERIFICATION: 0x57f287,
   };
 
   /**
-   * Obtiene el canal de logs correspondiente al tipo de acción.
-   * Usa resolución híbrida: específico → all → null
+   * Consulta de forma segura los Audit Logs de Discord para saber quién ejecutó un cambio reciente (< 6s).
    */
+  static async fetchAuditExecutor(
+    guild: Guild,
+    event: AuditLogEvent,
+    targetId?: string,
+  ): Promise<User | null> {
+    try {
+      const me = guild.members.me;
+      if (!me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) return null;
+
+      const logs = await guild.fetchAuditLogs({ type: event, limit: 5 });
+      const now = Date.now();
+
+      const entry = logs.entries.find((e) => {
+        const isRecent = now - e.createdTimestamp < 6000;
+        if (!isRecent) return false;
+        if (targetId && e.targetId && e.targetId !== targetId) return false;
+        return true;
+      });
+
+      return entry?.executor ? (entry.executor as User) : null;
+    } catch {
+      return null;
+    }
+  }
+
   private static async getLogChannel(
     guild: Guild,
     logType: LogType,
@@ -118,11 +176,7 @@ export class HoshikoLogger {
       if (!settings) return null;
 
       const channelKey = LOG_TYPE_CHANNEL[logType];
-      const channelId = resolveLogChannel(
-        settings,
-        channelKey as keyof ILogChannels,
-      );
-
+      const channelId = resolveLogChannel(settings, channelKey);
       if (!channelId) return null;
 
       const channel = guild.channels.cache.get(channelId);
@@ -132,6 +186,49 @@ export class HoshikoLogger {
     } catch (err) {
       console.error("❌ Error obteniendo canal de logs:", err);
       return null;
+    }
+  }
+
+  /**
+   * Encola un embed para enviarlo en micro-lotes (hasta 10 embeds cada 1.2s por canal),
+   * evitando golpear el Rate Limit de Discord durante eventos masivos.
+   */
+  private static enqueueEmbed(channel: TextChannel, embed: EmbedBuilder): void {
+    const key = channel.id;
+    const existing = this.batchQueues.get(key);
+
+    if (existing) {
+      existing.embeds.push(embed);
+      if (existing.embeds.length >= 10) {
+        clearTimeout(existing.timer);
+        this.flushChannelQueue(key);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.flushChannelQueue(key);
+    }, this.BATCH_WINDOW_MS);
+
+    this.batchQueues.set(key, {
+      channel,
+      embeds: [embed],
+      timer,
+    });
+  }
+
+  private static flushChannelQueue(channelId: string): void {
+    const batch = this.batchQueues.get(channelId);
+    if (!batch) return;
+    this.batchQueues.delete(channelId);
+
+    const chunks: EmbedBuilder[][] = [];
+    for (let i = 0; i < batch.embeds.length; i += 10) {
+      chunks.push(batch.embeds.slice(i, i + 10));
+    }
+
+    for (const embeds of chunks) {
+      void batch.channel.send({ embeds }).catch(() => null);
     }
   }
 
@@ -145,9 +242,6 @@ export class HoshikoLogger {
       extra?: string;
     },
   ) {
-    const color = this.COLORS[type];
-    const title = this.getTitle(type);
-
     let description = `**Razón:** ${details.reason}`;
     if (details.extra) description += `\n**Detalles:** ${details.extra}`;
 
@@ -172,7 +266,11 @@ export class HoshikoLogger {
       case "UNWARN":
         return "😇 Sanción Retirada";
       case "AUTOMOD":
-        return "🤖 Acción Automática";
+        return "🤖 Intervención Automática (Automod)";
+      case "ANTI_NUKE":
+        return "🚨 Alerta Crítica: Anti-Nuke";
+      case "ANTI_ALT":
+        return "🕵️ Cuenta Reciente Detectada (Anti-Alt)";
       case "CONFIG":
         return "⚙️ Configuración Modificada";
       default:
@@ -180,25 +278,73 @@ export class HoshikoLogger {
     }
   }
 
+  /**
+   * Construye la fila de botones interactivos (Centro de Comando - Pilar 5)
+   * para incidentes automáticos donde hay un usuario infractor.
+   */
+  private static buildInteractiveRow(
+    type: LogType,
+    target: User,
+  ): ActionRowBuilder<ButtonBuilder> | null {
+    const actionableTypes: LogType[] = [
+      "AUTOMOD",
+      "ANTI_ALT",
+      "ANTI_NUKE",
+      "SECURITY",
+      "WARN",
+      "MUTE",
+    ];
+    if (!actionableTypes.includes(type) || target.bot) return null;
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`modlog_act:timeout:${target.id}`)
+        .setLabel("Aislar 1h")
+        .setEmoji("🔇")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`modlog_act:ban:${target.id}`)
+        .setLabel("Banear")
+        .setEmoji("🔨")
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`modlog_act:purge:${target.id}`)
+        .setLabel("Purgar Msgs")
+        .setEmoji("🧹")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`modlog_act:forgive:${target.id}`)
+        .setLabel("Falso Positivo")
+        .setEmoji("✅")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`modlog_act:sentinel:${target.id}`)
+        .setLabel("Sentinel")
+        .setEmoji("🌐")
+        .setStyle(ButtonStyle.Danger),
+    );
+  }
+
   static async sendLog(
     guild: Guild,
     type: LogType,
     description: string,
     target?: User,
+    messageUrl?: string,
   ) {
     try {
       const channel = await this.getLogChannel(guild, type);
       if (!channel) return;
 
       const title = this.getTitle(type);
-      const color = this.COLORS[type] ?? 0x000000;
+      const color = this.COLORS[type] ?? 0x2b2d31;
 
       const embed = new EmbedBuilder()
         .setTitle(title)
         .setDescription(description)
         .setColor(color)
         .setTimestamp()
-        .setFooter({ text: "Hoshiko Logger" });
+        .setFooter({ text: "Hoshiko Security Center" });
 
       if (target) {
         embed.setThumbnail(target.displayAvatarURL());
@@ -209,37 +355,67 @@ export class HoshikoLogger {
         });
       }
 
-      await channel.send({ embeds: [embed] }).catch(() => null);
+      const components: ActionRowBuilder<ButtonBuilder>[] = [];
+      const actionRow = target ? this.buildInteractiveRow(type, target) : null;
+      if (actionRow) components.push(actionRow);
+      if (messageUrl) {
+        components.push(
+          new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setLabel("Ir al Mensaje")
+              .setEmoji("🔗")
+              .setStyle(ButtonStyle.Link)
+              .setURL(messageUrl),
+          ),
+        );
+      }
+
+      if (components.length > 0) {
+        await channel
+          .send({ embeds: [embed], components })
+          .catch(() => null);
+      } else {
+        this.enqueueEmbed(channel, embed);
+      }
     } catch (err) {
       console.error("❌ Error en sendLog:", err);
     }
   }
 
   /**
-   * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog")
-   * Usa resolución híbrida: específico → all → null
+   * Envía un log a un canal específico por clave (ej: "joinlog", "serverlog", "messagelog").
+   * Verifica licencia Premium para canales exclusivos y usa micro-batching.
    */
   static async sendToChannel(
     guild: Guild,
-    channelKey: string,
+    channelKey: keyof ILogChannels | string,
     embed: EmbedBuilder,
+    components?: ActionRowBuilder<ButtonBuilder>[],
   ): Promise<void> {
     try {
+      const key = channelKey as keyof ILogChannels;
+
+      // Validar licencia si es un canal exclusivo Premium
+      if (PREMIUM_LOG_CHANNELS.has(key)) {
+        const isPremium = await PremiumManager.isPremium(guild.id);
+        if (!isPremium) return;
+      }
+
       const settings = await SettingsManager.getSettings(guild.id);
       if (!settings) return;
 
-      const channelId = resolveLogChannel(
-        settings,
-        channelKey as keyof ILogChannels,
-      );
+      const channelId = resolveLogChannel(settings, key);
       if (!channelId) return;
 
       const channel = guild.channels.cache.get(channelId);
       if (!channel || !channel.isTextBased()) return;
 
-      await (channel as TextChannel)
-        .send({ embeds: [embed] })
-        .catch(() => null);
+      const textChannel = channel as TextChannel;
+      if (components && components.length > 0) {
+        await textChannel.send({ embeds: [embed], components }).catch(() => null);
+      } else {
+        this.enqueueEmbed(textChannel, embed);
+      }
     } catch (err) {
       console.error(`❌ Error enviando log a ${channelKey}:`, err);
     }
@@ -267,7 +443,7 @@ export class HoshikoLogger {
       this.webhookClient &&
       (entry.level === LogLevel.FATAL || entry.level === LogLevel.ERROR)
     ) {
-      await this.sendToDiscord(fullEntry).catch((err) => {
+      void this.sendToDiscord(fullEntry).catch((err) => {
         console.error("⚠️ No se pudo enviar el log al Webhook:", err);
       });
     }
@@ -279,7 +455,7 @@ export class HoshikoLogger {
     const embed = new EmbedBuilder()
       .setTitle(`Hoshiko System • ${entry.level}`)
       .setDescription(entry.message)
-      .setColor(entry.level === LogLevel.FATAL ? 0xff0000 : 0xffa500)
+      .setColor(entry.level === LogLevel.FATAL ? 0xed4245 : 0xfaa61a)
       .addFields(
         { name: "Contexto", value: entry.context, inline: true },
         { name: "Servidor ID", value: entry.guildId || "N/A", inline: true },
@@ -290,3 +466,4 @@ export class HoshikoLogger {
     await this.webhookClient.send({ embeds: [embed] });
   }
 }
+

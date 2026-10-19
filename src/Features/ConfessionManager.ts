@@ -10,6 +10,7 @@ import {
 } from "discord.js";
 import Confession from "../Database/community/confession.model";
 import ServerConfig from "../Database/guild/serverConfig.model";
+import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
 
 export class ConfessionManager {
   // 🎨 PALETA AESTHETIC (Colores Pastel para Anónimos)
@@ -236,41 +237,34 @@ export class ConfessionManager {
     }
 
     // 6. LOGS (ADMINISTRACIÓN)
-    if (settings.confessions.logsChannelId) {
-      const logsChannel = guild.channels.cache.get(
-        settings.confessions.logsChannelId,
-      ) as TextChannel;
-      if (logsChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle(`🛡️ LOG: CASO #${currentId}`)
-          .setColor("#2B2D31")
-          .setThumbnail(member.user.displayAvatarURL())
-          .addFields(
-            {
-              name: "👤 Autor Real",
-              value: `${member.user.tag}\n\`${member.id}\``,
-              inline: true,
-            },
-            {
-              name: "📺 Canal/Feed",
-              value: `<#${targetChannelId}>`,
-              inline: true,
-            }, // Muestra dónde salió
-            {
-              name: "🎭 Modo",
-              value: isAnonymous ? "Anónimo" : "Público",
-              inline: true,
-            },
-            {
-              name: "📝 Contenido",
-              value: `\`\`\`${content.substring(0, 1000)}\`\`\``,
-            },
-          )
-          .setTimestamp();
-        if (image) logEmbed.setImage(image);
-        await logsChannel.send({ embeds: [logEmbed] }).catch(() => null);
-      }
-    }
+    const logEmbed = new EmbedBuilder()
+      .setTitle(`🛡️ LOG: CASO #${currentId}`)
+      .setColor("#2B2D31")
+      .setThumbnail(member.user.displayAvatarURL())
+      .addFields(
+        {
+          name: "👤 Autor Real",
+          value: `${member.user.tag}\n\`${member.id}\``,
+          inline: true,
+        },
+        {
+          name: "📺 Canal/Feed",
+          value: `<#${targetChannelId}>`,
+          inline: true,
+        },
+        {
+          name: "🎭 Modo",
+          value: isAnonymous ? "Anónimo" : "Público",
+          inline: true,
+        },
+        {
+          name: "📝 Contenido",
+          value: `\`\`\`${content.substring(0, 1000)}\`\`\``,
+        },
+      )
+      .setTimestamp();
+    if (image) logEmbed.setImage(image);
+    await HoshikoLogger.sendToChannel(guild, "confesslog", logEmbed);
 
     return currentId;
   }

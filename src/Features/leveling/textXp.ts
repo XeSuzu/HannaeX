@@ -2,6 +2,8 @@ import { EmbedBuilder, GuildMember, Message, TextChannel } from "discord.js";
 import LevelConfig from "../../Database/leveling/levelConfig.model";
 import { LevelConfigCache } from "../../Database/leveling/LevelConfigCache";
 import LocalLevel from "../../Database/leveling/localLevel.model";
+import { queueLocalMessageIncrement } from "../../Database/system/BulkWriteBuffer";
+import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
 import { handleGlobalXp } from "./globalTextXp";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
 
@@ -58,10 +60,7 @@ export async function handleLevelXp(message: Message): Promise<void> {
     !!profile.abuseCooldownUntil && now < profile.abuseCooldownUntil;
 
   if (isInAbuseCooldown) {
-    await LocalLevel.updateOne(
-      { userId: message.author.id, guildId: message.guild.id },
-      { $inc: { messagesSent: 1 } },
-    );
+    queueLocalMessageIncrement(message.guild.id, message.author.id, 1);
     return;
   }
 
@@ -101,10 +100,7 @@ export async function handleLevelXp(message: Message): Promise<void> {
   earned = Math.floor(earned * multiplier);
 
   if (earned <= 0) {
-    await LocalLevel.updateOne(
-      { userId: message.author.id, guildId: message.guild.id },
-      { $inc: { messagesSent: 1 } },
-    );
+    queueLocalMessageIncrement(message.guild.id, message.author.id, 1);
     await handleGlobalXp(message, 0, false);
     return;
   }
@@ -160,10 +156,6 @@ export async function handleLevelXp(message: Message): Promise<void> {
     );
   }
 
-  const announceMode = config?.announceMode ?? "milestone";
-  if (announceMode === "silent") return;
-  if (announceMode === "milestone" && !isMilestone(newLevel)) return;
-
   const milestone = isMilestone(newLevel);
   const milestoneEmoji = milestone ? "⭐ " : "";
   const celebrationEmoji = milestone ? "🎉" : "✨";
@@ -203,6 +195,13 @@ export async function handleLevelXp(message: Message): Promise<void> {
         : "Hoshiko Levels 🌸",
     })
     .setTimestamp();
+
+  // Registrar subida de nivel en levellog [PREMIUM]
+  void HoshikoLogger.sendToChannel(message.guild, "levellog", embed);
+
+  const announceMode = config?.announceMode ?? "milestone";
+  if (announceMode === "silent") return;
+  if (announceMode === "milestone" && !milestone) return;
 
   if (config?.announceDM) {
     await message.author.send({ embeds: [embed] }).catch(() => null);

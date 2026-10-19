@@ -1,4 +1,5 @@
 import { Events, VoiceState, EmbedBuilder } from "discord.js";
+import { checkVoiceThrashing } from "../../../Features/automod/automodState";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
 export default {
@@ -16,6 +17,19 @@ export default {
 
     // Sin cambio de canal (mute/deafen/etc) — ignorar
     if (oldChannel?.id === newChannel?.id) return;
+
+    // Entropía de Acción: detectar saltos frenéticos de canal de voz (VC Thrashing)
+    if (newChannel) {
+      const thrash = await checkVoiceThrashing(guild.id, member.id);
+      if (thrash.triggered) {
+        await HoshikoLogger.sendLog(
+          guild,
+          "AUTOMOD",
+          `🎙️ **VC Thrashing detectado:** <@${member.id}> cambió de canal de voz 4+ veces en menos de 15s (\`+${thrash.stressAdded} pts de estrés\`).`,
+          member.user,
+        );
+      }
+    }
 
     let title: string;
     let color: number;

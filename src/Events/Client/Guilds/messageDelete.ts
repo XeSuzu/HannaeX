@@ -1,4 +1,4 @@
-import { EmbedBuilder, Events, Message, PartialMessage } from "discord.js";
+import { AuditLogEvent, EmbedBuilder, Events, Message, PartialMessage } from "discord.js";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import GlobalProfile from "../../../Database/moderation/globalProfile.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
@@ -48,6 +48,11 @@ export default {
     // ─── 2. MESSAGE LOG ─────────────────────────────────────────────────────
     const content = message.content ?? "[no disponible — no estaba en caché]";
     const user = message.author;
+    const executor = await HoshikoLogger.fetchAuditExecutor(
+      message.guild,
+      AuditLogEvent.MessageDelete,
+      user?.id,
+    );
 
     const embed = new EmbedBuilder()
       .setTitle("🗑️ Mensaje Eliminado")
@@ -56,13 +61,21 @@ export default {
         { name: "Contenido", value: content.slice(0, 1024) || "[vacío]" },
         { name: "Canal", value: `<#${message.channelId}>`, inline: true },
         {
-          name: "Usuario",
+          name: "Autor",
           value: user ? `${user.tag} \`(${user.id})\`` : "[desconocido]",
           inline: true,
         },
       )
       .setTimestamp()
       .setFooter({ text: "Hoshiko • Message Log" });
+
+    if (executor && executor.id !== user?.id) {
+      embed.addFields({
+        name: "Eliminado por",
+        value: `${executor.tag} \`(${executor.id})\``,
+        inline: true,
+      });
+    }
 
     if (user) embed.setThumbnail(user.displayAvatarURL());
 

@@ -10,7 +10,10 @@ interface ISocialMap {
   trustLevels: Map<string, number>;
 }
 
-interface ISecurityModules {
+export type SecurityLevel = 1 | 2 | 3 | 4;
+
+export interface ISecurityModules {
+  securityLevel?: SecurityLevel;
   antiSpam: boolean;
   antiLinks: boolean;
   antiRaid: boolean;
@@ -215,6 +218,7 @@ const serverConfigSchema = new Schema<IServerConfig>({
   },
 
   securityModules: {
+    securityLevel: { type: Number, enum: [1, 2, 3, 4], default: 2 },
     antiSpam: { type: Boolean, default: false },
     antiLinks: { type: Boolean, default: false },
     antiRaid: { type: Boolean, default: false },
@@ -251,13 +255,17 @@ const serverConfigSchema = new Schema<IServerConfig>({
   ],
 });
 
-// ✅ MIGRACIÓN AUTOMÁTICA: Si el servidor tenía modLogChannel configurado
-// y todavía no tiene logChannels.modlog, lo copiamos automáticamente
+// ✅ MIGRACIÓN AUTOMÁTICA: Si el servidor tenía modLogChannel o confessions.logsChannelId
+// y todavía no tiene logChannels equivalentes, los copiamos automáticamente
 serverConfigSchema.post("find", function (docs: IServerConfig[]) {
   for (const doc of docs) {
     if (doc.modLogChannel && !doc.logChannels?.modlog) {
       doc.logChannels = doc.logChannels || ({} as ILogChannels);
       doc.logChannels.modlog = doc.modLogChannel;
+    }
+    if (doc.confessions?.logsChannelId && !doc.logChannels?.confesslog) {
+      doc.logChannels = doc.logChannels || ({} as ILogChannels);
+      doc.logChannels.confesslog = doc.confessions.logsChannelId;
     }
   }
 });
@@ -267,6 +275,10 @@ serverConfigSchema.post("findOne", function (doc: IServerConfig | null) {
   if (doc.modLogChannel && !doc.logChannels?.modlog) {
     doc.logChannels = doc.logChannels || ({} as ILogChannels);
     doc.logChannels.modlog = doc.modLogChannel;
+  }
+  if (doc.confessions?.logsChannelId && !doc.logChannels?.confesslog) {
+    doc.logChannels = doc.logChannels || ({} as ILogChannels);
+    doc.logChannels.confesslog = doc.confessions.logsChannelId;
   }
 });
 

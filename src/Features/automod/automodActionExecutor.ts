@@ -1,6 +1,7 @@
 import { Guild, GuildMember } from "discord.js";
+import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
 import { Logger } from "../../Utils/SystemLogger";
-import { canExecuteAction, cleanup, recordSuccessfulAction } from "./automodState";
+import { canExecuteAction, recordSuccessfulAction } from "./automodState";
 import { isWhitelisted, logActionEntry } from "./automodPersistence";
 import type { AutomodAction, ExecutionContext } from "../AutomodManager";
 
@@ -33,6 +34,13 @@ export async function executeAutomodActionSafely(
 
       recordSuccessfulAction(guildId, userId, action.type);
 
+      void HoshikoLogger.sendLog(
+        guild,
+        "AUTOMOD",
+        `**Sanción aplicada:** \`${action.type.toUpperCase()}\`\n**Motivo:** ${action.reason}\n**Contexto:** \`${context.eventType}\``,
+        member.user,
+      );
+
       if (action.reason.includes("spam") || action.reason.includes("raid") || action.reason.includes("link")) {
         await Logger.logAnomalyDetected(
           "AutomodAction",
@@ -42,7 +50,6 @@ export async function executeAutomodActionSafely(
       }
     }
 
-    if (Math.random() < 0.01) cleanup();
     return success;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

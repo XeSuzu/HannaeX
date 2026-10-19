@@ -1,17 +1,18 @@
 import {
   ButtonInteraction,
+  ChannelSelectMenuInteraction,
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
-  StringSelectMenuInteraction,
 } from "discord.js";
 import { IAConfigManager } from "../../../Database/ai/IAConfigManager";
 import { PremiumManager } from "../../../Database/guild/PremiumManager";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { liftServerLockdown } from "../../../Features/automod/aiModeration";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { handleSnipeToggle } from "./setupUtils/snipe";
-import { generateSetupUI, SetupMenus } from "./setupUtils/ui";
+import { handleSnipeChannelSelect } from "./setupUtils/snipe";
+import { generateSetupUI, SetupView } from "./setupUtils/ui";
 
 const command: SlashCommand = {
   category: "Moderation",
@@ -24,25 +25,28 @@ const command: SlashCommand = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
     const guildId = interaction.guild.id;
+    let currentView: SetupView = "main";
 
-    const refreshUI = async (menu = null) => {
+    const refreshUI = async (view: SetupView = currentView) => {
+      currentView = view;
       const ui = await generateSetupUI(
         guildId,
         interaction.channelId,
         interaction.client.user,
         interaction.user,
-        menu,
+        currentView,
       );
       await interaction.editReply(ui);
     };
 
-    const ui = await generateSetupUI(
+    const initialUI = await generateSetupUI(
       guildId,
       interaction.channelId,
       interaction.client.user,
       interaction.user,
+      "main",
     );
-    const message = await interaction.editReply(ui);
+    const message = await interaction.editReply(initialUI);
 
     const collector = message.createMessageComponentCollector({
       filter: (i) => i.user.id === interaction.user.id,
@@ -51,7 +55,7 @@ const command: SlashCommand = {
 
     collector.on(
       "collect",
-      async (i: ButtonInteraction | StringSelectMenuInteraction) => {
+      async (i: ButtonInteraction | ChannelSelectMenuInteraction) => {
         try {
           await i.deferUpdate();
         } catch {
@@ -59,91 +63,144 @@ const command: SlashCommand = {
         }
         const isPremium = await PremiumManager.isPremium(guildId);
 
-        if (i.isButton()) {
-          if (i.customId === "setup_close") return collector.stop();
-          await refreshUI();
+        // ─── CANAL SELECCIONADO (SNIPE / MODLOG RÁPIDO) ──────────────────
+        if (i.isChannelSelectMenu()) {
+          if (i.customId === "snipe_channel_select") {
+            const activated = await handleSnipeChannelSelect(i, guildId);
+            if (activated) await refreshUI("security");
+            return;
+          }
+
+          if (i.customId === "quick_modlog_select") {
+            const selectedChannelId = i.values[0];
+            await SettingsManager.updateSettings(guildId, {
+              "logChannels.modlog": selectedChannelId,
+            } as any);
+            await refreshUI("security");
+            return;
+          }
           return;
         }
 
-        if (i.isStringSelectMenu()) {
-          const choice = i.values[0];
+        if (!i.isButton()) return;
+        const id = i.customId;
 
-          if (i.customId === "setup_main_menu") {
-            if (choice === "menu_behavior")
-              return refreshUI(SetupMenus.behavior() as any);
-            if (choice === "menu_security")
-              return refreshUI(SetupMenus.security() as any);
-            if (choice === "menu_identity")
-              return refreshUI(SetupMenus.identity() as any);
-            if (choice === "ai_toggle_spontaneous") {
-              const result = await IAConfigManager.toggleSpontaneousChannel(
-                guildId,
-                interaction.channelId,
-              );
-              if (!result.success)
-                await i.followUp({
-                  content: `❌ ${result.message}`,
-                  flags: MessageFlags.Ephemeral,
-                });
-              else await refreshUI();
-              return;
-            }
-          }
+        if (id === "setup_close") {
+          collector.stop();
+          return;
+        }
 
-          if (i.customId === "submenu_behavior_select") {
-            if (choice !== "normal" && !isPremium)
-              return i.followUp({
-                content: "🔒 **Modo Premium:** Requiere suscripción.",
-                flags: MessageFlags.Ephemeral,
-              }) as any;
-            const safetyLevel =
-              choice === "pesado"
-                ? "medium"
-                : choice === "agresivo"
-                  ? "low"
-                  : "high";
-            await IAConfigManager.updateConfig(guildId, {
-              "aiSystem.behavior": choice,
-              aiSafety: safetyLevel,
+        // ─── NAVEGACIÓN ENTRE VISTAS ─────────────────────────────────────
+        if (id.startsWith("nav_")) {
+          const targetView = id.replace("nav_", "") as SetupView;
+          await refreshUI(targetView);
+          return;
+        }
+
+        // ─── ACCIÓN DIRECTA: CHAT ESPONTÁNEO ─────────────────────────────
+        if (id === "act_spontaneous") {
+          const result = await IAConfigManager.toggleSpontaneousChannel(
+            guildId,
+            interaction.channelId,
+          );
+          if (!result.success) {
+            await i.followUp({
+              content: `❌ ${result.message}`,
+              flags: MessageFlags.Ephemeral,
             });
-            return refreshUI();
+          } else {
+            await refreshUI("main");
           }
+          return;
+        }
 
-          if (i.customId === "submenu_security_select") {
-            if (choice === "go_setup_logs")
-              return i.followUp({
-                content:
-                  "📋 Usa `/setup-logs` para configurar todos los canales.",
-                flags: MessageFlags.Ephemeral,
-              }) as any;
-            if (choice === "toggle_snipe")
-              return handleSnipeToggle(interaction, i, guildId, refreshUI);
+        if (id === "act_unlockdown") {
+          const restored = await liftServerLockdown(
+            interaction.guild!,
+            interaction.user.tag,
+          );
+          await i.followUp({
+            content: restored
+              ? "🔓 **Lockdown levantado:** `@everyone` puede volver a escribir."
+              : "ℹ️ No había un lockdown activo registrado.",
+            flags: MessageFlags.Ephemeral,
+          });
+          await refreshUI("security");
+          return;
+        }
 
-            const moduleName = choice.split("_")[1];
-            const set = await SettingsManager.getSettings(guildId);
-            if (set?.securityModules) {
-              const current =
-                set.securityModules[
-                  moduleName as keyof typeof set.securityModules
-                ] || false;
-              await SettingsManager.updateSettings(guildId, {
-                [`securityModules.${moduleName}`]: !current,
-              });
-            }
-            return refreshUI();
+        // ─── SELECCIÓN: PERFIL DE SEGURIDAD (NIVEL 1 AL 4) ───────────────
+        if (id.startsWith("seclvl_")) {
+          const lvl = Number(id.replace("seclvl_", ""));
+          if ([1, 2, 3, 4].includes(lvl)) {
+            await SettingsManager.updateSettings(guildId, {
+              "securityModules.securityLevel": lvl,
+            } as any);
           }
+          await refreshUI("security");
+          return;
+        }
 
-          if (i.customId === "submenu_identity_select") {
-            if (["yandere", "gymbro"].includes(choice) && !isPremium)
-              return i.followUp({
-                content: "🔒 **Identidad Premium:** Requiere suscripción.",
-                flags: MessageFlags.Ephemeral,
-              }) as any;
-            await IAConfigManager.updateConfig(guildId, {
-              "aiSystem.mode": choice,
+        // ─── SELECCIÓN: COMPORTAMIENTO ───────────────────────────────────
+        if (id.startsWith("beh_")) {
+          const choice = id.replace("beh_", "");
+          if (choice !== "normal" && !isPremium) {
+            await i.followUp({
+              content: "🔒 **Modo Premium:** Requiere suscripción activa.",
+              flags: MessageFlags.Ephemeral,
             });
-            return refreshUI();
+            return;
           }
+          const safetyLevel =
+            choice === "pesado"
+              ? "medium"
+              : choice === "agresivo"
+                ? "low"
+                : "high";
+          await IAConfigManager.updateConfig(guildId, {
+            "aiSystem.behavior": choice,
+            aiSafety: safetyLevel,
+          });
+          await refreshUI("behavior");
+          return;
+        }
+
+        // ─── SELECCIÓN: IDENTIDAD ────────────────────────────────────────
+        if (id.startsWith("id_")) {
+          const choice = id.replace("id_", "");
+          if (["yandere", "gymbro"].includes(choice) && !isPremium) {
+            await i.followUp({
+              content: "🔒 **Identidad Premium:** Requiere suscripción activa.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+          await IAConfigManager.updateConfig(guildId, {
+            "aiSystem.mode": choice,
+          });
+          await refreshUI("identity");
+          return;
+        }
+
+        // ─── INTERRUPTORES: SEGURIDAD ────────────────────────────────────
+        if (id.startsWith("sec_")) {
+          const moduleName = id.replace("sec_", "");
+
+          const set = await SettingsManager.getSettings(guildId);
+          const current =
+            set?.securityModules?.[
+              moduleName as keyof typeof set.securityModules
+            ] || false;
+
+          if (moduleName === "snipe" && !current) {
+            await refreshUI("snipe_confirm");
+            return;
+          }
+
+          await SettingsManager.updateSettings(guildId, {
+            [`securityModules.${moduleName}`]: !current,
+          });
+          await refreshUI("security");
         }
       },
     );
@@ -157,3 +214,4 @@ const command: SlashCommand = {
 };
 
 export default command;
+
