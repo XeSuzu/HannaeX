@@ -120,10 +120,11 @@ const command: SlashCommand = {
             if (i.customId.startsWith("help_page_")) {
               const [action, pageStr] = i.customId.replace("help_page_", "").split(":");
               const prevPage = parseInt(pageStr, 10) || 1;
-              currentPage = action === "next" ? prevPage + 1 : prevPage - 1;
-
               const cmds = categorized[currentCategory] || [];
               const totalPages = Math.max(1, Math.ceil(cmds.length / PAGE_SIZE));
+              const targetPage = action === "next" ? prevPage + 1 : prevPage - 1;
+              currentPage = Math.min(Math.max(1, targetPage), totalPages);
+
               embed = buildCategoryEmbed(client, currentCategory, cmds, currentPage, PAGE_SIZE);
               lastComponents = buildHelpComponents(client, categorized, currentCategory, cmds, currentPage, totalPages);
               await i.update({ embeds: [embed], components: lastComponents as any });
@@ -190,6 +191,15 @@ const command: SlashCommand = {
           }
         } catch (err) {
           console.error("[Help Interaction Error]", err);
+          const fallbackPayload = {
+            content: "🌸 No pude cargar esa sección en este momento. Por favor, pulsa **Inicio** o ejecuta `/help` de nuevo.",
+            ephemeral: true,
+          };
+          if (i.deferred || i.replied) {
+            await i.followUp(fallbackPayload).catch(() => {});
+          } else {
+            await i.reply(fallbackPayload).catch(() => {});
+          }
         }
       },
     );

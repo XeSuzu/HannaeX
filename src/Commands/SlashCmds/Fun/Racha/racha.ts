@@ -13,6 +13,7 @@ import { SlashCommand } from "../../../../Interfaces/Command";
 import { StreakGroup } from "../../../../Database/streaks/streakGroup.model";
 import { generateStreakCard } from "../../../../Services/CardService";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
+import { safeEmoji } from "../../../../Utils/discordSafety";
 
 // 🛠️ Helper para obtener Nombre y Emoji del Tier desde la DB
 function getTierInfo(tier: string): { name: string; emoji: string } {
@@ -287,14 +288,19 @@ const command: SlashCommand = {
 
       const buildHelpButtons = (activeTopic: keyof typeof helpContent, disabled = false) => {
         return new ActionRowBuilder<ButtonBuilder>().addComponents(
-          Object.keys(helpContent).map(topic => 
-            new ButtonBuilder()
+          Object.keys(helpContent).map(topic => {
+            const rawEmoji = helpContent[topic as keyof typeof helpContent].title.split(" ")[0];
+            const validatedEmoji = safeEmoji(rawEmoji);
+            const btn = new ButtonBuilder()
               .setCustomId(`racha_help_${topic}`)
               .setLabel(helpContent[topic as keyof typeof helpContent].title.split(" ")[1])
               .setStyle(activeTopic === topic ? ButtonStyle.Primary : ButtonStyle.Secondary)
-              .setEmoji(helpContent[topic as keyof typeof helpContent].title.split(" ")[0])
-              .setDisabled(disabled)
-          )
+              .setDisabled(disabled);
+            if (validatedEmoji) {
+              btn.setEmoji(validatedEmoji);
+            }
+            return btn;
+          })
         );
       };
 

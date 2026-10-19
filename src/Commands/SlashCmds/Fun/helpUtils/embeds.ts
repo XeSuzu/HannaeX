@@ -4,6 +4,7 @@ import { BANNER_URL, CATEGORIES, EMOJI, SEPARATOR } from "./config";
 import type { CommandDetail } from "./commandDetails";
 import { buildModerationEmbed } from "./moderationHelp";
 import { buildAntiraidEmbed } from "./antiraidHelp";
+import { truncate } from "../../../../Utils/discordSafety";
 
 export { buildModerationEmbed, buildAntiraidEmbed };
 
@@ -171,7 +172,7 @@ export function buildCommandDetailEmbed(
       .join("\n");
     embed.addFields({
       name: "⚙️ Subcomandos Disponibles",
-      value: subs.length > 1024 ? subs.substring(0, 1020) + "..." : subs,
+      value: truncate(subs, 1024),
       inline: false,
     });
   }
@@ -186,7 +187,7 @@ export function buildCommandDetailEmbed(
       .join("\n");
     embed.addFields({
       name: "📋 Parámetros y Opciones",
-      value: opts.length > 1024 ? opts.substring(0, 1020) + "..." : opts,
+      value: truncate(opts, 1024),
       inline: false,
     });
   }
@@ -197,7 +198,7 @@ export function buildCommandDetailEmbed(
   embed.addFields(
     {
       name: "🔑 Permisos Requeridos",
-      value: `**Usuario:** ${permsUser}\n**Hoshiko:** ${permsBot}`,
+      value: truncate(`**Usuario:** ${permsUser}\n**Hoshiko:** ${permsBot}`, 1024),
       inline: false,
     },
   );
@@ -213,7 +214,7 @@ export function buildCommandDetailEmbed(
 
     embed.addFields({
       name: "⚠️ Condiciones y Restricciones",
-      value: notes.join("\n"),
+      value: truncate(notes.join("\n"), 1024),
       inline: false,
     });
   }
@@ -227,7 +228,7 @@ export function buildCommandDetailEmbed(
 
     embed.addFields({
       name: "🛡️ Auditoría y Consecuencias",
-      value: auditInfo.join("\n"),
+      value: truncate(auditInfo.join("\n"), 1024),
       inline: false,
     });
   }
@@ -235,7 +236,7 @@ export function buildCommandDetailEmbed(
   if (detail.examples && detail.examples.length > 0) {
     embed.addFields({
       name: "💡 Ejemplos Prácticos",
-      value: detail.examples.map((ex) => `\`${ex}\``).join("\n"),
+      value: truncate(detail.examples.map((ex) => `\`${ex}\``).join("\n"), 1024),
       inline: false,
     });
   }
