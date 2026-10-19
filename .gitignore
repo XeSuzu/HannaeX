@@ -55,6 +55,7 @@ scratch/
 .agents/**/scratch/
 .agents/**/*.tmp
 .agents/**/*.log
+.agents/
 
 # --- Editores y Sistema Operativo ---
 .vscode/
