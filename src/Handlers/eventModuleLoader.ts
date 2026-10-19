@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 
+const IGNORED_EVENT_DIRS = new Set(["handlers", "utils", "helpers"]);
+
 export function findEventFiles(directory: string): string[] {
   const files: string[] = [];
   if (!fs.existsSync(directory)) return files;
@@ -12,6 +14,9 @@ export function findEventFiles(directory: string): string[] {
     const fullPath = path.join(directory, item.name);
 
     if (item.isDirectory()) {
+      if (item.name.startsWith("_") || IGNORED_EVENT_DIRS.has(item.name.toLowerCase())) {
+        continue;
+      }
       files.push(...findEventFiles(fullPath));
     } else if (item.isFile()) {
       const ext = path.extname(item.name);

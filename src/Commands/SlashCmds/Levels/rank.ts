@@ -5,9 +5,12 @@ import {
 } from "discord.js";
 import { totalXpForLevel, xpForLevel } from "../../../Features/levelHandler";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GlobalLevel from "../../../Database/leveling/globalLevel.model";
 import LocalLevel from "../../../Database/leveling/localLevel.model";
-import { generateServerRankBanner } from "../../../Utils/LevelBanners";
+import GlobalProfile from "../../../Database/moderation/globalProfile.model";
+import {
+  generateServerRankBanner,
+  LEVEL_CARD_THEMES,
+} from "../../../Utils/LevelBanners";
 
 export default {
   data: new SlashCommandBuilder()
@@ -18,13 +21,43 @@ export default {
         .setName("usuario")
         .setDescription("Usuario a consultar")
         .setRequired(false),
+    )
+    .addStringOption((o) =>
+      o
+        .setName("fondo")
+        .setDescription("🎨 Cambia o restablece el fondo de tu tarjeta de nivel")
+        .setRequired(false)
+        .addChoices(
+          ...Object.values(LEVEL_CARD_THEMES).map((theme) => ({
+            name: `${theme.emoji} ${theme.name}`,
+            value: theme.id,
+          })),
+        ),
     ),
 
   async execute(
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    const target = interaction.options.getUser("usuario") ?? interaction.user;
+    const selectedBg = interaction.options.getString("fondo");
+    const target = selectedBg
+      ? interaction.user
+      : (interaction.options.getUser("usuario") ?? interaction.user);
+
+    let userGlobalProfile = await GlobalProfile.findOne({ userId: target.id });
+
+    if (selectedBg && LEVEL_CARD_THEMES[selectedBg]) {
+      userGlobalProfile = await GlobalProfile.findOneAndUpdate(
+        { userId: interaction.user.id },
+        {
+          $set: { "theme.background": selectedBg },
+          $addToSet: { unlockedBackgrounds: selectedBg },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true },
+      );
+    }
+
+    const backgroundTheme = userGlobalProfile?.theme?.background ?? "default";
 
     const profile = await LocalLevel.findOne({
       userId: target.id,
@@ -36,6 +69,10 @@ export default {
       target.username;
 
     if (!profile) {
+      const themeNote =
+        selectedBg && LEVEL_CARD_THEMES[selectedBg]
+          ? `\n\n🎨 Fondo actualizado a **${LEVEL_CARD_THEMES[selectedBg].emoji} ${LEVEL_CARD_THEMES[selectedBg].name}**.`
+          : "";
       return interaction.editReply({
         embeds: [
           new EmbedBuilder()
@@ -43,10 +80,10 @@ export default {
             .setTitle(`🌸 Rango de ${displayName}`)
             .setDescription(
               `**${displayName}** todavía no ha enviado mensajes en este servidor.\n\n` +
-                `💬 Envía algunos mensajes para empezar a ganar XP y subir de nivel~`,
+                `💬 Envía algunos mensajes para ganar XP y empezar a subir de nivel, nya.${themeNote}`,
             )
             .setThumbnail(target.displayAvatarURL())
-            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setFooter({ text: `Hoshiko 🌸 • ${interaction.guild?.name || "Servidor"}` })
             .setTimestamp(),
         ],
       });
@@ -67,13 +104,6 @@ export default {
         xp: { $gt: profile.xp },
       })) + 1;
 
-    const globalProfile = await GlobalLevel.findOne({ userId: target.id });
-    const globalRank = globalProfile
-      ? (await GlobalLevel.countDocuments({
-          globalXp: { $gt: globalProfile.globalXp },
-        })) + 1
-      : undefined;
-
     // Intentar generar banner con canvas
     try {
       const avatarUrl = target.displayAvatarURL({
@@ -93,12 +123,15 @@ export default {
         progressPercent,
         messagesSent: profile.messagesSent,
         voiceMinutes: profile.voiceMinutes ?? 0,
-        globalLevel: globalProfile?.globalLevel,
-        globalRank,
+        backgroundTheme,
       });
 
       if (banner) {
-        return interaction.editReply({ files: [banner] });
+        const content =
+          selectedBg && LEVEL_CARD_THEMES[selectedBg]
+            ? `🎨 Tu fondo de tarjeta se actualizó a **${LEVEL_CARD_THEMES[selectedBg].emoji} ${LEVEL_CARD_THEMES[selectedBg].name}**.`
+            : undefined;
+        return interaction.editReply({ content, files: [banner] });
       }
     } catch (err) {
       console.error("[rank] Error generando banner canvas:", err);
@@ -115,11 +148,11 @@ export default {
     const embed = new EmbedBuilder()
       .setColor(0xffb7c5)
       .setAuthor({
-        name: `${displayName} ${milestoneEmoji}`,
+        name: `${displayName} ${milestoneEmoji}`.trim(),
         iconURL: target.displayAvatarURL(),
       })
       .setTitle(
-        `${isMilestone ? "⭐ " : ""}Nivel ${profile.level}${isMilestone ? " ⭐" : ""}`,
+        isMilestone ? `⭐ Nivel ${profile.level}` : `Nivel ${profile.level}`,
       )
       .setThumbnail(target.displayAvatarURL())
       .addFields(
@@ -134,7 +167,7 @@ export default {
           inline: true,
         },
         {
-          name: " Voz",
+          name: "🎙️ Voz",
           value: profile.voiceMinutes
             ? `${profile.voiceMinutes.toLocaleString()} min`
             : "Sin actividad",
@@ -145,15 +178,6 @@ export default {
           value: `\`${profile.xp.toLocaleString()}\` XP`,
           inline: true,
         },
-        ...(globalProfile
-          ? [
-              {
-                name: "🌐 Global",
-                value: `Nivel ${globalProfile.globalLevel} • #${globalRank}`,
-                inline: true,
-              },
-            ]
-          : []),
         { name: "📈 Progreso", value: bar, inline: false },
         {
           name: "🎯 Siguiente nivel",
@@ -162,9 +186,14 @@ export default {
             `Faltan \`${xpToNextLevel.toLocaleString()}\` XP para nivel ${profile.level + 1}`,
           inline: false,
         },
+        {
+          name: "🌐 Rango Global",
+          value: "ℹ️ El sistema de rango global se encuentra temporalmente desactivado por mantenimiento.",
+          inline: false,
+        },
       )
       .setFooter({
-        text: `Hoshiko Levels 🌸 • ${interaction.guild?.name || "Servidor"}`,
+        text: `Hoshiko 🌸 • ${interaction.guild?.name || "Servidor"}`,
       })
       .setTimestamp();
 

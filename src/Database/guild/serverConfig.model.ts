@@ -69,6 +69,8 @@ export interface IServerConfig extends Document {
     customColor: string;
     blacklist: string[];
     feeds: IFeedConfig[];
+    visualMode?: boolean;
+    cardTheme?: string;
   };
 
   leveling: {
@@ -140,6 +142,8 @@ const serverConfigSchema = new Schema<IServerConfig>({
     customTitle: { type: String, default: "Confesión Anónima" },
     customColor: { type: String, default: "#FFB6C1" },
     blacklist: { type: [String], default: [] },
+    visualMode: { type: Boolean, default: false },
+    cardTheme: { type: String, default: "sakura" },
     feeds: [
       {
         channelId: String,

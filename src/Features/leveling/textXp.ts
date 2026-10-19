@@ -1,10 +1,8 @@
 import { EmbedBuilder, GuildMember, Message, TextChannel } from "discord.js";
-import LevelConfig from "../../Database/leveling/levelConfig.model";
 import { LevelConfigCache } from "../../Database/leveling/LevelConfigCache";
 import LocalLevel from "../../Database/leveling/localLevel.model";
 import { queueLocalMessageIncrement } from "../../Database/system/BulkWriteBuffer";
 import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
-import { handleGlobalXp } from "./globalTextXp";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
 
 export async function handleLevelXp(message: Message): Promise<void> {
@@ -76,8 +74,12 @@ export async function handleLevelXp(message: Message): Promise<void> {
   }
 
   const passiveWindow = Math.max(15, Math.floor(cooldownSecs * 0.25));
-  const isPassiveRange =
-    secondsSinceLast >= passiveWindow && secondsSinceLast < cooldownSecs;
+  if (secondsSinceLast < passiveWindow) {
+    queueLocalMessageIncrement(message.guild.id, message.author.id, 1);
+    return;
+  }
+
+  const isPassiveRange = secondsSinceLast < cooldownSecs;
 
   let earned = Math.floor(baseXp + Math.random() * baseXp * 0.5);
 
@@ -101,48 +103,55 @@ export async function handleLevelXp(message: Message): Promise<void> {
 
   if (earned <= 0) {
     queueLocalMessageIncrement(message.guild.id, message.author.id, 1);
-    await handleGlobalXp(message, 0, false);
     return;
   }
 
   const currentWeekStart = getCurrentWeekStart();
   const localWeekStart = profile.weekStartDate ?? new Date(0);
+  const isNewWeek = localWeekStart < currentWeekStart;
 
-  let weeklyXp: number;
-  let weeklyMessages: number;
+  const updated = await LocalLevel.findOneAndUpdate(
+    { userId: message.author.id, guildId: message.guild.id },
+    isNewWeek
+      ? {
+          $inc: { xp: earned, messagesSent: 1 },
+          $set: {
+            lastXpGain: now,
+            weeklyXp: earned,
+            weeklyMessages: 1,
+            weekStartDate: currentWeekStart,
+          },
+        }
+      : {
+          $inc: {
+            xp: earned,
+            messagesSent: 1,
+            weeklyXp: earned,
+            weeklyMessages: 1,
+          },
+          $set: {
+            lastXpGain: now,
+            weekStartDate: currentWeekStart,
+          },
+        },
+    { new: true },
+  );
 
-  if (localWeekStart < currentWeekStart) {
-    weeklyXp = earned;
-    weeklyMessages = 1;
-  } else {
-    weeklyXp = (profile.weeklyXp ?? 0) + earned;
-    weeklyMessages = (profile.weeklyMessages ?? 0) + 1;
-  }
-
-  const newXp = profile.xp + earned;
-  let newLevel = profile.level;
+  const newXp = updated?.xp ?? profile.xp + earned;
+  const oldLevel = profile.level;
+  let newLevel = oldLevel;
 
   while (newXp >= totalXpForLevel(newLevel + 1)) {
     newLevel++;
   }
 
-  const leveledUp = newLevel > profile.level;
-  const oldLevel = profile.level;
-
-  await LocalLevel.updateOne(
-    { userId: message.author.id, guildId: message.guild.id },
-    {
-      xp: newXp,
-      level: newLevel,
-      lastXpGain: now,
-      weeklyXp,
-      weeklyMessages,
-      weekStartDate: currentWeekStart,
-      $inc: { messagesSent: 1 },
-    },
-  );
-
-  await handleGlobalXp(message, earned, false);
+  const leveledUp = newLevel > oldLevel;
+  if (leveledUp) {
+    await LocalLevel.updateOne(
+      { userId: message.author.id, guildId: message.guild.id, level: { $lt: newLevel } },
+      { $set: { level: newLevel } },
+    );
+  }
 
   if (!leveledUp) return;
 
@@ -157,17 +166,17 @@ export async function handleLevelXp(message: Message): Promise<void> {
   }
 
   const milestone = isMilestone(newLevel);
-  const milestoneEmoji = milestone ? "⭐ " : "";
-  const celebrationEmoji = milestone ? "🎉" : "✨";
 
   const embed = new EmbedBuilder()
     .setColor(milestone ? 0xffd700 : 0xffb7c5)
     .setAuthor({
-      name: `${celebrationEmoji} ¡${message.author.displayName} subió de nivel! ${milestoneEmoji}`,
+      name: milestone
+        ? `⭐ ¡${message.author.displayName} subió de nivel!`
+        : `✨ ¡${message.author.displayName} subió de nivel!`,
       iconURL: message.author.displayAvatarURL(),
     })
     .setTitle(
-      `${milestone ? "⭐ " : "🌸"} Nivel ${newLevel} ${milestone ? "⭐" : ""}`,
+      milestone ? `⭐ Nivel ${newLevel} (Hito Alcanzado)` : `🌸 Nivel ${newLevel}`,
     )
     .setThumbnail(message.author.displayAvatarURL())
     .addFields(
@@ -184,15 +193,15 @@ export async function handleLevelXp(message: Message): Promise<void> {
       {
         name: milestone ? "🏆 ¡Felicidades!" : "💪 ¡Sigue así!",
         value: milestone
-          ? `¡Llegaste a un nivel importante! 🎊`
+          ? `¡Has alcanzado un nivel especial!`
           : `XP ganada: **+${earned}**`,
         inline: false,
       },
     )
     .setFooter({
       text: milestone
-        ? `🎉 ¡${newLevel} es un nivel especial! • Hoshiko Levels 🌸`
-        : "Hoshiko Levels 🌸",
+        ? `⭐ ¡Nivel especial alcanzado! • Hoshiko 🌸`
+        : `Hoshiko 🌸 • ${message.guild.name}`,
     })
     .setTimestamp();
 

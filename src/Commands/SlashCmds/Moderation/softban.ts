@@ -68,11 +68,11 @@ const command: SlashCommand = {
         `Softban por ${interaction.user.tag}: ${reason}`,
       );
 
-      await HoshikoLogger.logAction(interaction.guild, "BAN", {
+      await HoshikoLogger.logAction(interaction.guild, "SOFTBAN", {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
-        extra: "Softban (baneado y desbaneado)",
+        extra: deleteMessages ? "Mensajes de 7 días eliminados" : "Mensajes preservados",
       });
 
       const embed = new EmbedBuilder()

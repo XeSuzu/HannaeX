@@ -85,14 +85,15 @@ const command: SlashCommand = {
         "ManualWarn",
       );
 
+      const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
+      const total = (await getWarnings(interaction.guild.id, target.id)).length;
+
       await HoshikoLogger.logAction(interaction.guild, "WARN", {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
+        warnCount: total,
       });
-
-      const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
-      const total = (await getWarnings(interaction.guild.id, target.id)).length;
 
       const embed = new EmbedBuilder()
         .setTitle("⚠️ Advertencia Enviada")

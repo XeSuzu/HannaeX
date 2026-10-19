@@ -77,15 +77,10 @@ export default async (
   }
   const isDirectInteraction = forced || isMentioned || prefixMatch || isReplyToMe;
 
-  // --- 🎲 GATILLO ESPONTÁNEO ---
-  let isRandomTrigger = false;
-  if (!isDirectInteraction) {
-    const allowedChannels = aiSystem.spontaneousChannels || [];
-    if (allowedChannels.includes(message.channel.id)) {
-      isRandomTrigger = (aiSystem.randomChance ?? 0) > 0 && Math.random() * 100 < aiSystem.randomChance;
-    }
-  }
-  if (!isDirectInteraction && !isRandomTrigger) return false;
+  // --- 🎲 GATILLO ESPONTÁNEO (DESACTIVADO TEMPORALMENTE) ---
+  // La conversación espontánea de IA se encuentra pausada por mantenimiento hasta nuevo aviso.
+  const isRandomTrigger = false;
+  if (!isDirectInteraction) return false;
 
   const now = Date.now();
   const lastCall = userAiCooldown.get(message.author.id) ?? 0;

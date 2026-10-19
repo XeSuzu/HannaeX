@@ -12,7 +12,7 @@ const command: SlashCommand = {
   ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("confession-check")
-    .setDescription("🔍 Nyaa~ Investiga quién envió una publicación (Solo admins)")
+    .setDescription("🔍 Investiga quién envió una publicación anónima (Solo admins)")
     .addIntegerOption((option) =>
       option
         .setName("id")
@@ -23,7 +23,7 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      await interaction.editReply({ content: "⛔ Nyaa~ No tienes permiso para esto." });
+      await interaction.editReply({ content: "⛔ No tienes permisos de administrador para usar esta función, nya." });
       return;
     }
 
@@ -36,27 +36,27 @@ const command: SlashCommand = {
 
     if (!evidence) {
       await interaction.editReply({
-        content: `🐾 No encontré ninguna publicación con el ID **#${targetId}**...`,
+        content: `🐾 No encontré ninguna publicación con el ID **#${targetId}**.`,
       });
       return;
     }
 
     let userTag = evidence.authorTag;
     let avatarUrl = "https://cdn.discordapp.com/embed/avatars/0.png";
-    let status = "😿 Fuera del radar";
+    let status = "😿 Fuera del servidor";
     let color = 0x2f3136;
 
     try {
       const user = await interaction.client.users.fetch(evidence.authorId);
       userTag = user.tag;
       avatarUrl = user.displayAvatarURL({ size: 512 });
-      status = "🌸 Localizado~";
+      status = "🌸 Localizado";
       color = 0xff9ecd;
     } catch (e) {}
 
     const auditEmbed = new EmbedBuilder()
       .setAuthor({
-        name: `🔎 Investigación de Publicación #${targetId}`,
+        name: `🔎 Auditoría de Publicación #${targetId}`,
         iconURL: "https://cdn-icons-png.flaticon.com/512/1022/1022484.png",
       })
       .setColor(color as any)
@@ -77,7 +77,7 @@ const command: SlashCommand = {
           value: `>>> ${evidence.content}`,
         },
       )
-      .setFooter({ text: `Solo para ojos autorizados~ 🐾 • ID: ${evidence._id}` })
+      .setFooter({ text: `Hoshiko Auditoría 🐾 • ID: ${evidence._id}` })
       .setTimestamp();
 
     if (evidence.imageUrl) {

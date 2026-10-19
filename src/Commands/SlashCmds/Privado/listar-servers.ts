@@ -240,7 +240,7 @@ const command: SlashCommand = {
 
       if (guilds.length === 0) {
         return interaction.editReply({
-          content: `❌ No encontré ningún servidor con el nombre "${searchQuery}", nyaa~`,
+          content: `❌ No encontré ningún servidor que coincida con "${searchQuery}", nya.`,
         });
       }
 

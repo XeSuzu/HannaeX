@@ -214,7 +214,7 @@ export async function generateSetupUI(
         },
         {
           name: "🗣️ Chat Espontáneo",
-          value: `**Este canal:**\n${isSpontaneousHere ? "🟢 **Hablando**" : "🔇 **Callada**"}`,
+          value: "⚠️ **En mantenimiento**\n`Desactivado temporalmente`",
           inline: true,
         },
       )
@@ -238,11 +238,10 @@ export async function generateSetupUI(
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId("act_spontaneous")
-        .setLabel(isSpontaneousHere ? "Callar aquí" : "Hablar aquí")
-        .setEmoji(isSpontaneousHere ? "🔇" : "🗣️")
-        .setStyle(
-          isSpontaneousHere ? ButtonStyle.Success : ButtonStyle.Secondary,
-        ),
+        .setLabel("Chat Espontáneo (Mantenimiento)")
+        .setEmoji("⚠️")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
     );
 
     const sysRow = new ActionRowBuilder<ButtonBuilder>().addComponents(

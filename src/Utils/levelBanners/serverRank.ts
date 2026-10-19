@@ -18,7 +18,10 @@ export async function generateServerRankBanner(
 ): Promise<AttachmentBuilder | null> {
   if (!getCanvasLibrary()) return null;
   try {
-    const { canvas, ctx } = await createBaseCanvas(data.avatarBuffer);
+    const { canvas, ctx } = await createBaseCanvas(
+      data.avatarBuffer,
+      data.backgroundTheme,
+    );
     drawPanel(ctx, `#${data.rank}`, "in", "server", C.goldGlow);
 
     const maxW = L.info.maxRight - L.info.x;

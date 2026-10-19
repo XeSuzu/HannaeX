@@ -98,14 +98,14 @@ const command: SlashCommand = {
       });
 
       const embed = new EmbedBuilder()
-        .setTitle(`🌸 ¡Tengo muchas casitas!`)
+        .setTitle(`🌸 Lista de Servidores`)
         .setColor("#2b2d31")
         .setDescription(
-          `¡Miau! Son demasiadas casitas (**${totalServers}**) para un solo mensajito.\n¡Pero no te preocupes! Te hice un diario secreto con la lista completa, nya~ 💖`,
+          `Hay un total de **${totalServers} servidores** activos.\nAquí tienes el archivo con la lista detallada, nya 🐾`,
         )
         .addFields({
-          name: "💖 Amigos Totales",
-          value: `${totalMembers} personitas`,
+          name: "👥 Miembros Totales",
+          value: `${totalMembers.toLocaleString()} usuarios`,
           inline: true,
         });
 

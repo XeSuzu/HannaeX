@@ -1,8 +1,9 @@
 import { Client } from "discord.js";
 import { handleVoiceXp } from "../../../../Features/levelHandler";
 import ActiveVoiceSession from "../../../../Database/leveling/activeVoiceSession.model";
-import LevelConfig from "../../../../Database/leveling/levelConfig.model";
+import { LevelConfigCache } from "../../../../Database/leveling/LevelConfigCache";
 import {
+  isValidSession,
   isValidVoiceStateNow,
   persistSession,
   removePersistedSession,
@@ -41,16 +42,26 @@ export async function rehydrateVoiceSessions(): Promise<void> {
       }
 
       const voiceState = guild.voiceStates.cache.get(s.userId);
-      if (!voiceState?.channelId || voiceState.channelId !== s.channelId) {
+      if (
+        !voiceState?.channelId ||
+        voiceState.channelId !== s.channelId ||
+        !isValidSession(voiceState)
+      ) {
         await ActiveVoiceSession.deleteOne({ _id: s._id });
         cleaned++;
         continue;
       }
 
-      const restoredAt = Date.now();
+      const startMs =
+        s.start instanceof Date ? s.start.getTime() : Date.now();
+      const originalStartMs =
+        s.originalStart instanceof Date
+          ? s.originalStart.getTime()
+          : startMs;
+
       activeSessions.set(sessionKey(s.userId, s.guildId), {
-        start: restoredAt,
-        originalStart: restoredAt,
+        start: startMs,
+        originalStart: originalStartMs,
         userId: s.userId,
         guildId: s.guildId,
         channelId: s.channelId,
@@ -89,10 +100,12 @@ export async function closeSession(
   const guild = client?.guilds.cache.get(guildId);
   if (!guild) return;
 
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member =
+    guild.members.cache.get(userId) ??
+    (await guild.members.fetch(userId).catch(() => null));
   if (!member) return;
 
-  const config = await LevelConfig.findOne({ guildId });
+  const config = await LevelConfigCache.getLite(guildId);
   if (!config?.enabled || !config.xpVoiceEnabled) return;
   if (config.ignoredChannels.includes(session.channelId)) return;
   if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r)))
@@ -107,8 +120,9 @@ export async function closeSession(
   );
 }
 
-setInterval(async () => {
-  const now = Date.now();
+export async function processActiveVoiceInterval(
+  now: number = Date.now(),
+): Promise<void> {
   for (const [key, session] of activeSessions.entries()) {
     const current = activeSessions.get(key);
     if (!current || current.token !== session.token) continue;
@@ -125,9 +139,9 @@ setInterval(async () => {
         continue;
       }
 
-      const member = await guild.members
-        .fetch(session.userId)
-        .catch(() => null);
+      const member =
+        guild.members.cache.get(session.userId) ??
+        (await guild.members.fetch(session.userId).catch(() => null));
       if (!member) {
         activeSessions.delete(key);
         await removePersistedSession(session.userId, session.guildId);
@@ -138,12 +152,11 @@ setInterval(async () => {
       if (!latest || latest.token !== session.token) continue;
 
       if (!isValidVoiceStateNow(member)) {
-        activeSessions.delete(key);
-        await removePersistedSession(session.userId, session.guildId);
+        await closeSession(session.userId, session.guildId, now);
         continue;
       }
 
-      const config = await LevelConfig.findOne({ guildId: session.guildId });
+      const config = await LevelConfigCache.getLite(session.guildId);
       if (!config?.enabled || !config.xpVoiceEnabled) continue;
       if (config.ignoredChannels.includes(session.channelId)) continue;
       if (config.ignoredRoles.some((r: string) => member.roles.cache.has(r))) {
@@ -186,4 +199,8 @@ setInterval(async () => {
       console.error("[voiceXp] error guardando xp por intervalo:", err);
     }
   }
-}, 5 * 60_000);
+}
+
+setInterval(() => {
+  void processActiveVoiceInterval();
+}, 5 * 60_000).unref();

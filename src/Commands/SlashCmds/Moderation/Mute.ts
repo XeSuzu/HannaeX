@@ -104,7 +104,8 @@ const command: SlashCommand = {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
-        extra: `Duración: ${timeInput}`,
+        expiresAt: Date.now() + duration,
+        extra: `Duración solicitada: ${timeInput}`,
       });
 
       const embed = new EmbedBuilder()

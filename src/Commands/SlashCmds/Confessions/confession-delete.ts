@@ -60,22 +60,23 @@ const command: SlashCommand = {
 
     // 3. BORRADO FÍSICO (Intentar borrar el mensaje de Discord)
     let discordDeleted = false;
+    const targetChannelId =
+      confession.channelId || settings?.confessions?.channelId;
+
     try {
-      if (
-        settings &&
-        settings.confessions.channelId &&
-        confession.publicMessageId
-      ) {
+      if (targetChannelId && confession.publicMessageId) {
         const publicChannel = interaction.guild.channels.cache.get(
-          settings.confessions.channelId,
+          targetChannelId,
         ) as TextChannel;
 
-        const msg = await publicChannel.messages
-          .fetch(confession.publicMessageId)
-          .catch(() => null);
-        if (msg) {
-          await msg.delete();
-          discordDeleted = true;
+        if (publicChannel) {
+          const msg = await publicChannel.messages
+            .fetch(confession.publicMessageId)
+            .catch(() => null);
+          if (msg) {
+            await msg.delete();
+            discordDeleted = true;
+          }
         }
       }
     } catch (e) {

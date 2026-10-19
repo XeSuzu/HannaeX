@@ -13,6 +13,8 @@ import {
   TextInputStyle,
 } from "discord.js";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
+import Confession from "../../../Database/community/confession.model";
 import { queueTrustScoreDelta } from "../../../Database/system/BulkWriteBuffer";
 import {
   banRecentRaiders,
@@ -200,6 +202,52 @@ export async function handleComponents(
         );
         resolutionText = `🔨 **Baneo en lotes completado:** ${banned}/${found} raiders recientes baneados por <@${interaction.user.id}>`;
         resolvedColor = 0xed4245;
+      } else if (action === "unmute") {
+        if (!interaction.memberPermissions.has(PermissionFlagsBits.ModerateMembers)) {
+          await interaction.followUp({
+            content: "⛔ Requiere permiso de **Moderar Miembros** para retirar el silencio.",
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        if (member && member.isCommunicationDisabled()) {
+          await member
+            .timeout(null, `Silencio retirado desde Centro de Logs por ${interaction.user.tag}`)
+            .catch(() => null);
+        }
+        resolutionText = `🔊 **Silencio retirado** por <@${interaction.user.id}>`;
+        resolvedColor = 0x57f287;
+      } else if (action === "unban") {
+        if (!interaction.memberPermissions.has(PermissionFlagsBits.BanMembers)) {
+          await interaction.followUp({
+            content: "⛔ Requiere permiso de **Banear Miembros** para desbanear.",
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        await guild.bans
+          .remove(targetId, `Desbaneado desde Centro de Logs por ${interaction.user.tag}`)
+          .catch(() => null);
+        resolutionText = `🔓 **Desbaneado** por <@${interaction.user.id}>`;
+        resolvedColor = 0x57f287;
+      } else if (action === "warns") {
+        const { getWarnings } = await import(
+          "../../../Database/moderation/warning.model.js"
+        );
+        const warns = await getWarnings(guild.id, targetId);
+        const list =
+          warns
+            .slice(0, 10)
+            .map(
+              (w, i) =>
+                `${i + 1}. \`${new Date(w.createdAt).toLocaleDateString()}\` - ${w.reason} *(Mod: <@${w.moderatorId}>)*`,
+            )
+            .join("\n") || "No tiene advertencias registradas.";
+        await interaction.followUp({
+          content: `📜 **Historial de Advertencias de <@${targetId}> (${warns.length} en total):**\n${list}`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
       }
 
       const oldEmbed = interaction.message.embeds[0];
@@ -367,6 +415,58 @@ export async function handleComponents(
       ),
     );
     await interaction.showModal(modal);
+    return;
+  }
+
+  if (interaction.customId.startsWith("quick_delconfess_")) {
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages)) {
+      void interaction.reply({
+        content: "⛔ No tienes permisos para borrar publicaciones, nya.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const targetId = Number(interaction.customId.split("_")[2]);
+
+    const confession = await Confession.findOne({
+      guildId: interaction.guildId,
+      confessionId: targetId,
+    });
+
+    if (!confession) {
+      void interaction.reply({
+        content: `❌ La publicación #${targetId} no existe en la base de datos.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    if (confession.isDeleted) {
+      void interaction.reply({
+        content: `⚠️ La publicación #${targetId} ya ha sido borrada anteriormente.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const settings = await ServerConfig.findOne({ guildId: interaction.guildId });
+    const targetChannelId = confession.channelId || settings?.confessions?.channelId;
+
+    if (targetChannelId && confession.publicMessageId && interaction.guild) {
+      const channel = interaction.guild.channels.cache.get(targetChannelId) as TextChannel;
+      if (channel) {
+        const msg = await channel.messages.fetch(confession.publicMessageId).catch(() => null);
+        if (msg) await msg.delete().catch(() => null);
+      }
+    }
+
+    confession.isDeleted = true;
+    await confession.save();
+
+    void interaction.reply({
+      content: `🗑️ **Publicación #${targetId} eliminada exitosamente** por <@${interaction.user.id}> 🐾`,
+    });
     return;
   }
 }

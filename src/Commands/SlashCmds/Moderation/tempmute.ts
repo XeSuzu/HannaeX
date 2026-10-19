@@ -142,7 +142,8 @@ const command: SlashCommand = {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
-        extra: `Temporal: ${timeInput} (hasta ${unmuteDate.toLocaleString()})`,
+        expiresAt: unmuteDate,
+        actionLabel: `Silencio Temporal (${timeInput})`,
       });
 
       const embed = new EmbedBuilder()

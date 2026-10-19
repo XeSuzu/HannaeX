@@ -41,6 +41,7 @@ export const envSchema = z.object({
   HEALTH_DETAILS_TOKEN: blankToUndefined,
   GEMINI_MODERATION_API_KEY: blankToUndefined,
   GOOGLE_SAFE_BROWSING_KEY: blankToUndefined,
+  SUPPORT_SERVER_INVITE: blankToUndefined,
 });
 
 export type AppEnvironment = z.infer<typeof envSchema>;

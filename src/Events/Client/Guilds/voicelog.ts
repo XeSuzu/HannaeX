@@ -34,36 +34,55 @@ export default {
     let title: string;
     let color: number;
     let description: string;
+    const channelFields: Array<{ name: string; value: string; inline: boolean }> = [];
 
     if (!oldChannel && newChannel) {
       // 🟢 Entró a un canal de voz
-      title = "🎙️ Entró a voz";
+      title = "🎙️ Conexión a Voz";
       color = 0x57f287; // verde
-      description = `**${member.user.tag}** entró a **${newChannel.name}**`;
+      description = `<@${member.id}> se conectó a <#${newChannel.id}>`;
+      channelFields.push({ name: "🔊 Canal", value: `<#${newChannel.id}>\n\`${newChannel.name}\``, inline: true });
     } else if (oldChannel && !newChannel) {
       // 🔴 Salió de un canal de voz
-      title = "🔇 Salió de voz";
+      title = "🔇 Desconexión de Voz";
       color = 0xff6b6b; // rojo
-      description = `**${member.user.tag}** salió de **${oldChannel.name}**`;
+      description = `<@${member.id}> se desconectó de <#${oldChannel.id}>`;
+      channelFields.push({ name: "🔊 Canal", value: `<#${oldChannel.id}>\n\`${oldChannel.name}\``, inline: true });
     } else if (oldChannel && newChannel) {
       // 🔄 Cambió de canal
-      title = "🔀 Cambió de canal";
+      title = "🔀 Cambio de Canal de Voz";
       color = 0xffa500; // naranja
-      description = `**${member.user.tag}** se movió de **${oldChannel.name}** → **${newChannel.name}**`;
+      description = `<@${member.id}> se movió de <#${oldChannel.id}> ➔ <#${newChannel.id}>`;
+      channelFields.push(
+        { name: "🔊 Canal Anterior", value: `<#${oldChannel.id}>\n\`${oldChannel.name}\``, inline: true },
+        { name: "🔊 Canal Nuevo", value: `<#${newChannel.id}>\n\`${newChannel.name}\``, inline: true },
+      );
     } else {
       return;
     }
 
     const embed = new EmbedBuilder()
+      .setAuthor({
+        name: member.user.tag,
+        iconURL: member.user.displayAvatarURL(),
+      })
       .setTitle(title)
       .setDescription(description)
       .setColor(color)
       .setThumbnail(member.user.displayAvatarURL())
-      .addFields({
-        name: "Usuario",
-        value: `${member.user.tag} \`(${member.user.id})\``,
-        inline: true,
-      })
+      .addFields(
+        {
+          name: "👤 Usuario",
+          value: `<@${member.id}>\n\`${member.user.tag}\``,
+          inline: true,
+        },
+        ...channelFields,
+        {
+          name: "🆔 ID de Usuario",
+          value: `\`${member.id}\``,
+          inline: true,
+        },
+      )
       .setTimestamp()
       .setFooter({ text: "Hoshiko • Voice Log" });
 

@@ -42,7 +42,9 @@ export async function handleVoiceXp(
 
   if (earned <= 0) return;
 
-  const profile = await LocalLevel.findOneAndUpdate(
+  const currentWeekStart = getCurrentWeekStart();
+
+  const existing = await LocalLevel.findOneAndUpdate(
     {
       userId: member.id,
       guildId: member.guild.id,
@@ -56,40 +58,51 @@ export async function handleVoiceXp(
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 
-  const newVoiceXp = (profile.voiceXp ?? 0) + earned;
-  let newVoiceLevel = profile.voiceLevel ?? 0;
+  const oldVoiceLevel = existing.voiceLevel ?? 0;
+  const localWeekStart = existing.weekStartDate ?? new Date(0);
+  const isNewWeek = localWeekStart < currentWeekStart;
+
+  const updated = await LocalLevel.findOneAndUpdate(
+    { userId: member.id, guildId: member.guild.id },
+    isNewWeek
+      ? {
+          $inc: {
+            voiceXp: earned,
+            voiceMinutes: safeMinutes,
+          },
+          $set: {
+            weeklyVoiceMinutes: safeMinutes,
+            weekStartDate: currentWeekStart,
+          },
+        }
+      : {
+          $inc: {
+            voiceXp: earned,
+            voiceMinutes: safeMinutes,
+            weeklyVoiceMinutes: safeMinutes,
+          },
+        },
+    { new: true },
+  );
+
+  const newVoiceXp = updated?.voiceXp ?? (existing.voiceXp ?? 0) + earned;
+  let newVoiceLevel = oldVoiceLevel;
 
   while (newVoiceXp >= totalXpForVoiceLevel(newVoiceLevel + 1)) {
     newVoiceLevel++;
   }
 
-  const leveledUp = newVoiceLevel > (profile.voiceLevel ?? 0);
-
-  const currentWeekStart = getCurrentWeekStart();
-  const localWeekStart = profile.weekStartDate ?? new Date(0);
-  const weeklyVoiceMinutes =
-    localWeekStart < currentWeekStart
-      ? safeMinutes
-      : (profile.weeklyVoiceMinutes ?? 0) + safeMinutes;
-
-  await LocalLevel.updateOne(
-    { userId: member.id, guildId: member.guild.id },
-    {
-      $set: {
-        voiceXp: newVoiceXp,
-        voiceLevel: newVoiceLevel,
-      },
-      $inc: {
-        voiceMinutes: safeMinutes,
-      },
-      weeklyVoiceMinutes,
-      ...(localWeekStart < currentWeekStart && {
-        weekStartDate: currentWeekStart,
-      }),
-    },
-  );
+  const leveledUp = newVoiceLevel > oldVoiceLevel;
 
   if (leveledUp) {
+    await LocalLevel.updateOne(
+      {
+        userId: member.id,
+        guildId: member.guild.id,
+        voiceLevel: { $lt: newVoiceLevel },
+      },
+      { $set: { voiceLevel: newVoiceLevel } },
+    );
     console.log(
       `[VoiceLevel] ${member.user.username} subió al Nivel VC ${newVoiceLevel} en ${member.guild.name}`,
     );

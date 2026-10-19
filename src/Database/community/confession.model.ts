@@ -17,6 +17,7 @@ export interface IConfession extends Document {
   replyToId: number | null; // Si es respuesta, aquí va el ID original (ej: 345)
 
   // 🔗 RASTREO (Ids de mensaje de Discord)
+  channelId?: string | null;
   publicMessageId: string | null;
   logMessageId: string | null;
 
@@ -39,6 +40,7 @@ const confessionSchema = new Schema<IConfession>({
   isAnonymous: { type: Boolean, default: true },
   replyToId: { type: Number, default: null },
 
+  channelId: { type: String, default: null },
   publicMessageId: { type: String, default: null },
   logMessageId: { type: String, default: null },
 

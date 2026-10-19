@@ -15,9 +15,10 @@ export function loadCommands<T>(
 
   for (const filePath of allFiles) {
     try {
-      delete require.cache[require.resolve(filePath)];
+      const absolutePath = path.resolve(filePath);
+      delete require.cache[require.resolve(absolutePath)];
 
-      const mod = require(path.resolve(filePath));
+      const mod = require(absolutePath);
       const command = mod.default || mod;
 
       if (validator(command)) {
@@ -36,6 +37,32 @@ export function loadCommands<T>(
   return commands;
 }
 
+const IGNORED_COMMAND_DIRS = new Set([
+  "renderer",
+  "setup-levels",
+  "flows",
+  "utils",
+  "helpers",
+  "components",
+]);
+
+function isIgnoredDirectory(name: string): boolean {
+  const lower = name.toLowerCase();
+  return (
+    name.startsWith("_") ||
+    IGNORED_COMMAND_DIRS.has(lower) ||
+    lower.endsWith("utils") ||
+    lower.endsWith("-levels")
+  );
+}
+
+function isAuxiliaryFile(name: string): boolean {
+  return (
+    name.startsWith("_") ||
+    /^(?:.*(?:Renderer|Primitives|Views|Flow))\.[jt]s$/i.test(name)
+  );
+}
+
 function getFilesRecursively(directory: string): string[] {
   let files: string[] = [];
   if (!fs.existsSync(directory)) return files;
@@ -45,8 +72,10 @@ function getFilesRecursively(directory: string): string[] {
   for (const item of items) {
     const fullPath = path.join(directory, item.name);
     if (item.isDirectory()) {
+      if (isIgnoredDirectory(item.name)) continue;
       files = files.concat(getFilesRecursively(fullPath));
     } else if (item.isFile()) {
+      if (isAuxiliaryFile(item.name)) continue;
       const ext = path.extname(item.name);
       if (
         [".ts", ".js"].includes(ext) &&

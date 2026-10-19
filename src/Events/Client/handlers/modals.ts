@@ -1,4 +1,7 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   EmbedBuilder,
   MessageFlags,
   ModalSubmitInteraction,
@@ -9,13 +12,43 @@ import { HoshikoClient } from "../../../index";
 import Suggestion from "../../../Database/community/suggestion.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
+const confessionUserCooldown = new Map<string, number>();
+const CONFESSION_COOLDOWN_MS = 30_000;
+
+function isValidImageUrl(url: string | null): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    const isImageExt = /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(parsed.pathname);
+    const isTrustedCdn =
+      parsed.hostname === "cdn.discordapp.com" ||
+      parsed.hostname === "media.discordapp.net" ||
+      parsed.hostname.endsWith("imgur.com");
+    return isImageExt || isTrustedCdn;
+  } catch {
+    return false;
+  }
+}
+
 export async function handleModals(
   interaction: ModalSubmitInteraction,
   client: HoshikoClient,
 ) {
   if (interaction.customId.startsWith("confessionModal")) {
+    const now = Date.now();
+    const lastSent = confessionUserCooldown.get(interaction.user.id) ?? 0;
+    if (now - lastSent < CONFESSION_COOLDOWN_MS) {
+      const waitSecs = Math.ceil((CONFESSION_COOLDOWN_MS - (now - lastSent)) / 1000);
+      void interaction.reply({
+        content: `⏱️ Por favor espera **${waitSecs} segundos** antes de enviar otra publicación, nya.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     let content = "";
-    let rawImage = null;
+    let rawImage: string | null = null;
     let identityChoice = "";
 
     try {
@@ -31,15 +64,14 @@ export async function handleModals(
       console.error("Error crítico leyendo modal:", err);
       void interaction.reply({
         content:
-          "🍥 ¡Miau! No pude leer bien lo que escribiste. ¿Podrías intentarlo de nuevo?",
+          "🍥 No pude leer bien lo que escribiste. ¿Podrías intentarlo de nuevo?",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     const isAnonymous = !identityChoice.match(/^(si|yes|yo|true|ok)$/i);
-    const validImage =
-      rawImage && rawImage.startsWith("http") ? rawImage : null;
+    const validImage = isValidImageUrl(rawImage) ? rawImage : null;
 
     let replyToId: string | null = null;
     let targetChannelId: string | null = null;
@@ -61,15 +93,16 @@ export async function handleModals(
         isAnonymous,
         targetChannelId,
       );
+      confessionUserCooldown.set(interaction.user.id, now);
       const typeText = replyToId ? "Respuesta" : "Publicación";
       const modeText = isAnonymous ? "🔒 Anónima" : "🔓 Pública";
       await interaction.editReply({
-        content: `✅ ¡Tu **${typeText}**${modeText} fue enviada! Puedes verla con el ID: #${confessionId} ✨`,
+        content: `✅ ¡Tu **${typeText}** ${modeText} fue enviada con éxito! (ID: #${confessionId}) 🐾`,
       });
     } catch (error: any) {
       console.error("Error publicación:", error);
       await interaction.editReply({
-        content: `😿 ¡Oh, no! Hubo un problema al enviar tu publicación: ${error.message || "Inténtalo de nuevo en un momento, nyaa..."}`,
+        content: `😿 Hubo un problema al enviar tu publicación: ${error.message || "Inténtalo de nuevo en un momento, nya."}`,
       });
     }
     return;
@@ -95,25 +128,34 @@ export async function handleModals(
           },
           { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
           {
-            name: "🛠️ Acción",
-            value: `Usa \`/confession-check id:${targetId}\` o \`/confession-delete id:${targetId}\` para intervenir.`,
+            name: "🛠️ Acciones Rápidas",
+            value: `Usa los botones inferiores o \`/confession-check id:${targetId}\` para inspeccionar al autor.`,
           },
         )
         .setTimestamp();
+
+      const actionButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`quick_delconfess_${targetId}`)
+          .setLabel(`Borrar #${targetId}`)
+          .setEmoji("🗑️")
+          .setStyle(ButtonStyle.Danger),
+      );
 
       await HoshikoLogger.sendToChannel(
         interaction.guild,
         "confesslog",
         alertEmbed,
+        [actionButtons],
       );
 
       await interaction.editReply(
-        "✅ ¡Reporte enviado! Gracias por cuidar la comunidad. Mis mods lo revisarán pronto. 👮‍♀️",
+        "✅ ¡Reporte enviado! Los moderadores lo revisarán pronto 🐾",
       );
     } catch (err) {
       console.error("Error enviando reporte:", err);
       await interaction.editReply(
-        "😿 ¡Miau! Hubo un problema al enviar tu reporte. Por favor, inténtalo de nuevo.",
+        "😿 Hubo un problema al enviar tu reporte. Por favor inténtalo de nuevo.",
       );
     }
     return;

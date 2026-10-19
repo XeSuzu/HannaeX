@@ -38,8 +38,11 @@ export interface LogEntry {
 
 export type LogType =
   | "BAN"
+  | "SOFTBAN"
+  | "UNBAN"
   | "KICK"
   | "MUTE"
+  | "UNMUTE"
   | "WARN"
   | "UNWARN"
   | "AUTOMOD"
@@ -51,8 +54,11 @@ export type LogType =
 
 const LOG_TYPE_CHANNEL: Record<LogType, keyof ILogChannels> = {
   BAN: "modlog",
+  SOFTBAN: "modlog",
+  UNBAN: "modlog",
   KICK: "modlog",
   MUTE: "modlog",
+  UNMUTE: "modlog",
   WARN: "modlog",
   UNWARN: "modlog",
   AUTOMOD: "modlog",
@@ -127,8 +133,11 @@ export class HoshikoLogger {
 
   private static readonly COLORS: Record<LogType, number> = {
     BAN: 0xed4245,
+    SOFTBAN: 0xff6600,
+    UNBAN: 0x57f287,
     KICK: 0xff5500,
     MUTE: 0xfaa61a,
+    UNMUTE: 0x57f287,
     WARN: 0xfee75c,
     UNWARN: 0x57f287,
     AUTOMOD: 0xff69b4,
@@ -232,6 +241,35 @@ export class HoshikoLogger {
     }
   }
 
+  private static getActionLabel(type: LogType): string {
+    switch (type) {
+      case "BAN":
+        return "Ban Permanente";
+      case "SOFTBAN":
+        return "Softban (Expulsión + Purga)";
+      case "UNBAN":
+        return "Desbaneo";
+      case "KICK":
+        return "Expulsión";
+      case "MUTE":
+        return "Silencio (Timeout)";
+      case "UNMUTE":
+        return "Silencio Retirado";
+      case "WARN":
+        return "Advertencia";
+      case "UNWARN":
+        return "Advertencia Retirada";
+      case "AUTOMOD":
+        return "Acción Automática";
+      case "ANTI_NUKE":
+        return "Protección Anti-Nuke";
+      case "ANTI_ALT":
+        return "Detección Anti-Alt";
+      default:
+        return "Acción de Moderación";
+    }
+  }
+
   static async logAction(
     guild: Guild,
     type: LogType,
@@ -240,31 +278,169 @@ export class HoshikoLogger {
       moderator?: User;
       reason: string;
       extra?: string;
+      expiresAt?: Date | number;
+      warnCount?: number;
+      actionLabel?: string;
     },
   ) {
-    let description = `**Razón:** ${details.reason}`;
-    if (details.extra) description += `\n**Detalles:** ${details.extra}`;
+    try {
+      const channel = await this.getLogChannel(guild, type);
+      if (!channel) return;
 
-    const modName = details.moderator
-      ? details.moderator.tag
-      : "Hoshiko (Automático) 🤖";
-    description += `\n**Moderador:** ${modName}`;
+      const title = this.getTitle(type);
+      const color = this.COLORS[type] ?? 0x2b2d31;
 
-    await this.sendLog(guild, type, description, details.user);
+      const embed = new EmbedBuilder()
+        .setAuthor({
+          name: `🛡️ Moderación • ${guild.name}`,
+          iconURL: guild.iconURL() ?? undefined,
+        })
+        .setTitle(title)
+        .setColor(color)
+        .setTimestamp()
+        .setFooter({ text: "Hoshiko Security Center" });
+
+      if (details.user) {
+        embed.setThumbnail(details.user.displayAvatarURL());
+      }
+
+      // Fila 1: Datos clave en grid de 3 columnas
+      if (details.user) {
+        embed.addFields({
+          name: "👤 Usuario",
+          value: `<@${details.user.id}>\n\`${details.user.tag}\``,
+          inline: true,
+        });
+      }
+
+      const modDisplay = details.moderator
+        ? `<@${details.moderator.id}>\n\`${details.moderator.tag}\``
+        : "Hoshiko (Automático) 🤖";
+      embed.addFields({
+        name: "👮 Moderador",
+        value: modDisplay,
+        inline: true,
+      });
+
+      const sanctionName = details.actionLabel || this.getActionLabel(type);
+      embed.addFields({
+        name: "⚖️ Sanción",
+        value: sanctionName,
+        inline: true,
+      });
+
+      // Fila 2: Motivo
+      embed.addFields({
+        name: "📝 Razón",
+        value: details.reason && details.reason.trim().length > 0
+          ? details.reason
+          : "No especificada.",
+        inline: false,
+      });
+
+      // Fila 3: Tiempo relativo o métricas adicionales
+      if (details.expiresAt) {
+        const unix =
+          typeof details.expiresAt === "number"
+            ? Math.floor(details.expiresAt / 1000)
+            : Math.floor(details.expiresAt.getTime() / 1000);
+        embed.addFields({
+          name: "⏳ Expiración",
+          value: `<t:${unix}:R> (<t:${unix}:f>)`,
+          inline: true,
+        });
+      }
+
+      if (typeof details.warnCount === "number") {
+        embed.addFields({
+          name: "📊 Total de Warns",
+          value: `\`${details.warnCount}\``,
+          inline: true,
+        });
+      }
+
+      if (details.extra) {
+        embed.addFields({
+          name: "ℹ️ Detalles adicionales",
+          value: details.extra,
+          inline: false,
+        });
+      }
+
+      // Fila 4: IDs
+      if (details.user) {
+        embed.addFields({
+          name: "🆔 Identificadores",
+          value: `\`User:\` ${details.user.id}${details.moderator ? ` • \`Mod:\` ${details.moderator.id}` : ""}`,
+          inline: false,
+        });
+      }
+
+      // Botones contextuales de conveniencia para el staff
+      const components: ActionRowBuilder<ButtonBuilder>[] = [];
+      if (details.user && !details.user.bot) {
+        const row = new ActionRowBuilder<ButtonBuilder>();
+        if (type === "WARN") {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`modlog_act:warns:${details.user.id}`)
+              .setLabel("Ver Warns")
+              .setEmoji("📜")
+              .setStyle(ButtonStyle.Secondary),
+          );
+        } else if (type === "MUTE") {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`modlog_act:unmute:${details.user.id}`)
+              .setLabel("Desmutear")
+              .setEmoji("🔊")
+              .setStyle(ButtonStyle.Success),
+          );
+        } else if (type === "BAN" || type === "SOFTBAN") {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`modlog_act:unban:${details.user.id}`)
+              .setLabel("Desbanear")
+              .setEmoji("🔓")
+              .setStyle(ButtonStyle.Success),
+          );
+        }
+
+        if (row.components.length > 0) {
+          components.push(row);
+        }
+      }
+
+      if (components.length > 0) {
+        await channel
+          .send({ embeds: [embed], components, allowedMentions: { parse: [] } })
+          .catch(() => null);
+      } else {
+        this.enqueueEmbed(channel, embed);
+      }
+    } catch (err) {
+      console.error("❌ Error en logAction:", err);
+    }
   }
 
   private static getTitle(type: LogType): string {
     switch (type) {
       case "BAN":
         return "⛔ Usuario Baneado";
+      case "SOFTBAN":
+        return "🔄 Usuario Softbaneado";
+      case "UNBAN":
+        return "🔓 Usuario Desbaneado";
       case "KICK":
         return "👢 Usuario Expulsado";
       case "MUTE":
         return "😶 Usuario Silenciado";
+      case "UNMUTE":
+        return "🔊 Silencio Retirado";
       case "WARN":
         return "⚠️ Advertencia Emitida";
       case "UNWARN":
-        return "😇 Sanción Retirada";
+        return "😇 Advertencia Retirada";
       case "AUTOMOD":
         return "🤖 Intervención Automática (Automod)";
       case "ANTI_NUKE":

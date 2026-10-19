@@ -45,14 +45,89 @@ export const C = {
   shadow: "rgba(0,0,0,0.40)",
 };
 
+export interface CardThemePreset {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  type: "image" | "gradient";
+  imagePath?: string;
+  colors?: [string, string, string];
+  accentGlow?: string;
+}
+
+export const LEVEL_CARD_THEMES: Record<string, CardThemePreset> = {
+  default: {
+    id: "default",
+    name: "Hoshiko Clásico",
+    emoji: "🌸",
+    description: "El fondo clásico estelar de Hoshiko.",
+    type: "image",
+    imagePath: BG_PATH,
+  },
+  sakura: {
+    id: "sakura",
+    name: "Brisa Sakura",
+    emoji: "🌺",
+    description: "Atardecer rosado suave con destellos florales.",
+    type: "gradient",
+    colors: ["#2A0E2E", "#5C1D4A", "#9E3668"],
+    accentGlow: "rgba(255,183,197,0.22)",
+  },
+  cyberpunk: {
+    id: "cyberpunk",
+    name: "Neón Nocturno",
+    emoji: "⚡",
+    description: "Contraste synthwave violeta y cian profundo.",
+    type: "gradient",
+    colors: ["#09061E", "#240B4C", "#0D4A6B"],
+    accentGlow: "rgba(103,232,249,0.22)",
+  },
+  midnight: {
+    id: "midnight",
+    name: "Medianoche",
+    emoji: "🌙",
+    description: "Minimalista oscuro en tonos índigo y obsidiana.",
+    type: "gradient",
+    colors: ["#070913", "#111827", "#1E1B4B"],
+    accentGlow: "rgba(165,180,252,0.18)",
+  },
+  emerald: {
+    id: "emerald",
+    name: "Bosque Místico",
+    emoji: "🍃",
+    description: "Tonos esmeralda oscuros y serenos.",
+    type: "gradient",
+    colors: ["#051B16", "#0B382D", "#134E4A"],
+    accentGlow: "rgba(110,231,183,0.18)",
+  },
+  sunset: {
+    id: "sunset",
+    name: "Crepúsculo Ámbar",
+    emoji: "🌅",
+    description: "Degradado cálido entre carmesí y dorado.",
+    type: "gradient",
+    colors: ["#1F0A1D", "#4A1525", "#7C2D12"],
+    accentGlow: "rgba(251,191,36,0.20)",
+  },
+};
+
+export function resolveCardBackgroundTheme(themeId?: string | null): CardThemePreset {
+  if (!themeId) return LEVEL_CARD_THEMES.default;
+  return LEVEL_CARD_THEMES[themeId] ?? LEVEL_CARD_THEMES.default;
+}
+
 let fontsOk = false;
-let cachedBg: any = null;
+const cachedImages = new Map<string, any>();
 
 export function getCanvasLibrary(): any {
   return canvasLib;
 }
 
-export async function createBaseCanvas(avatarBuffer: Buffer): Promise<{
+export async function createBaseCanvas(
+  avatarBuffer: Buffer,
+  backgroundTheme?: string,
+): Promise<{
   canvas: any;
   ctx: any;
 }> {
@@ -61,12 +136,14 @@ export async function createBaseCanvas(avatarBuffer: Buffer): Promise<{
 
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
+  const preset = resolveCardBackgroundTheme(backgroundTheme);
+
   const [bg, avatar] = await Promise.all([
-    getBg(loadImage),
+    preset.type === "image" ? getBg(loadImage, preset.imagePath) : Promise.resolve(null),
     loadImage(avatarBuffer),
   ]);
 
-  drawBg(ctx, bg);
+  drawBg(ctx, bg, preset);
   drawAvatar(ctx, avatar);
   return { canvas, ctx };
 }
@@ -106,9 +183,18 @@ export function registerFonts(GF: any): void {
   fontsOk = true;
 }
 
-export async function getBg(loadImage: any): Promise<any> {
-  if (!cachedBg) cachedBg = await loadImage(BG_PATH);
-  return cachedBg;
+export async function getBg(loadImage: any, imagePath: string = BG_PATH): Promise<any> {
+  if (cachedImages.has(imagePath)) return cachedImages.get(imagePath);
+  try {
+    const img = await loadImage(imagePath);
+    cachedImages.set(imagePath, img);
+    return img;
+  } catch {
+    if (imagePath !== BG_PATH) {
+      return getBg(loadImage, BG_PATH);
+    }
+    return null;
+  }
 }
 
 export function clamp(value: number, min: number, max: number): number {
@@ -176,8 +262,33 @@ export function noShadow(ctx: any): void {
   ctx.shadowOffsetY = 0;
 }
 
-export function drawBg(ctx: any, bg: any): void {
-  ctx.drawImage(bg, 0, 0, W, H);
+export function drawBg(
+  ctx: any,
+  bg: any,
+  preset: CardThemePreset = LEVEL_CARD_THEMES.default,
+): void {
+  if (preset.type === "gradient" && preset.colors) {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, preset.colors[0]);
+    grad.addColorStop(0.55, preset.colors[1]);
+    grad.addColorStop(1, preset.colors[2]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    if (preset.accentGlow) {
+      const glow = ctx.createRadialGradient(W * 0.78, H * 0.25, 10, W * 0.78, H * 0.25, 280);
+      glow.addColorStop(0, preset.accentGlow);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else if (bg) {
+    ctx.drawImage(bg, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = "#120924";
+    ctx.fillRect(0, 0, W, H);
+  }
+
   const overlay = ctx.createLinearGradient(0, 0, 0, H);
   overlay.addColorStop(0, "rgba(10,6,22,0.18)");
   overlay.addColorStop(1, "rgba(20,8,40,0.58)");

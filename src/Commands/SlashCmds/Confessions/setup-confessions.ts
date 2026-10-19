@@ -21,7 +21,7 @@ const command: SlashCommand = {
   ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("setup-confessions")
-    .setDescription("🌸 Configura el sistema de publicaciones anónimas~")
+    .setDescription("🌸 Configura el sistema de publicaciones anónimas")
     .addChannelOption((option) =>
       option
         .setName("logs_channel")
@@ -29,10 +29,31 @@ const command: SlashCommand = {
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(false),
     )
+    .addBooleanOption((option) =>
+      option
+        .setName("visual")
+        .setDescription("Generar tarjeta gráfica estética para las confesiones")
+        .setRequired(false),
+    )
+    .addStringOption((option) =>
+      option
+        .setName("fondo")
+        .setDescription("Fondo para las tarjetas de confesiones")
+        .setRequired(false)
+        .addChoices(
+          { name: "🌸 Brisa Sakura (Default)", value: "sakura" },
+          { name: "⚡ Neón Nocturno", value: "cyberpunk" },
+          { name: "🌙 Medianoche", value: "midnight" },
+          { name: "🍃 Bosque Místico", value: "emerald" },
+          { name: "🌅 Crepúsculo Ámbar", value: "sunset" },
+        ),
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
     const logsChannelInput = interaction.options.getChannel("logs_channel") as TextChannel;
+    const visualInput = interaction.options.getBoolean("visual");
+    const fondoInput = interaction.options.getString("fondo");
 
     let settings = await ServerConfig.findOne({ guildId: interaction.guildId });
     if (!settings) settings = new ServerConfig({ guildId: interaction.guildId });
@@ -46,18 +67,41 @@ const command: SlashCommand = {
         allowImages: true,
         customTitle: "Confesión Anónima",
         customColor: "#FFB6C1",
+        visualMode: false,
+        cardTheme: "sakura",
         blacklist: [],
         feeds: [],
       };
     }
     if (!settings.confessions.feeds) settings.confessions.feeds = [];
 
+    let quickConfigChanges: string[] = [];
+
     if (logsChannelInput) {
       settings.confessions.logsChannelId = logsChannelInput.id;
+      quickConfigChanges.push(`Canal de auditoría: ${logsChannelInput}`);
+    }
+
+    if (visualInput !== null) {
+      settings.confessions.visualMode = visualInput;
+      quickConfigChanges.push(
+        visualInput
+          ? "Tarjeta gráfica: **Activada 🖼️**"
+          : "Tarjeta gráfica: **Desactivada (Solo Embed) 📝**",
+      );
+    }
+
+    if (fondoInput) {
+      settings.confessions.cardTheme = fondoInput;
+      quickConfigChanges.push(`Tema de fondo: **${fondoInput}** 🎨`);
+    }
+
+    if (quickConfigChanges.length > 0) {
       settings.markModified("confessions");
       await settings.save();
       await interaction.editReply(
-        `✅ Nyaa~ El canal de auditoría ahora es ${logsChannelInput}. 🐾`,
+        `✅ **Configuración actualizada con éxito 🐾**\n` +
+          quickConfigChanges.map((c) => `> • ${c}`).join("\n"),
       );
       return;
     }
@@ -125,7 +169,7 @@ const command: SlashCommand = {
     // ✅ fetchReply para obtener el Message y poder crear el collector
     const msg = await interaction.fetchReply();
     await interaction.editReply({
-      content: `🎛️ **Panel de Configuración~**\nSlots usados: \`${currentUsage}/${isPremium ? "♾️" : limit}\``,
+      content: `🎛️ **Panel de Configuración**\nSlots usados: \`${currentUsage}/${isPremium ? "♾️" : limit}\``,
       embeds: [renderEmbed()],
       components: renderComponents() as any,
     });
@@ -139,7 +183,7 @@ const command: SlashCommand = {
       }
 
       if (i.customId === "setup_basic") {
-        const modal = new ModalBuilder().setCustomId("m_basic").setTitle("Datos Básicos~");
+        const modal = new ModalBuilder().setCustomId("m_basic").setTitle("Datos Básicos");
         modal.addComponents(
           new ActionRowBuilder<TextInputBuilder>().addComponents(
             new TextInputBuilder()
@@ -167,7 +211,7 @@ const command: SlashCommand = {
       }
 
       if (i.customId === "setup_visual") {
-        const modal = new ModalBuilder().setCustomId("m_visual").setTitle("Apariencia~");
+        const modal = new ModalBuilder().setCustomId("m_visual").setTitle("Apariencia");
         modal.addComponents(
           new ActionRowBuilder<TextInputBuilder>().addComponents(
             new TextInputBuilder()
@@ -215,7 +259,7 @@ const command: SlashCommand = {
 
         if (isNew && !isPremium && finalSettings.confessions.feeds.length >= limit) {
           await i.editReply({
-            content: `⛔ Nyaa~ Alcanzaste el límite de **3 canales**.\n✨ Mejora a **Premium** para tener canales ilimitados~`,
+            content: `⛔ Alcanzaste el límite de **3 canales**, nya.\n✨ Mejora a **Premium** para activar canales ilimitados.`,
             components: [],
             embeds: [],
           });
@@ -283,7 +327,7 @@ const command: SlashCommand = {
       }
 
       if (i.customId === "setup_cancel") {
-        await i.update({ content: "❌ Cancelado~", components: [], embeds: [] });
+        await i.update({ content: "❌ Configuración cancelada.", components: [], embeds: [] });
         collector.stop();
       }
     });

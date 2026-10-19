@@ -63,11 +63,10 @@ const command: SlashCommand = {
         `Perdonado manualmente por ${interaction.user.tag}`,
       );
 
-      await HoshikoLogger.logAction(interaction.guild, "UNWARN", {
+      await HoshikoLogger.logAction(interaction.guild, "UNMUTE", {
         user: target.user,
         moderator: interaction.user,
-        reason: "Silencio perdonado",
-        extra: `Originalmente silenciado por timeout`,
+        reason: "Silencio retirado manualmente",
       });
 
       const embed = new EmbedBuilder()

@@ -14,9 +14,6 @@ export default {
   name: Events.GuildBanAdd,
   async execute(ban: GuildBan): Promise<void> {
     const guild = ban.guild;
-    const settings = await SettingsManager.getSettings(guild.id);
-
-    if (!settings?.securityModules?.antiNuke) return;
 
     try {
       const fetchedLogs = await guild.fetchAuditLogs({
@@ -25,9 +22,20 @@ export default {
       });
 
       const banLog = fetchedLogs.entries.first();
-      if (!banLog) return;
+      const executor = banLog?.executor;
 
-      const { executor } = banLog;
+      // Si el baneo fue manual desde Discord (humano, no el bot), registrarlo en modlog
+      if (executor && !executor.bot) {
+        await HoshikoLogger.logAction(guild, "BAN", {
+          user: ban.user,
+          moderator: executor as User,
+          reason: banLog.reason || "Baneo manual aplicado directamente desde Discord",
+        });
+      }
+
+      const settings = await SettingsManager.getSettings(guild.id);
+      if (!settings?.securityModules?.antiNuke) return;
+
       if (!executor || executor.bot || executor.id === guild.ownerId) return;
 
       const now = Date.now();

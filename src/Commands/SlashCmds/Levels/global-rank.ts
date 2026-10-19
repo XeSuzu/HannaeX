@@ -4,15 +4,6 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GlobalLevel, {
-  getAchievement,
-  getTierForLevel,
-  GLOBAL_TIERS,
-  globalTotalXpForLevel,
-  globalXpForLevel,
-} from "../../../Database/leveling/globalLevel.model";
-import LocalLevel from "../../../Database/leveling/localLevel.model";
-import { generateGlobalRankBanner } from "../../../Utils/LevelBanners";
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,188 +18,20 @@ export default {
 
   async execute(
     interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
+    _client: HoshikoClient,
   ) {
-    const target = interaction.options.getUser("usuario") ?? interaction.user;
-
-    const globalProfile = await GlobalLevel.findOne({ userId: target.id });
-
-    if (!globalProfile) {
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xffb7c5)
-            .setTitle(`🌸 Perfil Global de ${target.displayName}`)
-            .setDescription(
-              `**${target.displayName}** aún no tiene actividad global.\n\n` +
-                `💬 Participa en servidores con Hoshiko para ganar XP global~`,
-            )
-            .setThumbnail(target.displayAvatarURL())
-            .setFooter({ text: "Hoshiko Global Levels ✨" })
-            .setTimestamp(),
-        ],
-      });
-    }
-
-    const tier = getTierForLevel(globalProfile.globalLevel);
-    const currentLevelXp = globalTotalXpForLevel(globalProfile.globalLevel);
-    const nextLevelXp = globalTotalXpForLevel(globalProfile.globalLevel + 1);
-    const xpIntoLevel = globalProfile.globalXp - currentLevelXp;
-    const xpNeeded = globalXpForLevel(globalProfile.globalLevel);
-    const progressPercent = Math.min(
-      100,
-      Math.floor((xpIntoLevel / xpNeeded) * 100),
-    );
-
-    const rank =
-      (await GlobalLevel.countDocuments({
-        globalXp: { $gt: globalProfile.globalXp },
-      })) + 1;
-
-    const totalUsers = await GlobalLevel.countDocuments({});
-    const xpToNextLevel = nextLevelXp - globalProfile.globalXp;
-
-    const localProfiles = await LocalLevel.find({ userId: target.id });
-    const totalVoiceMinutes = localProfiles.reduce(
-      (acc, p) => acc + (p.voiceMinutes ?? 0),
-      0,
-    );
-
-    // Intentar banner canvas
-    try {
-      const avatarUrl = target.displayAvatarURL({
-        extension: "png",
-        size: 256,
-      });
-      const avatarRes = await fetch(avatarUrl);
-      const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
-
-      const banner = await generateGlobalRankBanner({
-        username: target.displayName,
-        avatarBuffer,
-        globalLevel: globalProfile.globalLevel,
-        globalRank: rank,
-        totalUsers,
-        xpCurrent: xpIntoLevel,
-        xpNeeded,
-        progressPercent,
-        totalMessages: globalProfile.totalMessages,
-        totalVoiceMinutes,
-        tier,
-      });
-
-      if (banner) return interaction.editReply({ files: [banner] });
-    } catch (err) {
-      console.error("[global-rank] Error generando banner:", err);
-    }
-
-    // Fallback embed
-    const bar = buildProgressBar(progressPercent, tier.color);
-
-    const achievementsList = globalProfile.achievements
-      .slice(0, 6)
-      .map((a: string) => {
-        const ach = getAchievement(a);
-        return ach ? `${ach.emoji}` : "🏅";
-      })
-      .join(" ");
-
-    const achievementsText = achievementsList || "Sin logros aún 🐾";
-    const moreAchievements =
-      globalProfile.achievements.length > 6
-        ? ` +${globalProfile.achievements.length - 6} más`
-        : "";
-
-    const currentTierIndex = GLOBAL_TIERS.findIndex(
-      (t) => t.tier === tier.tier,
-    );
-    const nextTier =
-      currentTierIndex < GLOBAL_TIERS.length - 1
-        ? GLOBAL_TIERS[currentTierIndex + 1]
-        : null;
-    const levelsToNextTier = nextTier
-      ? nextTier.minLevel - globalProfile.globalLevel
-      : 0;
-
-    const embed = new EmbedBuilder()
-      .setColor(tier.color)
-      .setAuthor({
-        name: `${tier.emoji} ${target.displayName} — ${tier.name} ${tier.emoji}`,
-        iconURL: target.displayAvatarURL(),
-      })
-      .setTitle(`レベル ${globalProfile.globalLevel} — ${tier.nameJp}`)
-      .setThumbnail(target.displayAvatarURL())
-      .addFields(
-        {
-          name: `${tier.emoji} Tier Actual`,
-          value: `**${tier.name}** (${tier.nameJp})\n${tier.description}`,
-          inline: true,
-        },
-        {
-          name: "🌐 Ranking Global",
-          value: `**#${rank}** / ${totalUsers.toLocaleString()}人中`,
-          inline: true,
-        },
-        {
-          name: "💬 メッセージ",
-          value: `\`${globalProfile.totalMessages.toLocaleString()}\` mensajes`,
-          inline: true,
-        },
-        {
-          name: "⚡ XP Global",
-          value: `\`${globalProfile.globalXp.toLocaleString()}\` XP`,
-          inline: true,
-        },
-        { name: "📈 プログレス", value: bar, inline: false },
-        {
-          name: "🎯 次のレベル",
-          value:
-            `${xpIntoLevel.toLocaleString()} / ${xpNeeded.toLocaleString()} XP (**${progressPercent}%**)\n` +
-            `レベル ${globalProfile.globalLevel + 1} まで後 **${xpToNextLevel.toLocaleString()}** XP`,
-          inline: false,
-        },
-        {
-          name: nextTier
-            ? `🔓 次のTier: ${nextTier.emoji} ${nextTier.name}`
-            : "✨ Max Tier!",
-          value: nextTier
-            ? `レベル ${nextTier.minLevel} で解放 (残り ${levelsToNextTier} レベル)`
-            : "全てのTierをアンロック済み! 🎊",
-          inline: false,
-        },
-        {
-          name: "📅 今週 / This Week",
-          value: `XP: \`${globalProfile.weeklyXp.toLocaleString()}\` • Mensajes: \`${globalProfile.weeklyMessages.toLocaleString()}\``,
-          inline: true,
-        },
-        {
-          name: `🏆 実績 ${globalProfile.achievements.length}/10`,
-          value: achievementsText + moreAchievements,
-          inline: true,
-        },
-        {
-          name: "🎤 Tiempo en Voz",
-          value: `\`${Math.floor(totalVoiceMinutes / 60)}h ${totalVoiceMinutes % 60}m\``,
-          inline: true,
-        },
-      )
-      .setFooter({
-        text: `Hoshiko Global Levels ✨ • ${interaction.guild?.name || "Multi-Server"}`,
-      })
-      .setTimestamp();
-
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffb7c5)
+          .setTitle("🌐 Ranking Global en mantenimiento")
+          .setDescription(
+            "El sistema de **Rango Global** se encuentra temporalmente desactivado mientras optimizamos la progresión entre servidores.\n\n" +
+              "✨ Puedes consultar tu nivel y estadísticas en este servidor usando `/rank` o `/vcrank`.",
+          )
+          .setFooter({ text: "Hoshiko Levels 🌸" })
+          .setTimestamp(),
+      ],
+    });
   },
 };
-
-function buildProgressBar(percent: number, color: number): string {
-  const filled = Math.round(percent / 10);
-  const empty = 10 - filled;
-  return (
-    "```" +
-    "▓".repeat(Math.max(0, filled)) +
-    "░".repeat(Math.max(0, empty)) +
-    "``` " +
-    `**${percent}%**`
-  );
-}

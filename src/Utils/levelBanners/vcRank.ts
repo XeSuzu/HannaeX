@@ -18,7 +18,10 @@ export async function generateVCRankBanner(
 ): Promise<AttachmentBuilder | null> {
   if (!getCanvasLibrary()) return null;
   try {
-    const { canvas, ctx } = await createBaseCanvas(data.avatarBuffer);
+    const { canvas, ctx } = await createBaseCanvas(
+      data.avatarBuffer,
+      data.backgroundTheme,
+    );
     drawPanel(ctx, `#${data.vcRank}`, "voice", "server", C.cyanGlow);
 
     const maxW = L.info.maxRight - L.info.x;

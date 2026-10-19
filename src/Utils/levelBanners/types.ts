@@ -12,6 +12,7 @@ export interface ServerRankData {
   voiceMinutes: number;
   globalLevel?: number;
   globalRank?: number;
+  backgroundTheme?: string;
 }
 
 export interface VCRankData {
@@ -23,6 +24,7 @@ export interface VCRankData {
   xpCurrent: number;
   xpNeeded: number;
   progressPercent: number;
+  backgroundTheme?: string;
 }
 
 export interface GlobalRankData {
