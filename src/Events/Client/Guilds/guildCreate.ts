@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { HoshikoClient } from "../../../index";
 
-export = {
+export default {
   name: Events.GuildCreate,
 
   async execute(guild: Guild, client: HoshikoClient) {

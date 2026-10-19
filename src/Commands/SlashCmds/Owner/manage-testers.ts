@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { HoshikoClient } from "../../../index";
-import Tester from "../../../Models/testers";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import Tester from "../../../Database/system/system.models";
 import { SlashCommand } from "../../../Interfaces/Command"; // Ajusta la ruta
 import { Logger } from "../../../Utils/SystemLogger";
 

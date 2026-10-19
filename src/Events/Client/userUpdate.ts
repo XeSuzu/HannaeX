@@ -1,6 +1,7 @@
 import { Events, User } from "discord.js";
-import { AvatarHistoryManager } from "../../Database/AvatarHistoryManager";
-import { UserHistoryManager } from "../../Database/UserHistoryManager";
+import { AvatarHistoryManager } from "../../Database/tracking/AvatarHistoryManager";
+import { UserHistoryManager } from "../../Database/tracking/UserHistoryManager";
+import { isOverloaded } from "../../Utils/loadShedding";
 
 export default {
   name: Events.UserUpdate,
@@ -10,7 +11,7 @@ export default {
       oldUser.username !== newUser.username ||
       oldUser.discriminator !== newUser.discriminator;
 
-    if (!hasRelevantChanges) return;
+    if (!hasRelevantChanges || isOverloaded()) return;
 
     const avatarUrl = newUser.displayAvatarURL({
       size: 1024,

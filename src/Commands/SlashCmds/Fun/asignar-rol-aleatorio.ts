@@ -5,7 +5,7 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import ViralSetup from "../../../Models/ViralSetup";
+import { ViralSetup } from "../../../Database/community/reactionRoles.models";
 
 const command: SlashCommand = {
   category: "Fun",

@@ -5,9 +5,10 @@ import {
   TextChannel,
   EmbedBuilder,
 } from "discord.js";
-import Confession from "../../../Models/Confession";
-import ServerConfig from "../../../Models/serverConfig";
+import Confession from "../../../Database/community/confession.model";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 import { SlashCommand } from "../../../Interfaces/Command";
+import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
 const command: SlashCommand = {
   category: "Confessions",
@@ -30,7 +31,6 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) return;
-    // ❌ ELIMINADO: await interaction.deferReply({ ephemeral: true });
 
     const targetId = interaction.options.getInteger("id", true);
     const reason = interaction.options.getString("razon", true);
@@ -60,23 +60,23 @@ const command: SlashCommand = {
 
     // 3. BORRADO FÍSICO (Intentar borrar el mensaje de Discord)
     let discordDeleted = false;
+    const targetChannelId =
+      confession.channelId || settings?.confessions?.channelId;
+
     try {
-      if (
-        settings &&
-        settings.confessions.channelId &&
-        confession.publicMessageId
-      ) {
+      if (targetChannelId && confession.publicMessageId) {
         const publicChannel = interaction.guild.channels.cache.get(
-          settings.confessions.channelId,
+          targetChannelId,
         ) as TextChannel;
 
-        // Buscamos el mensaje
-        const msg = await publicChannel.messages
-          .fetch(confession.publicMessageId)
-          .catch(() => null);
-        if (msg) {
-          await msg.delete();
-          discordDeleted = true;
+        if (publicChannel) {
+          const msg = await publicChannel.messages
+            .fetch(confession.publicMessageId)
+            .catch(() => null);
+          if (msg) {
+            await msg.delete();
+            discordDeleted = true;
+          }
         }
       }
     } catch (e) {
@@ -91,40 +91,33 @@ const command: SlashCommand = {
     await confession.save();
 
     // 5. 🎨 LOG DE AUDITORÍA (Diseño Hoshiko UI)
-    if (settings && settings.confessions.logsChannelId) {
-      const logsChannel = interaction.guild.channels.cache.get(
-        settings.confessions.logsChannelId,
-      ) as TextChannel;
-      if (logsChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle("🗑️ PUBLICACIÓN ELIMINADA")
-          .setColor("#FEE75C") // Amarillo Alerta (High Visibility)
-          .setDescription(
-            `Una publicación ha sido removida forzosamente del canal público.`,
-          )
-          .addFields(
-            { name: "📄 ID Caso", value: `#${targetId}`, inline: true },
-            {
-              name: "👮‍♂️ Moderador",
-              value: `${interaction.user.tag}`,
-              inline: true,
-            },
-            { name: "📝 Razón", value: reason, inline: false },
-            {
-              name: "👤 Autor Original",
-              value: `\`${confession.authorTag}\` (ID: ${confession.authorId})`,
-              inline: false,
-            },
-            {
-              name: "✂️ Contenido Cortado",
-              value: `\`\`\`${confession.content.substring(0, 200) + (confession.content.length > 200 ? "..." : "")}\`\`\``,
-            },
-          )
-          .setTimestamp();
+    const logEmbed = new EmbedBuilder()
+      .setTitle("🗑️ PUBLICACIÓN ELIMINADA")
+      .setColor("#FEE75C")
+      .setDescription(
+        `Una publicación ha sido removida forzosamente del canal público.`,
+      )
+      .addFields(
+        { name: "📄 ID Caso", value: `#${targetId}`, inline: true },
+        {
+          name: "👮‍♂️ Moderador",
+          value: `${interaction.user.tag}`,
+          inline: true,
+        },
+        { name: "📝 Razón", value: reason, inline: false },
+        {
+          name: "👤 Autor Original",
+          value: `\`${confession.authorTag}\` (ID: ${confession.authorId})`,
+          inline: false,
+        },
+        {
+          name: "✂️ Contenido Cortado",
+          value: `\`\`\`${confession.content.substring(0, 200) + (confession.content.length > 200 ? "..." : "")}\`\`\``,
+        },
+      )
+      .setTimestamp();
 
-        await logsChannel.send({ embeds: [logEmbed] }).catch(() => null);
-      }
-    }
+    await HoshikoLogger.sendToChannel(interaction.guild, "confesslog", logEmbed);
 
     // 6. CONFIRMACIÓN VISUAL (Para el admin que usó el comando)
     const confirmEmbed = new EmbedBuilder()

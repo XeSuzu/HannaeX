@@ -19,6 +19,7 @@ export type SlashData =
 export interface CommandOptions {
   ephemeral?: boolean;
   adminOnly?: boolean;
+  defer?: boolean;
   cooldown?: number; // ✅ Tu nueva estructura limpia
   guildOnly?: boolean;
   permissions?: PermissionResolvable[];
@@ -34,6 +35,7 @@ export interface SlashCommand {
   
   // 🔥 TRUCO 2: Permitimos retornar 'any'. 
   // Así si haces "return interaction.editReply()", TypeScript no se enoja.
+  defer?: boolean;
   execute: (
     interaction: ChatInputCommandInteraction, 
     client: HoshikoClient

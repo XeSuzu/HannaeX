@@ -4,13 +4,15 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 interface BanResult {
   id: string;
   success: boolean;
   error?: string;
 }
+
+const BAN_CONCURRENCY = 5;
 
 export default {
   data: new SlashCommandBuilder()
@@ -60,17 +62,30 @@ export default {
       content: `⏳ Procesando ban para **${userIds.length}** usuario(s)...`,
     });
 
-    // Procesamiento paralelo usando Promise.allSettled
-    const banPromises = userIds.map(async (userId): Promise<BanResult> => {
-      try {
-        await interaction.guild?.bans.create(userId, { reason });
-        return { id: userId, success: true };
-      } catch (err: any) {
-        return { id: userId, success: false, error: err.message || "Error" };
+    // Worker pool: limita solicitudes simultáneas y conserva el orden de entrada.
+    const results: BanResult[] = new Array(userIds.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(BAN_CONCURRENCY, userIds.length);
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= userIds.length) return;
+
+        const userId = userIds[index];
+        try {
+          await interaction.guild?.bans.create(userId, { reason });
+          results[index] = { id: userId, success: true };
+        } catch (err: any) {
+          results[index] = {
+            id: userId,
+            success: false,
+            error: err.message || "Error",
+          };
+        }
       }
     });
 
-    const results = await Promise.all(banPromises);
+    await Promise.all(workers);
 
     const success = results.filter((r) => r.success);
     const failed = results.filter((r) => !r.success);

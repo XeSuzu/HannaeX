@@ -31,6 +31,24 @@ export default {
       .setFooter({ text: "Hoshiko • Join Log" });
 
     await HoshikoLogger.sendToChannel(member.guild, "joinlog", embed);
+
+    // Comprobar si fue una expulsión (Kick) manual desde la interfaz de Discord
+    try {
+      const { AuditLogEvent } = await import("discord.js");
+      const kickExecutor = await HoshikoLogger.fetchAuditExecutor(
+        member.guild,
+        AuditLogEvent.MemberKick,
+        member.id,
+      );
+
+      if (kickExecutor && !kickExecutor.bot) {
+        await HoshikoLogger.logAction(member.guild, "KICK", {
+          user: member.user,
+          moderator: kickExecutor,
+          reason: "Expulsión manual aplicada directamente desde Discord",
+        });
+      }
+    } catch {}
   },
 };
 

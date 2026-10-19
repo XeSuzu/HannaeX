@@ -1,10 +1,11 @@
+import { CacheManager } from "../../../Database/guild/CacheManager";
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
 } from "discord.js";
-import ServerConfig from "../../../Models/serverConfig";
-import { HoshikoClient } from "../../../index";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
@@ -42,6 +43,7 @@ const command: SlashCommand = {
         { prefix: newPrefix },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      CacheManager.flush(interaction.guildId!);
 
       // Confirmación
       await interaction.editReply({

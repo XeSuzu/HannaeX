@@ -1,77 +1,150 @@
 import mongoose from "mongoose";
+import { AppConfig } from "../App/config/AppConfig";
 
-// const MONGO_URI = process.env.MONGO_URI;
-let connected = false;
+export type MongoStatus =
+  | "connected"
+  | "connecting"
+  | "disconnected"
+  | "degraded"
+  | "closed";
 
-// 1. LISTENERS GLOBALES (Ojos que vigilan la conexión 24/7)
-mongoose.connection.on("disconnected", () => {
-  console.warn(
-    "⚠️ [Mongo] Se perdió la conexión. Reintentando internamente...",
-  );
-  connected = false;
-});
+let mongoStatus: MongoStatus = "disconnected";
+let connectPromise: Promise<void> | null = null;
+let disconnectPromise: Promise<void> | null = null;
 
-mongoose.connection.on("reconnected", () => {
-  console.log("♻️ [Mongo] ¡Conexión recuperada exitosamente!");
-  connected = true;
-});
-
-export async function connectWithRetry(retries = 6, delayMs = 5000) {
- const MONGO_URI = process.env.MONGO_URI;
-  if (!MONGO_URI) {
-    console.error("❌ MONGO_URI no definida. Revisa tu archivo .env");
+function getMongoUri(): string {
+  const mongoUri = AppConfig.get().MONGO_URI;
+  if (!mongoUri || mongoUri.trim().length === 0) {
     throw new Error("MONGO_URI missing");
   }
 
-  // Si ya está conectado (readyState 1), no hacemos nada
-  if (mongoose.connection.readyState === 1) return;
+  return mongoUri;
+}
 
-  for (let i = 0; i < retries; i++) {
-    try {
-      console.log(
-        `[Mongo] Intentando conectar (intento ${i + 1}/${retries})...`,
-      );
+function getConnectOptions(): mongoose.ConnectOptions {
+  return {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    family: 4,
+  };
+}
 
-      // 2. CONFIGURACIÓN BLINDADA 🛡️
-      await mongoose.connect(MONGO_URI, {
-        // Rendimiento: Permite hasta 10 operaciones simultáneas (Turbo)
-        maxPoolSize: 10,
+export function getMongoStatus(): MongoStatus {
+  if (mongoose.connection.readyState === mongoose.STATES.connected) {
+    return "connected";
+  }
 
-        // Estabilidad: Espera 30s antes de rendirse por lag
-        serverSelectionTimeoutMS: 30000,
+  if (mongoose.connection.readyState === mongoose.STATES.connecting) {
+    return "connecting";
+  }
 
-        // Mantener viva la conexión
-        socketTimeoutMS: 45000,
+  if (mongoose.connection.readyState === mongoose.STATES.disconnected) {
+    return "disconnected";
+  }
 
-        // Compatibilidad: Fuerza IPv4 (Evita errores raros en algunos VPS)
-        family: 4,
-      } as mongoose.ConnectOptions);
+  return mongoStatus;
+}
 
-      connected = true;
-      console.log("🍃 [Mongo] Conectado a MongoDB (Modo Optimizado) ✅");
-      return;
-    } catch (err: any) {
-      console.error(`[Mongo] Falló el intento ${i + 1}:`, err?.message || err);
+export async function connectWithRetry(
+  retries = 6,
+  delayMs = 5000,
+): Promise<void> {
+  if (disconnectPromise) {
+    await disconnectPromise;
+  }
 
-      if (i < retries - 1) {
-        console.log(`[Mongo] Reintentando en ${delayMs / 1000} segundos...`);
-        await new Promise((res) => setTimeout(res, delayMs));
-      } else {
-        console.error(
-          "❌ [Mongo] No se pudo conectar tras varios intentos. Apagando.",
+  if (mongoose.connection.readyState === mongoose.STATES.connected) {
+    mongoStatus = "connected";
+    return;
+  }
+
+  if (connectPromise) {
+    await connectPromise;
+    return;
+  }
+
+  const mongoUri = getMongoUri();
+
+  const connectionAttempt = (async () => {
+    mongoose.set("strictQuery", true);
+
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      mongoStatus = "connecting";
+
+      try {
+        console.log(`[Mongo] Attempt ${attempt}/${retries} to connect`);
+        await mongoose.connect(mongoUri, getConnectOptions());
+        mongoStatus = "connected";
+        console.log("[Mongo] Connected successfully.");
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "mongo_connect_failed";
+        console.warn(
+          `[Mongo] connection attempt ${attempt}/${retries} failed: ${message}`,
         );
-        throw err; // El Anti-Crash atrapará esto si decides no salir, o el proceso morirá.
+
+        if (attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+
+        mongoStatus = "degraded";
+        throw error;
       }
+    }
+  })();
+  connectPromise = connectionAttempt;
+
+  try {
+    await connectionAttempt;
+  } finally {
+    if (connectPromise === connectionAttempt) {
+      connectPromise = null;
+    }
+    const state = mongoose.connection.readyState as number;
+    if (state !== mongoose.STATES.connected) {
+      mongoStatus = "degraded";
     }
   }
 }
 
-export async function disconnect() {
+export async function disconnectMongo(): Promise<void> {
+  if (disconnectPromise) {
+    return disconnectPromise;
+  }
+
+  const pendingConnection = connectPromise;
+  const activeDisconnect = (async () => {
+    if (pendingConnection) {
+      await pendingConnection.catch(() => undefined);
+    }
+
+    if (mongoose.connection.readyState === mongoose.STATES.disconnected) {
+      mongoStatus = "closed";
+      return;
+    }
+
+    try {
+      await mongoose.disconnect();
+      mongoStatus = "closed";
+      console.log("[Mongo] Disconnected successfully.");
+    } catch (error) {
+      mongoStatus = "degraded";
+      console.error("[Mongo] Error on disconnect:", error);
+    }
+  })();
+  disconnectPromise = activeDisconnect;
+
   try {
-    await mongoose.disconnect();
-    connected = false;
-    console.log("[Mongo] Desconectado correctamente. 👋");
-  } catch (err) {
-    console.error("[Mongo] Error al desconectar:", err);
+    await activeDisconnect;
+  } finally {
+    if (disconnectPromise === activeDisconnect) {
+      disconnectPromise = null;
+    }
+    if (connectPromise === pendingConnection) {
+      connectPromise = null;
+    }
   }
 }

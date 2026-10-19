@@ -10,7 +10,7 @@ import {
   Message,
   InteractionResponse,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { Logger } from "../../../Utils/SystemLogger";
 
@@ -240,7 +240,7 @@ const command: SlashCommand = {
 
       if (guilds.length === 0) {
         return interaction.editReply({
-          content: `❌ No encontré ningún servidor con el nombre "${searchQuery}", nyaa~`,
+          content: `❌ No encontré ningún servidor que coincida con "${searchQuery}", nya.`,
         });
       }
 

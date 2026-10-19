@@ -1,4 +1,4 @@
-import { StreakTier, IStreakGroup } from "../Models/StreakGroup";
+import { StreakTier, IStreakGroup } from "../Database/streaks/streakGroup.model";
 
 /**
  * Calcula el tier visual de una racha según sus días consecutivos actuales.

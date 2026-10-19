@@ -7,8 +7,8 @@ import {
   MessageFlags, 
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
-import { clearWarnings } from "../../../Models/Warning";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import { clearWarnings } from "../../../Database/moderation/warning.model";
 
 const command: SlashCommand = {
   category: "Moderation",

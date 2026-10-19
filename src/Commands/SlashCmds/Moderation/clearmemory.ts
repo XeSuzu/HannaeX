@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
-import { UserMemoryManager } from "../../../Database/UserMemoryManager";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import { UserMemoryManager } from "../../../Database/ai/UserMemoryManager";
 
 const command: SlashCommand = {
   category: "IA",

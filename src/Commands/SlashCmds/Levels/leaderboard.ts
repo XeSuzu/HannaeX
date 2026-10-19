@@ -7,8 +7,8 @@ import {
   EmbedBuilder,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
-import LocalLevel from "../../../Models/LocalLevels";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PER_PAGE = 10;
@@ -48,7 +48,7 @@ export default {
               `Aún no hay usuarios en el ranking de este servidor.\n\n` +
                 `💬 ¡Sé el primero en ganar XP y aparecer aquí!`,
             )
-            .setFooter({ text: "Hoshiko Levels 🌸" })
+            .setFooter({ text: `Hoshiko 🌸 • ${interaction.guild?.name || "Servidor"}` })
             .setTimestamp(),
         ],
       });
@@ -145,7 +145,7 @@ export default {
           },
         )
         .setFooter({
-          text: `Hoshiko Levels 🌸 · Top ${skip + 1}–${Math.min(skip + PER_PAGE, totalUsers)}`,
+          text: `Hoshiko 🌸 • Top ${skip + 1}–${Math.min(skip + PER_PAGE, totalUsers)}`,
           iconURL: client.user?.displayAvatarURL(),
         })
         .setTimestamp();

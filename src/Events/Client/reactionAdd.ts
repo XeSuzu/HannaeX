@@ -1,10 +1,8 @@
 import { Events, MessageReaction, PartialUser, User } from "discord.js";
-import ActiveRole from "../../Models/ActiveRole";
-import LevelConfig from "../../Models/LevelConfig";
-import LocalLevel from "../../Models/LocalLevels";
-import ReactionConfig from "../../Models/ReactionConfig";
-import ServerConfig from "../../Models/serverConfig";
-import ViralSetup from "../../Models/ViralSetup";
+import { ActiveRole, ReactionConfig, ViralSetup } from "../../Database/community/reactionRoles.models";
+import LevelConfig from "../../Database/leveling/levelConfig.model";
+import LocalLevel from "../../Database/leveling/localLevel.model";
+import ServerConfig from "../../Database/guild/serverConfig.model";
 
 export default {
   name: Events.MessageReactionAdd,
@@ -129,19 +127,13 @@ export default {
       ) {
         const reactionXp = levelConfig.xpPerReaction;
         try {
-          let userProfile = await LocalLevel.findOne({
-            userId: user.id,
-            guildId,
-          });
-          if (!userProfile) {
-            userProfile = await LocalLevel.create({
-              userId: user.id,
-              guildId,
-            });
-          }
           await LocalLevel.updateOne(
             { userId: user.id, guildId },
-            { $inc: { xp: reactionXp } },
+            {
+              $inc: { xp: reactionXp },
+              $setOnInsert: { userId: user.id, guildId },
+            },
+            { upsert: true, setDefaultsOnInsert: true },
           );
         } catch (err) {
           console.error(`[reactionXp] Error dando XP por reacción:`, err);

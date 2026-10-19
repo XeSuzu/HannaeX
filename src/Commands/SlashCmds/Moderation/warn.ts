@@ -8,9 +8,9 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 import { AutomodManager } from "../../../Features/AutomodManager";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { addWarning } from "../../../Models/Warning";
+import { addWarning } from "../../../Database/moderation/warning.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { Logger } from "../../../Utils/SystemLogger";
 
@@ -85,14 +85,15 @@ const command: SlashCommand = {
         "ManualWarn",
       );
 
+      const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
+      const total = (await getWarnings(interaction.guild.id, target.id)).length;
+
       await HoshikoLogger.logAction(interaction.guild, "WARN", {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
+        warnCount: total,
       });
-
-      const { getWarnings } = await import("../../../Models/Warning.js");
-      const total = (await getWarnings(interaction.guild.id, target.id)).length;
 
       const embed = new EmbedBuilder()
         .setTitle("⚠️ Advertencia Enviada")
@@ -161,7 +162,7 @@ const command: SlashCommand = {
       reason,
     });
 
-    const { getWarnings } = await import("../../../Models/Warning.js");
+    const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
     const total = (await getWarnings(message.guild.id, target.id)).length;
 
     const embed = new EmbedBuilder()

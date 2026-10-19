@@ -1,12 +1,13 @@
+import { LevelConfigCache } from "../../../Database/leveling/LevelConfigCache";
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
-import LevelConfig from "../../../Models/LevelConfig";
-import LocalLevel from "../../../Models/LocalLevels";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import LevelConfig from "../../../Database/leveling/levelConfig.model";
+import LocalLevel from "../../../Database/leveling/localLevel.model";
 
 export default {
   data: new SlashCommandBuilder()
@@ -75,8 +76,12 @@ export default {
     const guildId = interaction.guildId!;
     const guild = interaction.guild!;
 
-    let config = await LevelConfig.findOne({ guildId });
-    if (!config) config = await LevelConfig.create({ guildId });
+    const config = await LevelConfig.findOneAndUpdate(
+      { guildId },
+      { $setOnInsert: { guildId } },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
+    LevelConfigCache.invalidate(guildId);
 
     // ==================== ADD ====================
     if (sub === "add") {

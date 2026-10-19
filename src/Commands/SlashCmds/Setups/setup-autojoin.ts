@@ -12,7 +12,7 @@ import {
   StringSelectMenuBuilder,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import ServerConfig from "../../../Models/serverConfig";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 
 const command: SlashCommand = {
   category: "Setups",

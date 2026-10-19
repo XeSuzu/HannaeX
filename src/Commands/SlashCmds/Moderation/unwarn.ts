@@ -7,8 +7,8 @@ import {
   MessageFlags,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
-import { deleteWarning, IWarning } from "../../../Models/Warning";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import { deleteWarning, IWarning } from "../../../Database/moderation/warning.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
 const command: SlashCommand = {
@@ -44,7 +44,7 @@ const command: SlashCommand = {
         return;
       }
 
-      const { getWarnings } = await import("../../../Models/Warning.js");
+      const { getWarnings } = await import("../../../Database/moderation/warning.model.js");
       const warnings = await getWarnings(interaction.guild.id, target.id);
       const match = warnings.find((w: IWarning) =>
         (w as any)._id.toString().endsWith(warnId)

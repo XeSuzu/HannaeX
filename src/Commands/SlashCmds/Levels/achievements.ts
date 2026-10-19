@@ -3,8 +3,8 @@ import {
   EmbedBuilder,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
-import GlobalLevel, { ACHIEVEMENTS } from "../../../Models/GlobalLevel";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import GlobalLevel, { ACHIEVEMENTS } from "../../../Database/leveling/globalLevel.model";
 
 export default {
   data: new SlashCommandBuilder()

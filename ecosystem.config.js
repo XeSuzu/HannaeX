@@ -6,39 +6,49 @@
 module.exports = {
   apps: [
     {
-      // -----------------
-      // STAGING
-      // -----------------
-      // Entorno de pruebas que simula producción.
-      // Se ejecuta en modo 'fork' (un solo proceso).
-      // npm run start:staging
-      // -----------------
-      name: 'Hoshiko-Staging',
-      script: './dist/index.js',
-      cwd: '/root/HannaeX',
+      name: "Hoshiko-Staging",
+      script: "./dist/index.js",
+      cwd: "/root/HannaeX",
+      exec_mode: "fork",
+      instances: 1,
       watch: false,
       autorestart: true,
       env: {
-        NODE_ENV: 'staging',
+        NODE_ENV: "staging",
       },
     },
     {
-      // -----------------
-      // PRODUCTION
-      // -----------------
-      // Entorno real para usuarios globales.
-      // Se ejecuta en modo 'cluster' para usar todos los núcleos del CPU.
-      // npm run start:prod
-      // -----------------
-      name: 'Hoshiko-Production',
-      script: './dist/index.js',
-      cwd: '/root/HannaeX',
-      exec_mode: 'cluster',
-      instances: 'max',
+      name: "hoshiko-bot",
+      script: "./dist/index.js",
+      cwd: "/root/HannaeX",
+      exec_mode: "fork",
+      instances: 1,
       watch: false,
       autorestart: true,
+      out_file: "/root/.pm2/logs/hoshiko-bot-out.log",
+      error_file: "/root/.pm2/logs/hoshiko-bot-error.log",
+      // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
+      max_memory_restart: "1G",
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: "production",
+      },
+    },
+    {
+      name: "hoshiko-worker",
+      script: "./dist/worker.js",
+      cwd: "/root/HannaeX",
+      exec_mode: "fork",
+      instances: 1,
+      watch: false,
+      autorestart: false,
+      out_file: "/root/.pm2/logs/hoshiko-worker-out.log",
+      error_file: "/root/.pm2/logs/hoshiko-worker-error.log",
+      // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production",
+        WORKER_ENABLED: "false",
+        REDIS_ENABLED: "false",
       },
     },
   ],

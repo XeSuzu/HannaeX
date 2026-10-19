@@ -5,8 +5,8 @@ import {
   EmbedBuilder,
   ColorResolvable,
 } from "discord.js";
-import StatusConfig from "../../../Models/StatutsConfig"; // Asegúrate de que la ruta sea correcta
-import { HoshikoClient } from "../../../index";
+import StatusConfig from "../../../Database/guild/statusConfig.model"; // Asegúrate de que la ruta sea correcta
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

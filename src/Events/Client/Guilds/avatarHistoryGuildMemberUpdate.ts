@@ -1,10 +1,12 @@
 import { Events, GuildMember } from "discord.js";
-import { AvatarHistoryManager } from "../../../Database/AvatarHistoryManager";
+import { AvatarHistoryManager } from "../../../Database/tracking/AvatarHistoryManager";
+import { isOverloaded } from "../../../Utils/loadShedding";
 
 export default {
   name: Events.GuildMemberUpdate,
   async execute(oldMember: GuildMember, newMember: GuildMember) {
     if (oldMember.avatar === newMember.avatar) return;
+    if (isOverloaded()) return;
 
     const avatarUrl = newMember.displayAvatarURL({
       size: 1024,

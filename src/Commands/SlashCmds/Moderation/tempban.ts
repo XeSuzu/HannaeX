@@ -10,6 +10,7 @@ import ms from "ms";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { AutomodManager } from "../../../Features/AutomodManager";
+import { TempModerationService } from "../../../Services/TempModerationService";
 
 const command: SlashCommand = {
   category: "Moderation",
@@ -31,6 +32,8 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
+
+    let rollbackFailed = false;
 
     const target = interaction.options.getMember("usuario");
     const timeInput = interaction.options.getString("tiempo", true);
@@ -73,6 +76,33 @@ const command: SlashCommand = {
 
       await target.ban({ reason: `[TEMPBAN] ${interaction.user.tag}: ${reason}` });
 
+      try {
+        await TempModerationService.schedule({
+          guildId: interaction.guild.id,
+          userId: targetId,
+          tipo: "ban",
+          expiresAt: unbanDate,
+          moderatorId: interaction.user.id,
+          reason,
+          duration: timeInput,
+        });
+      } catch (scheduleError) {
+        try {
+          await interaction.guild.bans.remove(
+            targetId,
+            "Falló el registro del vencimiento del tempban",
+          );
+        } catch (rollbackError) {
+          rollbackFailed = true;
+          console.error(
+            "CRITICAL: No se pudo guardar ni revertir el tempban",
+            { scheduleError, rollbackError, guildId: interaction.guild.id, targetId },
+          );
+        }
+
+        throw scheduleError;
+      }
+
       await AutomodManager.recordManualAction(
         interaction.guild,
         target,
@@ -106,29 +136,12 @@ const command: SlashCommand = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      const guild = interaction.guild;
-      const clientUser = interaction.client.user;
-
-      setTimeout(async () => {
-        try {
-          const banned = await guild.bans.fetch(targetId);
-          if (banned) {
-            await guild.bans.remove(targetId, "Tempban expirado automáticamente");
-            await HoshikoLogger.logAction(guild, "UNWARN", {
-              user: target.user,
-              moderator: clientUser,
-              reason: "Tempban expirado",
-              extra: `Duración original: ${timeInput}`,
-            });
-          }
-        } catch (err) {
-          console.error("❌ Error al desbanear automáticamente:", err);
-        }
-      }, duration);
     } catch (error) {
       console.error("💥 Error en comando tempban:", error);
       await interaction.followUp({
-        content: "🌸 Hubo un error al banear. Revisa mis permisos.",
+        content: rollbackFailed
+          ? "❌ No se pudo registrar ni revertir el ban temporal. El usuario sigue baneado; contacta a un administrador."
+          : "🌸 Hubo un error al banear. Revisa mis permisos.",
         flags: MessageFlags.Ephemeral,
       });
     }

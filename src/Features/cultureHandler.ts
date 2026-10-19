@@ -1,5 +1,6 @@
+import { CacheManager } from "../Database/guild/CacheManager";
 import { Message } from "discord.js";
-import ServerConfig from "../Models/serverConfig";
+import ServerConfig from "../Database/guild/serverConfig.model";
 
 const IGNORE_WORDS = [
   "pero",
@@ -58,6 +59,7 @@ export async function handleCulture(message: Message) {
         } as any,
       },
     );
+    CacheManager.flush(message.guildId!);
   } catch (err) {
     // Ignoramos errores de colisión menores para no detener el bot
     console.error("⚠️ Error menor en aprendizaje (ignorable):", err);

@@ -6,8 +6,8 @@ import {
   MessageFlags,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { HoshikoClient } from "../../../index";
-import GuildConfig from "../../../Models/GuildConfig";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import GuildConfig from "../../../Database/guild/guildConfig.model";
 import { AutomodManager } from "../../../Features/AutomodManager";
 
 const command: SlashCommand = {

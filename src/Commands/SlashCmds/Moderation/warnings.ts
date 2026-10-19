@@ -6,9 +6,9 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getWarnings } from "../../../Models/Warning";
+import { getWarnings } from "../../../Database/moderation/warning.model";
 
 const command: SlashCommand = {
   category: "Moderation",

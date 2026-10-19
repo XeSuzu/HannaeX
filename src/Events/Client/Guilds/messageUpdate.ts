@@ -15,6 +15,13 @@ export default {
     const newContent = newMessage.content ?? "[no disponible]";
     if (oldContent === newContent) return;
 
+    const formattedOld = oldContent
+      ? `> ${oldContent.slice(0, 900).replace(/\n/g, "\n> ")}`
+      : "*[Sin texto anterior]*";
+    const formattedNew = newContent
+      ? `> ${newContent.slice(0, 900).replace(/\n/g, "\n> ")}`
+      : "*[Sin texto nuevo]*";
+
     const user = newMessage.author;
     const channel = newMessage.channel;
 
@@ -22,14 +29,28 @@ export default {
       .setTitle("📝 Mensaje Editado")
       .setColor(0xffa500)
       .addFields(
-        { name: "Antes", value: oldContent.slice(0, 1024) || "[vacío]" },
-        { name: "Después", value: newContent.slice(0, 1024) || "[vacío]" },
-        { name: "Canal", value: `<#${channel.id}>`, inline: true },
         {
-          name: "Usuario",
-          value: user ? `${user.tag} \`(${user.id})\`` : "[desconocido]",
+          name: "👤 Usuario",
+          value: user ? `<@${user.id}>\n\`${user.tag}\`` : "*[Desconocido]*",
           inline: true,
-        }
+        },
+        {
+          name: "💬 Canal",
+          value: `<#${channel.id}>`,
+          inline: true,
+        },
+        {
+          name: "🔗 Enlace",
+          value: `[Ir al mensaje](https://discord.com/channels/${newMessage.guild.id}/${channel.id}/${newMessage.id})`,
+          inline: true,
+        },
+        { name: "⏮️ Antes", value: formattedOld, inline: false },
+        { name: "⏭️ Después", value: formattedNew, inline: false },
+        {
+          name: "🆔 Identificadores",
+          value: `\`Usuario:\` ${user?.id ?? "N/A"} • \`Msg:\` ${newMessage.id}`,
+          inline: false,
+        },
       )
       .setURL(`https://discord.com/channels/${newMessage.guild.id}/${channel.id}/${newMessage.id}`)
       .setTimestamp()

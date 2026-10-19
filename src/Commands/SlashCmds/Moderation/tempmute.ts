@@ -9,9 +9,10 @@ import {
 } from "discord.js";
 import ms, { StringValue } from "ms";
 import { AutomodManager } from "../../../Features/AutomodManager";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
+import { TempModerationService } from "../../../Services/TempModerationService";
 
 const command: SlashCommand = {
   category: "Moderation",
@@ -45,6 +46,8 @@ const command: SlashCommand = {
     client: HoshikoClient,
   ): Promise<void> {
     if (!interaction.guild) return;
+
+    let rollbackFailed = false;
 
     const target = interaction.options.getMember("usuario");
     const timeInput = interaction.options.getString("tiempo", true);
@@ -92,8 +95,40 @@ const command: SlashCommand = {
       const targetTag = target.user.tag;
       const targetId = target.id;
       const unmuteDate = new Date(Date.now() + duration);
+      const previousTimeoutUntil = target.communicationDisabledUntilTimestamp;
 
       await target.timeout(duration, reason);
+
+      try {
+        await TempModerationService.schedule({
+          guildId: interaction.guild.id,
+          userId: targetId,
+          tipo: "mute",
+          expiresAt: unmuteDate,
+          moderatorId: interaction.user.id,
+          reason,
+          duration: timeInput,
+        });
+      } catch (scheduleError) {
+        try {
+          const previousTimeoutDuration =
+            previousTimeoutUntil && previousTimeoutUntil > Date.now()
+              ? previousTimeoutUntil - Date.now()
+              : null;
+          await target.timeout(
+            previousTimeoutDuration,
+            "Falló el registro del vencimiento del tempmute",
+          );
+        } catch (rollbackError) {
+          rollbackFailed = true;
+          console.error(
+            "CRITICAL: No se pudo guardar ni revertir el tempmute",
+            { scheduleError, rollbackError, guildId: interaction.guild.id, targetId },
+          );
+        }
+
+        throw scheduleError;
+      }
 
       await AutomodManager.recordManualAction(
         interaction.guild,
@@ -107,7 +142,8 @@ const command: SlashCommand = {
         user: target.user,
         moderator: interaction.user,
         reason: reason,
-        extra: `Temporal: ${timeInput} (hasta ${unmuteDate.toLocaleString()})`,
+        expiresAt: unmuteDate,
+        actionLabel: `Silencio Temporal (${timeInput})`,
       });
 
       const embed = new EmbedBuilder()
@@ -140,32 +176,12 @@ const command: SlashCommand = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      const guild = interaction.guild;
-      const clientUser = interaction.client.user;
-
-      setTimeout(async () => {
-        try {
-          if (
-            target.communicationDisabledUntilTimestamp &&
-            target.communicationDisabledUntilTimestamp > Date.now()
-          ) {
-            await target.timeout(null, "Tempmute expirado automáticamente");
-            await HoshikoLogger.logAction(guild, "UNWARN", {
-              user: target.user,
-              moderator: clientUser,
-              reason: "Tempmute expirado",
-              extra: `Duración original: ${timeInput}`,
-            });
-          }
-        } catch (err) {
-          console.error("❌ Error al desmutear automáticamente:", err);
-        }
-      }, duration);
     } catch (error) {
       console.error("💥 Error en comando tempmute:", error);
       await interaction.followUp({
-        content:
-          "🌸 Hubo un error al silenciar al usuario. Revisa mis permisos.",
+        content: rollbackFailed
+          ? "❌ No se pudo registrar ni revertir el silencio temporal. El usuario sigue silenciado; contacta a un administrador."
+          : "🌸 Hubo un error al silenciar al usuario. Revisa mis permisos.",
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -200,8 +216,47 @@ const command: SlashCommand = {
     const targetTag = target.user.tag;
     const targetId = target.id;
     const unmuteDate = new Date(Date.now() + duration);
+    const previousTimeoutUntil = target.communicationDisabledUntilTimestamp;
 
     await target.timeout(duration, reason);
+
+    try {
+      await TempModerationService.schedule({
+        guildId: message.guild.id,
+        userId: targetId,
+        tipo: "mute",
+        expiresAt: unmuteDate,
+        moderatorId: message.author.id,
+        reason,
+        duration: timeInput,
+      });
+    } catch (scheduleError) {
+      try {
+        const previousTimeoutDuration =
+          previousTimeoutUntil && previousTimeoutUntil > Date.now()
+            ? previousTimeoutUntil - Date.now()
+            : null;
+        await target.timeout(
+          previousTimeoutDuration,
+          "Falló el registro del vencimiento del tempmute",
+        );
+      } catch (rollbackError) {
+        console.error(
+          "CRITICAL: No se pudo guardar ni revertir el tempmute de prefijo",
+          { scheduleError, rollbackError, guildId: message.guild.id, targetId },
+        );
+        await message.reply(
+          "❌ No se pudo registrar ni revertir el silencio temporal. El usuario sigue silenciado; contacta a un administrador.",
+        );
+        return;
+      }
+
+      console.error("Error al guardar vencimiento del tempmute:", scheduleError);
+      await message.reply(
+        "❌ No se pudo registrar el vencimiento; el silencio temporal fue revertido.",
+      );
+      return;
+    }
     await AutomodManager.recordManualAction(
       message.guild,
       target,
@@ -240,27 +295,6 @@ const command: SlashCommand = {
 
     await message.reply({ embeds: [embed] });
 
-    setTimeout(async () => {
-      try {
-        const fetched = await message
-          .guild!.members.fetch(targetId)
-          .catch(() => null);
-        if (
-          fetched?.communicationDisabledUntilTimestamp &&
-          fetched.communicationDisabledUntilTimestamp > Date.now()
-        ) {
-          await fetched.timeout(null, "Tempmute expirado automáticamente");
-          await HoshikoLogger.logAction(message.guild!, "UNWARN", {
-            user: fetched.user,
-            moderator: client.user,
-            reason: "Tempmute expirado",
-            extra: `Duración original: ${timeInput}`,
-          });
-        }
-      } catch (err) {
-        console.error("❌ Error al desmutear automáticamente:", err);
-      }
-    }, duration);
   },
 };
 

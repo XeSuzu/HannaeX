@@ -9,7 +9,7 @@ import {
   TextChannel,
 } from "discord.js";
 import { AutomodManager } from "../../../Features/AutomodManager";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
@@ -63,11 +63,10 @@ const command: SlashCommand = {
         `Perdonado manualmente por ${interaction.user.tag}`,
       );
 
-      await HoshikoLogger.logAction(interaction.guild, "UNWARN", {
+      await HoshikoLogger.logAction(interaction.guild, "UNMUTE", {
         user: target.user,
         moderator: interaction.user,
-        reason: "Silencio perdonado",
-        extra: `Originalmente silenciado por timeout`,
+        reason: "Silencio retirado manualmente",
       });
 
       const embed = new EmbedBuilder()

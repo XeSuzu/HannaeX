@@ -12,7 +12,7 @@ import {
   User,
   InteractionResponse, // Asegúrate de importar esto si no lo usas en otro lado
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { getAnimeGif } from "../../../Utils/animeGif";
 

@@ -8,8 +8,10 @@ import {
   ColorResolvable,
   ThreadAutoArchiveDuration,
 } from "discord.js";
-import Confession from "../Models/Confession";
-import ServerConfig from "../Models/serverConfig";
+import Confession from "../Database/community/confession.model";
+import ServerConfig from "../Database/guild/serverConfig.model";
+import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
+import { generateConfessionCard } from "../Utils/confessionCard";
 
 export class ConfessionManager {
   // 🎨 PALETA AESTHETIC (Colores Pastel para Anónimos)
@@ -60,12 +62,13 @@ export class ConfessionManager {
     if (!publicChannel)
       throw new Error("❌ El canal de destino no existe o fue borrado.");
 
-    // 3. ACTUALIZAR CONTADOR Y DB
-    settings.confessions.counter += 1;
-    settings.markModified("confessions");
-    await settings.save();
-
-    const currentId = settings.confessions.counter;
+    // 3. ACTUALIZAR CONTADOR ATÓMICAMENTE
+    const updatedSettings = await ServerConfig.findOneAndUpdate(
+      { guildId: guild.id },
+      { $inc: { "confessions.counter": 1 } },
+      { new: true },
+    );
+    const currentId = updatedSettings?.confessions?.counter ?? (settings.confessions.counter + 1);
     const timestamp = new Date();
 
     const newConfession = new Confession({
@@ -77,6 +80,7 @@ export class ConfessionManager {
       imageUrl: image,
       isAnonymous: isAnonymous,
       replyToId: replyToId ? parseInt(replyToId) : null,
+      channelId: targetChannelId,
       timestamp: timestamp,
     });
     await newConfession.save();
@@ -84,13 +88,10 @@ export class ConfessionManager {
     // 4. DISEÑO VISUAL INTELIGENTE 🎨
     const isReply = !!replyToId;
 
-    // Buscamos si el canal actual es un Feed configurado (ej: Anécdotas)
     const feedConfig = settings.confessions.feeds?.find(
       (f) => f.channelId === targetChannelId,
     );
 
-    // Definimos Título y Color base
-    // Si es un Feed, usamos su configuración. Si es Confesión normal, usamos la default.
     const systemTitle = feedConfig
       ? `${feedConfig.emoji} ${feedConfig.title}`
       : settings.confessions.customTitle || "Confesión Anónima";
@@ -101,66 +102,72 @@ export class ConfessionManager {
     let authorName = "";
     let authorIcon = "";
     let embedColor: ColorResolvable = "#FFFFFF";
-    let footerText = "";
 
     if (isAnonymous) {
-      // 👻 MODO FANTASMA
       authorName = isReply
-        ? `Fantasma Respondiendo a #${replyToId}`
+        ? `💬 Respuesta anónima a #${replyToId}`
         : `${systemTitle} #${currentId}`;
-      authorIcon = "https://cdn-icons-png.flaticon.com/512/4712/4712109.png"; // Icono Fantasma
-      // Si es anónimo, usamos un color pastel random para variedad, o el del feed si prefieres
+      authorIcon = "https://cdn-icons-png.flaticon.com/512/4712/4712109.png";
       embedColor =
         this.PASTEL_COLORS[
           Math.floor(Math.random() * this.PASTEL_COLORS.length)
         ];
-      footerText = "🔒 Secreto • Identidad protegida";
     } else {
-      // 👤 MODO PÚBLICO
       authorName = `${member.displayName}`;
       authorIcon = member.user.displayAvatarURL({ extension: "png" });
-      // Color del rol del usuario o el del sistema
       embedColor =
         member.displayHexColor === "#000000"
           ? (systemColor as ColorResolvable)
           : member.displayHexColor;
-      footerText = `🔓 Público • ID: #${currentId}`;
     }
 
     const publicEmbed = new EmbedBuilder()
       .setAuthor({ name: authorName, iconURL: authorIcon })
       .setColor(embedColor)
       .setFooter({
-        text: `Hoshiko Systems • ${footerText}`,
-        iconURL: "https://cdn-icons-png.flaticon.com/512/25/25231.png",
+        text: `Hoshiko 🐾 • ${isAnonymous ? "🔒 Anónimo" : "🔓 Público"} • ${guild.name}`,
       })
       .setTimestamp();
 
-    // Cuerpo del mensaje con diseño Aesthetic
     if (isReply) {
-      publicEmbed.setDescription(
-        `> 🗨️ **Respuesta:**\n\n${content}\n\n${this.SEPARATOR}`,
-      );
+      publicEmbed.setDescription(`>>> 🗨️ **Respuesta a #${replyToId}:**\n\n${content}`);
     } else {
-      if (content.length > 0)
-        publicEmbed.setDescription(`> ${content}\n\n${this.SEPARATOR}`);
-      else if (image)
-        publicEmbed.setDescription(
-          `> 📸 *Ha compartido una imagen...*\n\n${this.SEPARATOR}`,
-        );
+      publicEmbed.setDescription(`>>> ${content}`);
     }
 
     if (image) publicEmbed.setImage(image);
-    if (isAnonymous && !image)
-      publicEmbed.setThumbnail(
-        "https://cdn-icons-png.flaticon.com/512/566/566601.png",
-      );
+
+    // Intentar generar tarjeta visual Canvas opcional
+    let cardAttachment: any = null;
+    const visualModeEnabled = settings.confessions.visualMode ?? false;
+
+    if (visualModeEnabled && !image && !isReply) {
+      try {
+        let avatarBuffer: Buffer | null = null;
+        if (!isAnonymous) {
+          const avRes = await fetch(member.user.displayAvatarURL({ extension: "png", size: 128 }));
+          avatarBuffer = Buffer.from(await avRes.arrayBuffer());
+        }
+
+        cardAttachment = await generateConfessionCard({
+          title: feedConfig?.title || systemTitle,
+          confessionId: currentId,
+          content,
+          isAnonymous,
+          authorName: member.displayName,
+          authorAvatarBuffer: avatarBuffer,
+          serverName: guild.name,
+          backgroundTheme: settings.confessions.cardTheme || "sakura",
+        });
+      } catch (err) {
+        console.error("[ConfessionManager] Error generando tarjeta Canvas:", err);
+      }
+    }
 
     // 5. PUBLICAR Y GESTIONAR HILOS
     let msg = null;
 
     if (isReply && replyToId) {
-      // CASO A: RESPUESTA
       const originalConfession = await Confession.findOne({
         guildId: guild.id,
         confessionId: parseInt(replyToId),
@@ -169,58 +176,64 @@ export class ConfessionManager {
 
       if (originalConfession && originalConfession.publicMessageId) {
         try {
-          // Intentamos buscar el mensaje original EN EL CANAL ACTUAL
-          const originalMsg = await publicChannel.messages
-            .fetch(originalConfession.publicMessageId)
-            .catch(() => null);
-          if (originalMsg) {
-            let thread = originalMsg.thread;
-            if (!thread) {
-              thread = await originalMsg.startThread({
-                name: `💬 Comentarios: #${replyToId}`,
-                autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-              });
+          const sourceChannelId = originalConfession.channelId || targetChannelId;
+          const sourceChannel = guild.channels.cache.get(sourceChannelId) as TextChannel;
+          if (sourceChannel) {
+            const originalMsg = await sourceChannel.messages
+              .fetch(originalConfession.publicMessageId)
+              .catch(() => null);
+            if (originalMsg) {
+              let thread = originalMsg.thread;
+              if (!thread) {
+                thread = await originalMsg.startThread({
+                  name: `💬 Respuestas: #${replyToId}`,
+                  autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+                });
+              }
+              msg = await thread.send({ embeds: [publicEmbed] });
+              sentInThread = true;
             }
-            msg = await thread.send({ embeds: [publicEmbed] });
-            sentInThread = true;
           }
         } catch (e) {}
       }
-      // Si no pudimos ponerlo en el hilo, lo mandamos suelto
-      if (!sentInThread)
+      if (!sentInThread) {
         msg = await publicChannel.send({
           content: `↪️ **Respuesta a #${replyToId}:**`,
           embeds: [publicEmbed],
         });
+      }
     } else {
-      // CASO B: NUEVA PUBLICACIÓN
-      // Botones actualizados para seguir en el mismo canal
       const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId("confess_create_new")
-          .setLabel("Publicar Aquí")
-          .setEmoji("✨")
+          .setLabel("Confesar")
+          .setEmoji("✍️")
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId(`confess_reply_${currentId}`)
-          .setLabel("Responder")
-          .setEmoji("↩️")
+          .setLabel(`Responder (#${currentId})`)
+          .setEmoji("💬")
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`confess_report_${currentId}`)
           .setLabel("Reportar")
+          .setEmoji("🚨")
           .setStyle(ButtonStyle.Danger),
       );
 
-      msg = await publicChannel.send({
+      const sendPayload: any = {
         embeds: [publicEmbed],
         components: [buttons],
-      });
+      };
+      if (cardAttachment) {
+        sendPayload.files = [cardAttachment];
+      }
+
+      msg = await publicChannel.send(sendPayload);
 
       try {
-        // Nombre del hilo dinámico
         const threadName = isAnonymous
-          ? `${feedConfig ? feedConfig.emoji : "👻"} Hilo #${currentId}`
+          ? `${feedConfig ? feedConfig.emoji : "💬"} Hilo #${currentId}`
           : `💬 Hilo de ${member.displayName}`;
 
         await msg.startThread({
@@ -236,41 +249,34 @@ export class ConfessionManager {
     }
 
     // 6. LOGS (ADMINISTRACIÓN)
-    if (settings.confessions.logsChannelId) {
-      const logsChannel = guild.channels.cache.get(
-        settings.confessions.logsChannelId,
-      ) as TextChannel;
-      if (logsChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle(`🛡️ LOG: CASO #${currentId}`)
-          .setColor("#2B2D31")
-          .setThumbnail(member.user.displayAvatarURL())
-          .addFields(
-            {
-              name: "👤 Autor Real",
-              value: `${member.user.tag}\n\`${member.id}\``,
-              inline: true,
-            },
-            {
-              name: "📺 Canal/Feed",
-              value: `<#${targetChannelId}>`,
-              inline: true,
-            }, // Muestra dónde salió
-            {
-              name: "🎭 Modo",
-              value: isAnonymous ? "Anónimo" : "Público",
-              inline: true,
-            },
-            {
-              name: "📝 Contenido",
-              value: `\`\`\`${content.substring(0, 1000)}\`\`\``,
-            },
-          )
-          .setTimestamp();
-        if (image) logEmbed.setImage(image);
-        await logsChannel.send({ embeds: [logEmbed] }).catch(() => null);
-      }
-    }
+    const logEmbed = new EmbedBuilder()
+      .setTitle(`🛡️ LOG: CASO #${currentId}`)
+      .setColor("#2B2D31")
+      .setThumbnail(member.user.displayAvatarURL())
+      .addFields(
+        {
+          name: "👤 Autor Real",
+          value: `${member.user.tag}\n\`${member.id}\``,
+          inline: true,
+        },
+        {
+          name: "📺 Canal/Feed",
+          value: `<#${targetChannelId}>`,
+          inline: true,
+        },
+        {
+          name: "🎭 Modo",
+          value: isAnonymous ? "Anónimo" : "Público",
+          inline: true,
+        },
+        {
+          name: "📝 Contenido",
+          value: `\`\`\`${content.substring(0, 1000)}\`\`\``,
+        },
+      )
+      .setTimestamp();
+    if (image) logEmbed.setImage(image);
+    await HoshikoLogger.sendToChannel(guild, "confesslog", logEmbed);
 
     return currentId;
   }

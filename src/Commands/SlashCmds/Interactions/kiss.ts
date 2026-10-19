@@ -11,8 +11,8 @@ import {
   GuildMember,
   User,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
-import Couple from "../../../Models/couple";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
+import Couple from "../../../Database/community/couple.model";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { getAnimeGif } from "../../../Utils/animeGif";
 

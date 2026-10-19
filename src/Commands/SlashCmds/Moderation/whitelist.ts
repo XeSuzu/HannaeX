@@ -4,7 +4,7 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
 } from "discord.js";
-import { SettingsManager } from "../../../Database/SettingsManager";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

@@ -5,7 +5,7 @@ import {
   ChannelType,
   PermissionFlagsBits,
 } from "discord.js";
-import { SettingsManager } from "../Database/SettingsManager";
+import { SettingsManager } from "../Database/guild/SettingsManager";
 
 export const buildSnipeNoticeEmbed = (guildName: string) => (
   new EmbedBuilder()

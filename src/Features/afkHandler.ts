@@ -1,5 +1,5 @@
 import { Message, EmbedBuilder } from "discord.js";
-import AFK from "../Models/afk";
+import AFK from "../Database/tracking/afk.model";
 
 export default async (message: Message): Promise<boolean> => {
   if (!message.guild || message.author.bot) return false;

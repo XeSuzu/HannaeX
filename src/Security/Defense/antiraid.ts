@@ -1,5 +1,5 @@
 import { GuildMember, TextChannel, PermissionFlagsBits } from "discord.js";
-import { SettingsManager } from "../../Database/SettingsManager";
+import { SettingsManager } from "../../Database/guild/SettingsManager";
 
 // Mapa para guardar las entradas recientes en RAM
 const joinCache = new Map<string, number[]>();

@@ -1,22 +1,67 @@
-# Environment variables
-.env
+# ==============================================================================
+# Hoshiko / HannaeX - Git Ignore Rules
+# ==============================================================================
 
-# Node modules
+# --- Entorno y Secretos ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+
+# --- Dependencias ---
 node_modules/
 
-# Logs
-*.log
-
-# Config (si decides mantenerlo como backup)
-config.json
-
-# Build output
+# --- Compilación y Salidas ---
 /dist
-.env*
-logs/
-src/Tests/
+tsconfig.tsbuildinfo
+coverage/
+.nyc_output/
 
-# Archivos locales
+# --- Logs y Trazas ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Backups y Datos Locales ---
+backups/
+*.dump
+*.rdb
+*.sqlite
+*.sqlite3
+*.sql.gz
+config.json
 reports.json
+
+# --- Scripts Manuales y Herramientas Locales ---
+# (scripts/ con scripts esenciales como test.sh se mantiene versionado)
+scripts-manuales/
+src/scripts-manuales/
 tools/
-Tests/
+
+# --- Documentación Interna y Caches de Notas ---
+# (docs/ y guías públicas se conservan versionadas)
+Hoshiko Or Later/.obsidian/
+
+# --- Agentes y Herramientas de IA (Temporales / Scratch) ---
+.claude/
+scratch/
+.agents/**/scratch/
+.agents/**/*.tmp
+.agents/**/*.log
+.agents/
+
+# --- Editores y Sistema Operativo ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

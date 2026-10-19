@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { AutomodManager } from "../../../Features/AutomodManager";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { Logger } from "../../../Utils/SystemLogger";
 
 /**

@@ -1,6 +1,6 @@
-import { DMChannel, EmbedBuilder, Events, GuildChannel } from "discord.js";
+import { AuditLogEvent, DMChannel, EmbedBuilder, Events, GuildChannel } from "discord.js";
 import { HoshikoClient } from "../../../index";
-import ServerConfig from "../../../Models/serverConfig";
+import ServerConfig from "../../../Database/guild/serverConfig.model";
 import {
   HoshikoLogger,
   LogLevel,
@@ -41,6 +41,12 @@ export default {
       }
 
       // Log al serverlog
+      const executor = await HoshikoLogger.fetchAuditExecutor(
+        channel.guild,
+        AuditLogEvent.ChannelDelete,
+        channel.id,
+      );
+
       const embed = new EmbedBuilder()
         .setTitle("🗑️ Canal Eliminado")
         .setColor(0xff6b6b)
@@ -56,6 +62,14 @@ export default {
         )
         .setTimestamp()
         .setFooter({ text: "Hoshiko • Server Log" });
+
+      if (executor) {
+        embed.addFields({
+          name: "Responsable",
+          value: `${executor.tag} \`(${executor.id})\``,
+          inline: true,
+        });
+      }
 
       await HoshikoLogger.sendToChannel(channel.guild, "serverlog", embed);
     } catch (error) {

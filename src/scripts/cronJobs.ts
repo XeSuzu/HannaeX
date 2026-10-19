@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { processMissedCycles } from "../Services/StreakService";
-import { HoshikoClient } from "../index";
+import { TempModerationService } from "../Services/TempModerationService";
+import type { HoshikoClient } from "../client/HoshikoClient";
 
 /**
  * Registra todos los cron jobs del bot.
@@ -13,6 +14,8 @@ import { HoshikoClient } from "../index";
  *     Es idempotente: puede correr múltiples veces sin efectos secundarios.
  */
 export function startCronJobs(client: HoshikoClient): void {
+  TempModerationService.start(client);
+
   cron.schedule("*/15 * * * *", async () => {
     const result = await processMissedCycles(client);
 

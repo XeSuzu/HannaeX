@@ -5,7 +5,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {

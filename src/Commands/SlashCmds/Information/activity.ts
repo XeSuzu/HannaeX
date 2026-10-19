@@ -13,10 +13,10 @@ import {
 } from "discord.js";
 import { join } from "path";
 import { Worker } from "worker_threads";
-import { PresenceHistoryManager } from "../../../Database/PresenceHistoryManager";
-import { HoshikoClient } from "../../../index";
+import { PresenceHistoryManager } from "../../../Database/tracking/PresenceHistoryManager";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { IPresenceHistory } from "../../../Models/PresenceHistory";
+import { IPresenceHistory } from "../../../Database/tracking/userTracking.models";
 import { SpotifyCardData } from "../../../Renderers/spotifyRenderer";
 
 type PartialPresenceLike = Pick<Presence, "status" | "activities">;

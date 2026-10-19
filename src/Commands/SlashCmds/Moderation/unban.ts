@@ -6,7 +6,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 
@@ -72,11 +72,10 @@ const command: SlashCommand = {
         `${interaction.user.tag}: ${reason}`,
       );
 
-      await HoshikoLogger.logAction(interaction.guild, "UNWARN", {
+      await HoshikoLogger.logAction(interaction.guild, "UNBAN", {
         user: user,
         moderator: interaction.user,
         reason: reason,
-        extra: "Usuario desbaneado manualmente",
       });
 
       const embed = new EmbedBuilder()

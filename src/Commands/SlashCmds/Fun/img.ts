@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { SearchService, isQuerySafe } from "../../../Services/search";
-import { HoshikoClient } from "../../../index";
+import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const command: SlashCommand = {
   category: "Fun",
