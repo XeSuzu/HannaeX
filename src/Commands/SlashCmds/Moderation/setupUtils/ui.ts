@@ -5,6 +5,7 @@ import {
   ChannelSelectMenuBuilder,
   ChannelType,
   EmbedBuilder,
+  Guild,
 } from "discord.js";
 import { IAConfigManager } from "../../../../Database/ai/IAConfigManager";
 import { PremiumManager } from "../../../../Database/guild/PremiumManager";
@@ -15,6 +16,7 @@ import {
   SECURITY_LEVEL_THRESHOLDS,
 } from "../../../../Features/automod/automodState";
 import { isServerLockedDown } from "../../../../Features/automod/aiModeration";
+import { runSecurityDiagnostics } from "../../../../Features/automod/automodDiagnostics";
 
 export type SetupView =
   | "main"
@@ -128,6 +130,7 @@ export async function generateSetupUI(
   clientUser: any,
   interactionUser: any,
   view: SetupView = "main",
+  guild?: Guild | null,
 ) {
   const [set, aiSet, isPremium, stressScore] = await Promise.all([
     SettingsManager.getSettings(guildId),
@@ -187,6 +190,7 @@ export async function generateSetupUI(
   // ─── 1. PANEL PRINCIPAL (NÚCLEO) ─────────────────────────────────────────
   if (view === "main") {
     const activeProtections = [
+      modules.antiSpam && "Spam",
       modules.antiRaid && "Raid",
       modules.antiLinks && "Links",
       modules.antiNuke && "Nuke",
@@ -345,17 +349,29 @@ export async function generateSetupUI(
   // ─── 4. VISTA: SEGURIDAD ─────────────────────────────────────────────────
   if (view === "security") {
     const lockedDown = await isServerLockedDown(guildId);
+    const diag = guild
+      ? runSecurityDiagnostics(guild, modules)
+      : { healthy: true, issues: [], hierarchyIssue: false, botRolePosition: 0 };
     const warnNoLogs = !modlogChannel
       ? "\n\n⚠️ **Atención:** No tienes un canal de logs asignado. Pulsa **Canal de Logs** abajo para recibir alertas interactivas."
       : "";
+    const warnNoSpam = !modules.antiSpam
+      ? "\n\n⚠️ **Anti-Spam desactivado:** el servidor no tiene protección activa contra mensajes repetidos ni menciones masivas."
+      : "";
     const warnLockdown = lockedDown
       ? "\n\n🚨 **PROTOCOLO TORNIQUETE ACTIVO:** Los canales públicos están bloqueados temporalmente."
+      : "";
+    const warnDiag = !diag.healthy
+      ? `\n\n⚠️ **Diagnóstico de Permisos:** Faltan permisos (${diag.issues.map((i) => i.permission.split(" ")[0]).join(", ")}).`
+      : "";
+    const warnHierarchy = diag.hierarchyIssue
+      ? "\n⚠️ **Jerarquía de Roles:** El rol de Hoshiko está debajo de miembros a moderar."
       : "";
 
     const embed = new EmbedBuilder()
       .setTitle("🛡️ Centro de Seguridad y Perfiles")
       .setDescription(
-        `**Perfil Activo:** ${secMeta.emoji} **${secMeta.label}** — *${secMeta.desc}*\n**Medidor de Estrés:** \`${stressScore} / ${stressThreshold} pts\` (-1 pt/seg)${warnLockdown}${warnNoLogs}`,
+        `**Perfil Activo:** ${secMeta.emoji} **${secMeta.label}** — *${secMeta.desc}*\n**Medidor de Estrés:** \`${stressScore} / ${stressThreshold} pts\` (-1 pt/seg)${warnLockdown}${warnNoSpam}${warnNoLogs}${warnDiag}${warnHierarchy}`,
       )
       .setColor(
         lockedDown || secLevel === 4
@@ -372,7 +388,7 @@ export async function generateSetupUI(
         },
         {
           name: "🔗 Filtros de Chat",
-          value: `**Anti-Links/Phish:** ${modules.antiLinks ? "🟢 ON" : "🔴 OFF"}\n**Snipe:** ${modules.snipe ? "🟢 ON" : "🔴 OFF"}`,
+          value: `**Anti-Spam:** ${modules.antiSpam ? "🟢 ON" : "🔴 OFF"}\n**Anti-Links/Phish:** ${modules.antiLinks ? "🟢 ON" : "🔴 OFF"}\n**IA Moderación:** ${modules.aiModeration ? `🟢 ON (\`${modules.aiMode || "shadow"}\`)` : "🔴 OFF"}`,
           inline: true,
         },
         {
@@ -399,6 +415,13 @@ export async function generateSetupUI(
 
     // Fila 2: Interruptores de Módulos (5 botones)
     const toggleRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("sec_antiSpam")
+        .setLabel(`Spam: ${modules.antiSpam ? "ON" : "OFF"}`)
+        .setEmoji("🛡️")
+        .setStyle(
+          modules.antiSpam ? ButtonStyle.Success : ButtonStyle.Secondary,
+        ),
       new ButtonBuilder()
         .setCustomId("sec_antiRaid")
         .setLabel(`Raid: ${modules.antiRaid ? "ON" : "OFF"}`)
@@ -427,14 +450,9 @@ export async function generateSetupUI(
         .setStyle(
           modules.antiAlt ? ButtonStyle.Success : ButtonStyle.Secondary,
         ),
-      new ButtonBuilder()
-        .setCustomId("sec_snipe")
-        .setLabel(`Snipe: ${modules.snipe ? "ON" : "OFF"}`)
-        .setEmoji("🗑️")
-        .setStyle(modules.snipe ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
 
-    // Fila 3: Volver + Configurar Canal de Logs rápido + Levantar Lockdown si aplica
+    // Fila 3: Volver + Configurar Canal de Logs rápido + Aplicar Recomendado + Levantar Lockdown si aplica
     const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("nav_main")
@@ -444,6 +462,16 @@ export async function generateSetupUI(
         .setCustomId("nav_logs_quick")
         .setLabel("Canal de Logs")
         .setEmoji("📝")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("act_apply_recommended")
+        .setLabel("Recomendado (Nvl 2)")
+        .setEmoji("✨")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("act_ai_recommend")
+        .setLabel("Asistente IA")
+        .setEmoji("🤖")
         .setStyle(ButtonStyle.Primary),
     );
 

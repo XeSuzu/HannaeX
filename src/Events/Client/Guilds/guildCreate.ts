@@ -2,6 +2,8 @@ import { Events, Guild, REST, Routes, EmbedBuilder } from "discord.js";
 import path from "path";
 import fs from "fs";
 import { HoshikoClient } from "../../../index";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { applyPreset } from "../../../Features/automod/automodPresets";
 
 export default {
   name: Events.GuildCreate,
@@ -70,6 +72,19 @@ export default {
       } catch (err: any) {
         console.error(`❌ Error registrando comandos en ${guild.name}:`, err.message);
       }
+    }
+
+    // =================================================================
+    // 🛡️ APLICAR PRESET DE SEGURIDAD POR DEFECTO EN SERVIDORES NUEVOS
+    // =================================================================
+    try {
+      const existing = await SettingsManager.getLite(guild.id, "securityModules");
+      if (!existing?.securityModules) {
+        await applyPreset(guild.id, 2);
+        console.log(`🛡️ [GuildCreate] Preset Nvl 2 (Estándar) aplicado a nuevo servidor: ${guild.name}`);
+      }
+    } catch (err: any) {
+      console.error(`❌ [GuildCreate] Error aplicando preset de seguridad en ${guild.name}:`, err.message);
     }
 
     // =================================================================

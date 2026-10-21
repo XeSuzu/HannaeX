@@ -4,7 +4,11 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { buildInviteActionRow } from "../../../Utils/inviteUtils";
+import {
+  buildInviteActionRow,
+  generateStandardInviteUrl,
+  generateAdminInviteUrl,
+} from "../../../Utils/inviteUtils";
 
 const command: SlashCommand = {
   category: "Utility",
@@ -14,7 +18,15 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const client = interaction.client;
-    const clientId = client.user?.id || process.env.BOT_ID || "";
+    const clientId =
+      interaction.applicationId ||
+      client.user?.id ||
+      client.application?.id ||
+      process.env.BOT_ID ||
+      "";
+
+    const standardUrl = generateStandardInviteUrl(clientId);
+    const adminUrl = generateAdminInviteUrl(clientId);
 
     const totalServers = client.guilds.cache.size;
     const totalUsers = client.guilds.cache.reduce(
@@ -38,13 +50,17 @@ const command: SlashCommand = {
         {
           name: "🌸 Permisos Recomendados (Estándar y Seguro)",
           value:
-            "Solicita las facultades necesarias para moderación, niveles, tarjetas gráficas y filtros automáticos. **Es la opción recomendada para mantener tu servidor seguro y transparente.**",
+            `Solicita las facultades necesarias para moderación, niveles, tarjetas gráficas y filtros automáticos.\n` +
+            `👉 [**Haz clic aquí para invitar con permisos recomendados**](${standardUrl})\n` +
+            `*(Opción recomendada para mantener tu servidor seguro y transparente)*`,
           inline: false,
         },
         {
           name: "⚙️ Permisos Completos (Modo Administrador)",
           value:
-            "Otorga la casilla `Administrador` de Discord con acceso total a todos los canales y roles. Útil para una configuración sin fricción ni ajustes canal por canal. *Concede este permiso solo si confías plenamente en el bot.*",
+            `Otorga la casilla \`Administrador\` de Discord con acceso total a todos los canales y roles.\n` +
+            `👉 [**Haz clic aquí para invitar con Administrador**](${adminUrl})\n` +
+            `*(Concede este permiso solo si confías plenamente en el bot)*`,
           inline: false,
         },
         {

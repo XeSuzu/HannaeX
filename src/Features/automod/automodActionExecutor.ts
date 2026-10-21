@@ -3,6 +3,7 @@ import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
 import { Logger } from "../../Utils/SystemLogger";
 import { canExecuteAction, recordSuccessfulAction } from "./automodState";
 import { isWhitelisted, logActionEntry } from "./automodPersistence";
+import { createCase } from "../../Database/moderation/case.model";
 import type { AutomodAction, ExecutionContext } from "../AutomodManager";
 
 export async function executeAutomodActionSafely(
@@ -31,6 +32,16 @@ export async function executeAutomodActionSafely(
         action,
         context.eventType
       );
+
+      await createCase({
+        guildId,
+        userId,
+        modId: "auto",
+        action: action.type === "mute" ? "timeout" : (action.type as any),
+        reason: action.reason,
+        source: "automod",
+        durationMs: action.duration,
+      }).catch(() => null);
 
       recordSuccessfulAction(guildId, userId, action.type);
 

@@ -8,6 +8,10 @@ import {
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { Logger } from "../../../Utils/SystemLogger";
 import { SlashCommand } from "../../../Interfaces/Command";
+import {
+  ADMIN_MARKER,
+  markAsAdminMessage,
+} from "../../../Features/ai/adminMessageTracker";
 
 const command: SlashCommand = {
   category: "Fun",
@@ -61,10 +65,11 @@ const command: SlashCommand = {
 
     try {
       // Enviar el mensaje al canal (esto sí es público)
-      await channel.send({
-        content: limpio,
+      const sent = await channel.send({
+        content: `${limpio}${ADMIN_MARKER}`,
         allowedMentions: { parse: ["users"] },
       });
+      if (sent?.id) markAsAdminMessage(sent.id);
 
       // Registrar uso (Auditoría)
       void Logger.logSay(

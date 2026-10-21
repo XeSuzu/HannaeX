@@ -1,7 +1,11 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
   ButtonInteraction,
+  ButtonStyle,
   ChannelSelectMenuInteraction,
   ChatInputCommandInteraction,
+  EmbedBuilder,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
@@ -10,6 +14,11 @@ import { IAConfigManager } from "../../../Database/ai/IAConfigManager";
 import { PremiumManager } from "../../../Database/guild/PremiumManager";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { liftServerLockdown } from "../../../Features/automod/aiModeration";
+import { applyPreset } from "../../../Features/automod/automodPresets";
+import {
+  generateConfigDraftWithAi,
+  applyConfigDraft,
+} from "../../../Features/automod/aiConfigAssistant";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { handleSnipeChannelSelect } from "./setupUtils/snipe";
 import { generateSetupUI, SetupView } from "./setupUtils/ui";
@@ -35,6 +44,7 @@ const command: SlashCommand = {
         interaction.client.user,
         interaction.user,
         currentView,
+        interaction.guild,
       );
       await interaction.editReply(ui);
     };
@@ -45,6 +55,7 @@ const command: SlashCommand = {
       interaction.client.user,
       interaction.user,
       "main",
+      interaction.guild,
     );
     const message = await interaction.editReply(initialUI);
 
@@ -133,11 +144,78 @@ const command: SlashCommand = {
         if (id.startsWith("seclvl_")) {
           const lvl = Number(id.replace("seclvl_", ""));
           if ([1, 2, 3, 4].includes(lvl)) {
-            await SettingsManager.updateSettings(guildId, {
-              "securityModules.securityLevel": lvl,
-            } as any);
+            await applyPreset(guildId, lvl as any);
           }
           await refreshUI("security");
+          return;
+        }
+
+        if (id === "act_apply_recommended") {
+          await applyPreset(guildId, 2);
+          await refreshUI("security");
+          return;
+        }
+
+        if (id === "act_ai_recommend") {
+          const draft = await generateConfigDraftWithAi({
+            guild: interaction.guild!,
+            description: "Servidor comunitario de Discord",
+          });
+
+          const draftEmbed = new EmbedBuilder()
+            .setTitle("🤖 Recomendación de Configuración con IA")
+            .setColor(0x5865f2)
+            .setDescription(
+              `La IA ha analizado el servidor y propone el siguiente borrador de configuración:\n\n` +
+                `**Perfil sugerido:** Nivel ${draft.preset}\n` +
+                `**Motivo:** ${draft.reasoning}\n\n` +
+                `**Reglas recomendadas (${draft.rules.length}):**\n` +
+                draft.rules.map((r) => `> **#${r.id}:** ${r.text}`).join("\n") +
+                `\n\n¿Deseas aplicar esta configuración ahora?`,
+            )
+            .setFooter({
+              text: "La IA nunca aplica cambios sola • Confirmación requerida",
+            });
+
+          const draftRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`ai_cfg:apply:${draft.draftId}`)
+              .setLabel("Confirmar y Aplicar")
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`ai_cfg:discard:${draft.draftId}`)
+              .setLabel("Descartar")
+              .setStyle(ButtonStyle.Secondary),
+          );
+
+          await i.followUp({
+            embeds: [draftEmbed],
+            components: [draftRow],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (id.startsWith("ai_cfg:apply:")) {
+          const draftId = id.replace("ai_cfg:apply:", "");
+          const res = await applyConfigDraft(
+            interaction.guild!,
+            draftId,
+            interaction.user.tag,
+          );
+          await i.followUp({
+            content: res.message,
+            flags: MessageFlags.Ephemeral,
+          });
+          await refreshUI("security");
+          return;
+        }
+
+        if (id.startsWith("ai_cfg:discard:")) {
+          await i.followUp({
+            content: "❌ Borrador de configuración descartado.",
+            flags: MessageFlags.Ephemeral,
+          });
           return;
         }
 

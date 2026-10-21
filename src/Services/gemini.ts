@@ -82,7 +82,11 @@ export async function generateResponseStream(
     }
 
     const chat = model.startChat({ history: chatHistory });
-    const lastMessage = history[history.length - 1]?.parts[0]?.text || "";
+    const lastParts = history[history.length - 1]?.parts;
+    const lastMessage =
+      lastParts && lastParts.length > 0
+        ? (lastParts.length === 1 && lastParts[0].text ? lastParts[0].text : (lastParts as any))
+        : "";
     const result = await chat.sendMessageStream(lastMessage, {
       signal: controller.signal,
     });

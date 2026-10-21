@@ -3,6 +3,7 @@ import {
   ButtonBuilder,
   ButtonInteraction,
   EmbedBuilder,
+  GuildMember,
   MessageFlags,
   ModalBuilder,
   ModalSubmitInteraction,
@@ -25,6 +26,10 @@ import {
   takeDeletedMessages,
 } from "../../../Features/automod/automodState";
 import { whitelistUser } from "../../../Features/automod/automodPersistence";
+import {
+  executeRaidAction,
+  markUserSafe,
+} from "../../../Features/automod/raidAlertManager";
 import { SentinelNetwork } from "../../../Features/sentinelNetwork";
 import { handleRachaButton } from "../../../Handlers/Buttons/racha";
 import { HoshikoClient } from "../../../index";
@@ -48,6 +53,101 @@ export async function handleComponents(
   }
 
   if (!interaction.isButton()) return;
+
+  // ─── CENTRO DE CONTENCIÓN DE RAIDS (FASE 3) ──────────────────────────────
+  if (interaction.customId.startsWith("raid_act:")) {
+    if (!interaction.guild || !interaction.memberPermissions) return;
+
+    const [, action, episodeId] = interaction.customId.split(":");
+
+    if (action === "ban" || action === "apply") {
+      if (!interaction.memberPermissions.has(PermissionFlagsBits.BanMembers)) {
+        await interaction.reply({
+          content: "⛔ Requiere permiso de **Banear Miembros** para ejecutar esta acción de raid.",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+    } else if (action === "undo" || action === "timeout") {
+      if (!interaction.memberPermissions.has(PermissionFlagsBits.ModerateMembers)) {
+        await interaction.reply({
+          content: "⛔ Requiere permiso de **Moderar Miembros** para ejecutar esta acción de raid.",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+    }
+
+    await interaction.deferUpdate();
+
+    const result = await executeRaidAction({
+      guild: interaction.guild,
+      episodeId,
+      action: action as any,
+      moderator: (interaction.member as GuildMember) || interaction.user,
+    });
+
+    const embed = interaction.message.embeds[0]
+      ? EmbedBuilder.from(interaction.message.embeds[0])
+      : new EmbedBuilder();
+
+    embed.setColor(result.success ? 0x57f287 : 0xed4245);
+    embed.addFields({
+      name: "📌 Resolución del Incidente",
+      value: result.message,
+      inline: false,
+    });
+
+    await interaction.editReply({
+      embeds: [embed],
+      components: [],
+    });
+    return;
+  }
+
+  // ─── REVISIÓN DE IA MODERACIÓN ───────────────────────────────────────────
+  if (interaction.customId.startsWith("mod_review:")) {
+    if (!interaction.guild || !interaction.memberPermissions) return;
+    if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageMessages)) {
+      await interaction.reply({
+        content: "⛔ Requiere permiso de **Gestionar Mensajes** para resolver esta revisión.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const [, act, authorId, msgId] = interaction.customId.split(":");
+    await interaction.deferUpdate();
+
+    if (act === "del") {
+      for (const [, ch] of interaction.guild.channels.cache) {
+        if (!ch.isTextBased()) continue;
+        const msg = await (ch as any).messages.fetch(msgId).catch(() => null);
+        if (msg) {
+          await msg.delete().catch(() => null);
+          break;
+        }
+      }
+    } else if (act === "mute") {
+      const member = await interaction.guild.members.fetch(authorId).catch(() => null);
+      if (member && member.moderatable) {
+        await member.timeout(10 * 60 * 1000, `Revisión IA por ${interaction.user.tag}`).catch(() => null);
+      }
+    } else if (act === "dismiss") {
+      markUserSafe(interaction.guild.id, authorId, 2 * 60 * 60 * 1000);
+    }
+
+    const embed = interaction.message.embeds[0]
+      ? EmbedBuilder.from(interaction.message.embeds[0])
+      : new EmbedBuilder();
+    embed.setColor(act === "dismiss" ? 0x57f287 : 0xed4245);
+    embed.addFields({
+      name: "📌 Resolución",
+      value: `Revisado por <@${interaction.user.id}> (${act === "dismiss" ? "Descartado como seguro" : act === "del" ? "Mensaje eliminado" : "Usuario aislado"})`,
+    });
+    await interaction.editReply({ embeds: [embed], components: [] });
+    return;
+  }
 
   // ─── CENTRO DE COMANDO EN LOGS (PILAR 5) ─────────────────────────────────
   if (interaction.customId.startsWith("modlog_act:")) {

@@ -22,5 +22,6 @@ function containsSensitiveTerm(text: string): boolean {
 
 export function shouldBlockMessage(text: string): { block: boolean; reason?: string } {
   if (containsBlockedTerm(text)) return { block: true, reason: " Ese tema no puedo tocarlo~" };
+  if (containsSensitiveTerm(text)) return { block: true, reason: " Prefiero que hablemos de cosas más tranquilas~" };
   return { block: false };
 }

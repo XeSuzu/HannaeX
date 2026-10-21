@@ -12,6 +12,21 @@ interface ISocialMap {
 
 export type SecurityLevel = 1 | 2 | 3 | 4;
 
+export interface ILockdownState {
+  active: boolean;
+  previousSendMessages: boolean | null;
+  reason?: string | null;
+  lockedAt?: Date | null;
+  raidUntil?: Date | null;
+}
+
+export interface IServerRule {
+  id: number;
+  text: string;
+}
+
+export type AutomodModuleAction = "flag" | "delete" | "delete+timeout";
+
 export interface ISecurityModules {
   securityLevel?: SecurityLevel;
   antiSpam: boolean;
@@ -19,7 +34,10 @@ export interface ISecurityModules {
   antiRaid: boolean;
   antiNuke: boolean;
   antiAlt: boolean;
+  wordFilter?: boolean;
   snipe?: boolean;
+  aiModeration?: boolean;
+  aiMode?: "shadow" | "enforce";
 }
 
 interface IFeedConfig {
@@ -88,6 +106,8 @@ export interface IServerConfig extends Document {
 
   honeypotChannel?: string;
   allowedLinks?: string[];
+  bannedWords?: string[];
+  whitelistedUsers?: string[];
 
   // ✅ Sistema de logs centralizado
   logChannels: ILogChannels;
@@ -114,6 +134,15 @@ export interface IServerConfig extends Document {
   };
 
   securityModules: ISecurityModules;
+  lockdownState?: ILockdownState;
+  exemptChannels: string[];
+  exemptRoles: string[];
+  rules: IServerRule[];
+  moduleActions?: Record<string, AutomodModuleAction>;
+  staffFeedback?: {
+    safeExamples: string[];
+    confirmedMalicious: string[];
+  };
 
   culture: ICulture;
   socialMap: ISocialMap;
@@ -173,6 +202,8 @@ const serverConfigSchema = new Schema<IServerConfig>({
 
   honeypotChannel: { type: String, default: null },
   allowedLinks: { type: [String], default: [] },
+  bannedWords: { type: [String], default: [] },
+  whitelistedUsers: { type: [String], default: [] },
 
   // ✅ Sistema de logs centralizado
   logChannels: {
@@ -223,12 +254,40 @@ const serverConfigSchema = new Schema<IServerConfig>({
 
   securityModules: {
     securityLevel: { type: Number, enum: [1, 2, 3, 4], default: 2 },
-    antiSpam: { type: Boolean, default: false },
+    antiSpam: { type: Boolean, default: true },
     antiLinks: { type: Boolean, default: false },
     antiRaid: { type: Boolean, default: false },
     antiNuke: { type: Boolean, default: false },
     antiAlt: { type: Boolean, default: false },
+    wordFilter: { type: Boolean, default: false },
     snipe: { type: Boolean, default: false },
+    aiModeration: { type: Boolean, default: false },
+    aiMode: { type: String, enum: ["shadow", "enforce"], default: "shadow" },
+  },
+
+  lockdownState: {
+    active: { type: Boolean, default: false },
+    previousSendMessages: { type: Boolean, default: null },
+    reason: { type: String, default: null },
+    lockedAt: { type: Date, default: null },
+    raidUntil: { type: Date, default: null },
+  },
+
+  exemptChannels: { type: [String], default: [] },
+  exemptRoles: { type: [String], default: [] },
+  rules: {
+    type: [{ id: Number, text: String }],
+    default: [
+      { id: 1, text: "Respeto mutuo y trato cordial; prohibido el acoso o discriminación." },
+      { id: 2, text: "Prohibido el spam, repeticiones masivas y autopromoción no autorizada." },
+      { id: 3, text: "Contenido sensible o NSFW restringido exclusivamente a canales designados." },
+      { id: 4, text: "Prohibido compartir enlaces maliciosos, estafas, phishing o invitaciones no autorizadas." },
+    ],
+  },
+  moduleActions: { type: Map, of: String, default: {} },
+  staffFeedback: {
+    safeExamples: { type: [String], default: [] },
+    confirmedMalicious: { type: [String], default: [] },
   },
 
   culture: {

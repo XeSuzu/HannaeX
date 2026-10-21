@@ -4,6 +4,7 @@ import { SettingsManager } from "../Database/guild/SettingsManager";
 import { HoshikoLogger } from "../Security/Logger/HoshikoLogger";
 import { addServerStress } from "./automod/automodState";
 import { isAllowedByDomain } from "./linkAllowlist";
+import { ADMIN_MARKER, markAsAdminMessage } from "./ai/adminMessageTracker";
 
 const DEFAULT_ALLOWED = [
   "youtube.com",
@@ -123,9 +124,12 @@ export async function handleLinkProtection(
         ? `🚨 **${message.author.username}**, enlace malicioso/phishing bloqueado.`
         : `**${message.author.username}**, enlaces no permitidos.`;
       const warning = await (message.channel as any)
-        .send(warningText)
+        .send(`${warningText}${ADMIN_MARKER}`)
         .catch(() => null);
-      if (warning) setTimeout(() => warning.delete().catch(() => null), 5000);
+      if (warning) {
+        if (warning.id) markAsAdminMessage(warning.id);
+        setTimeout(() => warning.delete().catch(() => null), 5000);
+      }
     }
 
     // Enviar alerta interactiva al Centro de Comando (#mod-logs) con botones de sanción rápida

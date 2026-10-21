@@ -9,12 +9,13 @@ import {
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
 
 // Estructura para rastrear quién borra qué y cuándo
-const deletionTracker = new Map<
-  string,
-  { count: number; lastDeletion: number }
->();
+const deletionTracker = new LocalCacheService<{
+  count: number;
+  lastDeletion: number;
+}>("antinuke_channels", { max: 5000, ttlMs: 60_000 });
 const LIMIT = 3; // Máximo 3 canales en...
 const TIME_WINDOW = 10000; // ...10 segundos
 
@@ -38,15 +39,13 @@ export default {
       if (!deletionLog) return;
 
       const { executor, target } = deletionLog;
-      if (!executor || executor.bot) return; // Ignoramos si fue un bot o no hay ejecutor
+      if (!executor || executor.id === guild.client.user?.id || executor.id === guild.ownerId) return;
 
       const executorMember = await guild.members.fetch(executor.id);
 
-      // Si el ejecutor es el dueño del servidor, lo ignoramos (él manda 👑)
-      if (executor.id === guild.ownerId) return;
-
       const now = Date.now();
-      const userData = deletionTracker.get(executor.id) || {
+      const trackKey = `${guild.id}:${executor.id}`;
+      const userData = deletionTracker.get(trackKey) || {
         count: 0,
         lastDeletion: 0,
       };
@@ -59,10 +58,11 @@ export default {
       }
 
       userData.lastDeletion = now;
-      deletionTracker.set(executor.id, userData);
+      deletionTracker.set(trackKey, userData);
 
       // Si supera el límite: revocar roles y registrar evento de seguridad
       if (userData.count >= LIMIT) {
+        deletionTracker.delete(trackKey);
         // Revocar roles del ejecutor (cuarentena)
         const roles = executorMember.roles.cache.filter(
           (r) => r.managed === false && r.id !== guild.id,

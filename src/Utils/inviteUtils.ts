@@ -39,14 +39,21 @@ export function getRecommendedPermissionsBitfield(): bigint {
 }
 
 export function resolveClientId(clientOrId: unknown): string {
-  if (typeof clientOrId === "string" && clientOrId.trim().length > 0) {
+  if (
+    typeof clientOrId === "string" &&
+    clientOrId.trim().length > 0 &&
+    clientOrId !== "YOUR_CLIENT_ID"
+  ) {
     return clientOrId.trim();
   }
   if (clientOrId && typeof clientOrId === "object") {
+    // Si es una interacción de Discord, su applicationId o client.user.id es el bot
     const candidate =
-      (clientOrId as any).user?.id ||
-      (clientOrId as any).application?.id ||
-      (clientOrId as any).id;
+      (clientOrId as any).applicationId ||
+      (clientOrId as any).client?.user?.id ||
+      (clientOrId as any).client?.application?.id ||
+      ((clientOrId as any).user?.bot ? (clientOrId as any).user.id : undefined) ||
+      (clientOrId as any).application?.id;
     if (typeof candidate === "string" && candidate.length > 0) {
       return candidate;
     }

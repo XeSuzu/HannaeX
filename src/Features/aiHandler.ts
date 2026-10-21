@@ -6,25 +6,39 @@ import type { HoshikoClient } from "../client/HoshikoClient";
 import ServerConfig from "../Database/guild/serverConfig.model";
 import { extractFacts } from "../Services/gemini";
 import { parseLyricsCommand } from "../Services/Lyrics";
-import { containsPromptInjection } from "../Utils/triggerConditions";
-import { buildConversationContext } from "./ai/conversationContext";
+import { containsPromptInjection, isMentionTrigger } from "../Utils/triggerConditions";
+import { buildConversationContext, shouldExtractFacts } from "./ai/conversationContext";
 import { sendConversationReply } from "./ai/conversationReply";
 import { handleImageSearch } from "./ai/imageSearch";
 import { handleLyricsResponse } from "./ai/lyricsResponse";
 import { shouldBlockMessage } from "./ai/contentPolicy";
+import { LocalCacheService } from "../App/infrastructure/cache/LocalCacheService";
+import { isAdminMessage } from "./ai/adminMessageTracker";
 
-const antiSpamCooldown = new Set<string>();
-const processedMessages = new Set<string>();
-const userAiCooldown = new Map<string, number>();
-const USER_AI_COOLDOWN_MS = 3000;
+const channelAntiSpamCooldown = new LocalCacheService<{ active: boolean }>("ai_channel_antispam", {
+  max: 2000,
+  ttlMs: 2500,
+  updateAgeOnGet: false,
+});
+const processedMessagesCache = new LocalCacheService<{ processed: boolean }>("ai_processed_msgs", {
+  max: 5000,
+  ttlMs: 15000,
+  updateAgeOnGet: false,
+});
+const userAiCooldown = new LocalCacheService<{ timestamp: number }>("ai_user_cooldown", {
+  max: 5000,
+  ttlMs: 3000,
+  updateAgeOnGet: false,
+});
 
 export default async (
   message: Message,
   client: HoshikoClient,
   forced: boolean = false,
+  preFetchedRepliedMsg?: Message | null,
 ): Promise<boolean> => {
   if (message.author.bot || !message.guild) return false;
-  if (processedMessages.has(message.id)) return false;
+  if (processedMessagesCache.get(message.id)) return false;
 
   let config = await ServerConfig.findOne({ guildId: message.guild.id });
   if (!config) config = new ServerConfig({ guildId: message.guild.id });
@@ -39,8 +53,7 @@ export default async (
     new RegExp(`^(?:${escapedPrefix}|x)\\s*(img|ximg)\\s+(.+)`, "i"),
   );
   if (imgAskMatch || prefixCommandMatch) {
-    processedMessages.add(message.id);
-    setTimeout(() => processedMessages.delete(message.id), 5000);
+    processedMessagesCache.set(message.id, { processed: true });
     const query = (imgAskMatch ? imgAskMatch[1] : prefixCommandMatch![2]).trim();
     await handleImageSearch(message, client, query);
     return true;
@@ -54,14 +67,13 @@ export default async (
   // --- 🎵 CANCIONES ---
   const parsedLyrics = parseLyricsCommand(message.content);
   if (parsedLyrics) {
-    processedMessages.add(message.id);
-    setTimeout(() => processedMessages.delete(message.id), 5000);
+    processedMessagesCache.set(message.id, { processed: true });
     await handleLyricsResponse(message, parsedLyrics);
     return true;
   }
 
   // --- 🚨 DETECCIÓN DE GATILLOS ---
-  const isMentioned = message.mentions.users.has(client.user!.id);
+  const isMentioned = isMentionTrigger(message, client);
   const askRegex = new RegExp(
     `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
     "i",
@@ -69,32 +81,61 @@ export default async (
   const prefixMatch =
     askRegex.test(message.content.trim()) && !imgAskMatch && !prefixCommandMatch;
   let isReplyToMe = false;
+  let isReplyingToAdmin = false;
   if (message.reference?.messageId && !message.mentions.everyone) {
-    try {
-      const repliedMsg = await message.channel.messages.fetch(message.reference.messageId);
-      if (repliedMsg.author.id === client.user!.id) isReplyToMe = true;
-    } catch (e) {}
+    let targetMsg: Message | null = null;
+    if (preFetchedRepliedMsg !== undefined) {
+      targetMsg = preFetchedRepliedMsg;
+    } else {
+      try {
+        targetMsg = await message.channel.messages.fetch(message.reference.messageId);
+      } catch (e) {}
+    }
+    if (targetMsg && targetMsg.author.id === client.user!.id) {
+      if (isAdminMessage(targetMsg)) {
+        isReplyingToAdmin = true;
+      } else {
+        isReplyToMe = true;
+      }
+    }
   }
-  const isDirectInteraction = forced || isMentioned || prefixMatch || isReplyToMe;
+  const isDirectInteraction = (forced && !isReplyingToAdmin) || isMentioned || prefixMatch;
 
-  // --- 🎲 GATILLO ESPONTÁNEO (DESACTIVADO TEMPORALMENTE) ---
-  // La conversación espontánea de IA se encuentra pausada por mantenimiento hasta nuevo aviso.
-  const isRandomTrigger = false;
-  if (!isDirectInteraction) return false;
+  // --- 🎲 GATILLO ESPONTÁNEO ---
+  let isRandomTrigger = false;
+  if (!isDirectInteraction && !isReplyToMe && !isReplyingToAdmin && aiSystem.spontaneousChannels && aiSystem.spontaneousChannels.includes(message.channel.id)) {
+    const rawContent = message.content.trim();
+    const isEligibleText =
+      rawContent.length >= 20 &&
+      rawContent.length <= 300 &&
+      !rawContent.includes("http://") &&
+      !rawContent.includes("https://") &&
+      !rawContent.startsWith(escapedPrefix) &&
+      !rawContent.startsWith("!") &&
+      !rawContent.startsWith("/") &&
+      !rawContent.startsWith("h!") &&
+      !rawContent.startsWith("x") &&
+      !/^(?:hoshi\b|h!\s*)/i.test(rawContent);
+
+    const chance = Math.max(0, Math.min(aiSystem.randomChance || 0, 100));
+    if (isEligibleText && chance > 0 && Math.random() * 100 < chance) {
+      isRandomTrigger = true;
+    }
+  }
+
+  if (!isDirectInteraction && !isRandomTrigger) return false;
 
   const now = Date.now();
-  const lastCall = userAiCooldown.get(message.author.id) ?? 0;
-  if (now - lastCall < USER_AI_COOLDOWN_MS) return false;
-  userAiCooldown.set(message.author.id, now);
+  if (userAiCooldown.get(message.author.id)) return false;
+  userAiCooldown.set(message.author.id, { timestamp: now });
 
   // --- 🔋 COOLDOWN ---
   const isOnCooldown = new Date(aiSystem.cooldownUntil || 0) > new Date();
   if (!isDirectInteraction && isOnCooldown) return false;
 
   // --- 🛡️ ANTI SPAM ---
-  if (antiSpamCooldown.has(message.channel.id)) return false;
-  antiSpamCooldown.add(message.channel.id);
-  setTimeout(() => antiSpamCooldown.delete(message.channel.id), 2500);
+  if (channelAntiSpamCooldown.get(message.channel.id)) return false;
+  channelAntiSpamCooldown.set(message.channel.id, { active: true });
 
   // --- 🚫 FILTRO DE CONTENIDO + PROMPT INJECTION ---
   if (isDirectInteraction) {
@@ -109,13 +150,21 @@ export default async (
       return true;
     }
     if (containsPromptInjection(message.content)) {
-      await message.reply("Nyaa~ eso suena sospechoso, no voy a hacer eso 👀");
+      const mode = aiSystem.mode || "neko";
+      const injectionResponses: Record<string, string> = {
+        neko: "Nyaa~ eso suena sospechoso, no voy a hacer eso 👀",
+        maid: "Mis disculpas, Goshujin-sama, pero no puedo atender una solicitud de esa naturaleza ☕",
+        gymbro: "¡Esa técnica no es válida, bro! Nada de trampas en este entrenamiento 💪",
+        yandere: "No intentes engañarme... sé muy bien lo que pretendes 💔",
+        assistant: "Solicitud rechazada: el comando contiene patrones de manipulación o inyección de directivas.",
+      };
+      const rejection = injectionResponses[mode] || injectionResponses.neko;
+      await message.reply(rejection);
       return true;
     }
   }
 
-  processedMessages.add(message.id);
-  setTimeout(() => processedMessages.delete(message.id), 10000);
+  processedMessagesCache.set(message.id, { processed: true });
   if ((isDirectInteraction || isReplyToMe) && "sendTyping" in message.channel) {
     await (message.channel as any).sendTyping().catch(() => null);
   }
@@ -128,11 +177,13 @@ export default async (
     await sendConversationReply(message, context.systemInstruction, context.historyForApi,
       isDirectInteraction, safetyMode);
 
-    extractFacts(message.author.username, context.userMessage, message.author.id)
-      .then((facts) => {
-        if (facts.length > 0) return UserMemoryManager.addFacts(message.author.id, message.guild!.id, facts);
-      })
-      .catch((err) => console.warn("[AI] ⚠️ Error guardando facts:", err));
+    if (shouldExtractFacts(context.userMessage)) {
+      extractFacts(message.author.username, context.userMessage, message.author.id)
+        .then((facts) => {
+          if (facts.length > 0) return UserMemoryManager.addFacts(message.author.id, message.guild!.id, facts);
+        })
+        .catch((err) => console.warn("[AI] ⚠️ Error guardando facts:", err));
+    }
 
     if (!isDirectInteraction) {
       const cooldownMinutes = isPremium ? 0.3 : 10;

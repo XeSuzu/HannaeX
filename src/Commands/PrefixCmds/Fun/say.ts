@@ -8,6 +8,10 @@ import {
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { Logger } from "../../../Utils/SystemLogger";
 import { PrefixCommand } from "../../../Interfaces/Command"; 
+import {
+  ADMIN_MARKER,
+  markAsAdminMessage,
+} from "../../../Features/ai/adminMessageTracker"; 
 
 const command: PrefixCommand = {
   name: "say",
@@ -63,10 +67,11 @@ const command: PrefixCommand = {
         await message.delete().catch(() => {});
       }
 
-      await channel.send({
-        content: msg,
+      const sent = await channel.send({
+        content: `${msg}${ADMIN_MARKER}`,
         allowedMentions: { parse: [] },
       });
+      if (sent?.id) markAsAdminMessage(sent.id);
 
       Logger.logSay(
         message.author,

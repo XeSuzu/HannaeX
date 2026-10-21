@@ -6,11 +6,21 @@ import {
   Events,
   GuildMember,
 } from "discord.js";
+import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
+import {
+  triggerRaidAlert,
+  RaidSuspectInfo,
+} from "../../../Features/automod/raidAlertManager";
+
+const recentJoinsCache = new LocalCacheService<
+  Array<RaidSuspectInfo & { timestamp: number }>
+>("automod_recent_joins", { max: 500, ttlMs: 30_000 });
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { UserHistoryManager } from "../../../Database/tracking/UserHistoryManager";
 import { isServerLockedDown } from "../../../Features/automod/aiModeration";
 import {
-  addServerStress,
+  addServerStressSafe,
+  calculateJoinRiskScore,
   isIrregularName,
 } from "../../../Features/automod/automodState";
 import { SentinelNetwork } from "../../../Features/sentinelNetwork";
@@ -52,19 +62,49 @@ export default {
     const isYoungAccount = accountAgeMs < 1000 * 60 * 60 * 24; // < 24h
     const hasNoAvatar = !member.user.avatar;
 
-    // Pilar 2.1: Sumar estrés por metadatos sospechosos al entrar
-    let joinStress = 0;
-    if (hasNoAvatar) joinStress += 10;
-    if (isYoungAccount) joinStress += 20;
-    if (isIrregularName(member.user.username) || isIrregularName(member.displayName)) {
-      joinStress += 15;
-    }
-    if (joinStress > 0) {
-      void addServerStress(member.guild.id, joinStress);
+    const now = Date.now();
+    const suspectInfo: RaidSuspectInfo & { timestamp: number } = {
+      id: member.id,
+      username: member.user.username,
+      accountAgeDays: accountAgeMs / 86_400_000,
+      joinedSecondsAgo: 0,
+      timestamp: now,
+    };
+
+    const currentJoins = (recentJoinsCache.get(member.guild.id) || []).filter(
+      (j) => now - j.timestamp < 15_000,
+    );
+    currentJoins.push(suspectInfo);
+    recentJoinsCache.set(member.guild.id, currentJoins);
+
+    // Pilar 2.1 y 7.4: Riesgo por señales compuestas en vez de booleano
+    const risk = calculateJoinRiskScore({
+      accountAgeDays: accountAgeMs / 86_400_000,
+      hasNoAvatar,
+      isIrregularName:
+        isIrregularName(member.user.username) ||
+        isIrregularName(member.displayName),
+      joinedInRaidWindow: currentJoins.length >= 3,
+    });
+
+    if (risk.score > 0) {
+      void addServerStressSafe(
+        member.guild.id,
+        member.id,
+        Math.min(risk.score, 25),
+        25,
+      );
     }
 
     const settings = await SettingsManager.getSettings(member.guild.id);
     if (!settings) return;
+
+    if (currentJoins.length >= 5 && settings.securityModules?.antiRaid) {
+      void triggerRaidAlert({
+        guild: member.guild,
+        suspects: currentJoins,
+      });
+    }
 
     // Pilar 4 (Nivel 4): con El Torniquete activo se cierran las puertas a nuevos miembros
     if (
@@ -116,10 +156,19 @@ export default {
             .catch(() => null);
 
           if (!dm) {
+            // DEF-11: Si MD está cerrado, aplicar cuarentena temporal sin depender de DMs
+            if (member.moderatable) {
+              await member
+                .timeout(
+                  24 * 60 * 60 * 1000,
+                  "Anti-Alt: Cuenta < 2 días con MDs cerrados",
+                )
+                .catch(() => null);
+            }
             HoshikoLogger.log({
               level: LogLevel.WARN,
               context: "Security/AntiAlt",
-              message: `No pude enviar verificación a ${member.user.tag} (DM cerrado).`,
+              message: `No pude enviar verificación a ${member.user.tag} (DM cerrado). Miembro puesto en cuarentena preventiva.`,
               guildId: member.guild.id,
             });
           }

@@ -1,62 +1,46 @@
-import { GuildMember, TextChannel, PermissionFlagsBits } from "discord.js";
+import { GuildMember } from "discord.js";
+import { LocalCacheService } from "../../App/infrastructure/cache/LocalCacheService";
 import { SettingsManager } from "../../Database/guild/SettingsManager";
+import {
+  triggerRaidAlert,
+  RaidSuspectInfo,
+} from "../../Features/automod/raidAlertManager";
 
-// Mapa para guardar las entradas recientes en RAM
-const joinCache = new Map<string, number[]>();
+const joinCache = new LocalCacheService<
+  Array<RaidSuspectInfo & { timestamp: number }>
+>("antiraid_joins", { max: 1000, ttlMs: 30_000 });
 
 export class AntiRaid {
-  private static JOIN_LIMIT = 1; // Máximo 5 usuarios
-  private static TIME_WINDOW = 10000; // En un lapso de 10 segundos
+  private static JOIN_LIMIT = 5; // Máximo 5 usuarios
+  private static TIME_WINDOW = 15_000; // En un lapso de 15 segundos
 
-  static async handleJoin(member: GuildMember) {
+  static async handleJoin(member: GuildMember): Promise<void> {
     const settings = await SettingsManager.getSettings(member.guild.id);
     if (!settings || !settings.securityModules.antiRaid) return;
 
     const now = Date.now();
     const guildId = member.guild.id;
 
-    // Obtenemos la lista de entradas recientes de este servidor
-    const joins = joinCache.get(guildId) || [];
+    const accountAgeMs = now - member.user.createdTimestamp;
+    const suspectInfo: RaidSuspectInfo & { timestamp: number } = {
+      id: member.id,
+      username: member.user.username,
+      accountAgeDays: accountAgeMs / 86_400_000,
+      joinedSecondsAgo: 0,
+      timestamp: now,
+    };
 
-    // Limpiamos las entradas que ya son más viejas de 10 segundos
-    const recentJoins = joins.filter(
-      (timestamp) => now - timestamp < this.TIME_WINDOW,
+    const joins = (joinCache.get(guildId) || []).filter(
+      (j) => now - j.timestamp < this.TIME_WINDOW,
     );
+    joins.push(suspectInfo);
+    joinCache.set(guildId, joins);
 
-    // Añadimos la entrada actual
-    recentJoins.push(now);
-    joinCache.set(guildId, recentJoins);
-
-    // Si superan el límite (más de 5 personas en 10 segundos)
-    if (recentJoins.length > this.JOIN_LIMIT) {
-      await this.activatePanicMode(member, settings);
+    if (joins.length >= this.JOIN_LIMIT) {
+      await triggerRaidAlert({
+        guild: member.guild,
+        suspects: joins,
+      });
     }
-  }
-
-  private static async activatePanicMode(member: GuildMember, settings: any) {
-    const guild = member.guild;
-
-    // Intentar avisar por el canal de logs configurado
-    if (settings.modLogChannel) {
-      const logChannel = guild.channels.cache.get(settings.modLogChannel);
-
-      if (logChannel?.isTextBased()) {
-        await (logChannel as any).send({
-          content: "⚠️ **¡POSIBLE RAID DETECTADO!** ⚠️",
-          embeds: [
-            {
-              title: "🚨 Alerta de Seguridad: Join-Flood",
-              description: `Se ha detectado un flujo inusual de entradas (${this.JOIN_LIMIT}+ usuarios en 10s).\n\n**Estado:** Hoshiko está monitoreando las fronteras.`,
-              color: 0xff0000,
-              footer: { text: "Sentinel Network 📡" },
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        });
-      }
-    }
-
-    // Aquí podrías añadir lógica agresiva, como pausar invitaciones
-    console.log(`[Anti-Raid] Alerta activada en: ${guild.name}`);
   }
 }

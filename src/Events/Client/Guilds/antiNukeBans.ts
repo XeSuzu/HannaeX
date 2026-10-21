@@ -5,8 +5,12 @@ import {
 } from "../../../Security/Logger/HoshikoLogger";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { Logger } from "../../../Utils/SystemLogger";
+import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
 
-const banTracker = new Map<string, { count: number; lastBan: number }>();
+const banTracker = new LocalCacheService<{ count: number; lastBan: number }>(
+  "antinuke_bans",
+  { max: 5000, ttlMs: 60_000 },
+);
 const LIMIT = 4; // Un poco más permisivo que canales, pero aún estricto
 const TIME_WINDOW = 10000; // 10 segundos
 
@@ -36,10 +40,11 @@ export default {
       const settings = await SettingsManager.getSettings(guild.id);
       if (!settings?.securityModules?.antiNuke) return;
 
-      if (!executor || executor.bot || executor.id === guild.ownerId) return;
+      if (!executor || executor.id === guild.client.user?.id || executor.id === guild.ownerId) return;
 
       const now = Date.now();
-      const userData = banTracker.get(executor!.id) || { count: 0, lastBan: 0 };
+      const trackKey = `${guild.id}:${executor.id}`;
+      const userData = banTracker.get(trackKey) || { count: 0, lastBan: 0 };
 
       if (now - userData.lastBan > TIME_WINDOW) {
         userData.count = 1;
@@ -48,9 +53,10 @@ export default {
       }
 
       userData.lastBan = now;
-      banTracker.set(executor.id, userData);
+      banTracker.set(trackKey, userData);
 
       if (userData.count >= LIMIT) {
+        banTracker.delete(trackKey);
         const executorMember = await guild.members.fetch(executor!.id);
 
         // 🛡️ Acción inmediata: Quitar roles administrativos

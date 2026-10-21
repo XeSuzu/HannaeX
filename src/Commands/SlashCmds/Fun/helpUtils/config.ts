@@ -14,7 +14,7 @@ export const INVITE_PERMISSIONS = PermissionsBitField.resolve(
 ).toString();
 
 export function getInviteLink(clientId: string | undefined): string {
-  return generateStandardInviteUrl(clientId || "YOUR_CLIENT_ID");
+  return generateStandardInviteUrl(clientId || process.env.BOT_ID || "");
 }
 
 export const EMOJI = {

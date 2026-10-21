@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
-import GuildConfig from "../../../Database/guild/guildConfig.model";
+import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import { AutomodManager } from "../../../Features/AutomodManager";
 
 const command: SlashCommand = {
@@ -38,6 +38,7 @@ const command: SlashCommand = {
               { name: "Anti-Alt", value: "antiAlt" },
               { name: "Anti-Nuke", value: "antiNuke" },
               { name: "IA Moderación", value: "aiModeration" },
+              { name: "Filtro de Palabras", value: "wordFilter" },
             )
         )
         .addBooleanOption((opt) =>
@@ -82,6 +83,21 @@ const command: SlashCommand = {
         .addBooleanOption((opt) =>
           opt.setName("agregar").setDescription("true = añadir, false = quitar.").setRequired(true)
         )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("ai-mode")
+        .setDescription("Configura el modo de ejecución de la IA de moderación.")
+        .addStringOption((opt) =>
+          opt
+            .setName("modo")
+            .setDescription("shadow = audita sin sanciones; enforce = aplica acciones.")
+            .setRequired(true)
+            .addChoices(
+              { name: "Sombra (auditoría sin sanción directa)", value: "shadow" },
+              { name: "Enforce (aplica acciones)", value: "enforce" },
+            )
+        )
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction, client: HoshikoClient): Promise<void> {
@@ -91,12 +107,11 @@ const command: SlashCommand = {
     const guildId = interaction.guild.id;
 
     try {
-      let config = await GuildConfig.findOne({ guildId });
-      if (!config) config = new GuildConfig({ guildId });
+      const config = await SettingsManager.getSettings(guildId);
 
       switch (sub) {
         case "view": {
-          const mods = config.securityModules;
+          const mods = config.securityModules || ({} as any);
           const links = config.allowedLinks?.join(", ") || "Ninguno";
 
           const embed = new EmbedBuilder()
@@ -111,7 +126,8 @@ const command: SlashCommand = {
                   `Anti-Raid: ${mods.antiRaid ? "✅" : "❌"}`,
                   `Anti-Alt: ${mods.antiAlt ? "✅" : "❌"}`,
                   `Anti-Nuke: ${mods.antiNuke ? "✅" : "❌"}`,
-                  `IA Moderación: ${mods.aiModeration ? "✅" : "❌"}`,
+                  `Filtro de Palabras: ${mods.wordFilter ? "✅" : "❌"}`,
+                  `IA Moderación: ${mods.aiModeration ? "✅" : "❌"} (${mods.aiMode || "shadow"})`,
                 ].join("\n"),
                 inline: true,
               },
@@ -132,8 +148,13 @@ const command: SlashCommand = {
           const nombre = interaction.options.getString("nombre", true);
           const activo = interaction.options.getBoolean("activo", true);
 
-          (config.securityModules as any)[nombre] = activo;
-          await config.save();
+          const securityModules = {
+            ...(config.securityModules || {}),
+            [nombre]: activo,
+          };
+          await SettingsManager.updateSettings(guildId, {
+            securityModules: securityModules as any,
+          });
 
           await interaction.editReply(
             `${activo ? "✅" : "❌"} Módulo **${nombre}** ${activo ? "activado" : "desactivado"}.`
@@ -143,29 +164,30 @@ const command: SlashCommand = {
 
         case "allow-link": {
           const dominio = interaction.options.getString("dominio", true).toLowerCase().trim();
+          const allowed = config.allowedLinks || [];
 
-          if (!config.allowedLinks) config.allowedLinks = [];
-          if (config.allowedLinks.includes(dominio)) {
+          if (allowed.includes(dominio)) {
             await interaction.editReply(`ℹ️ **${dominio}** ya está en la whitelist.`);
             break;
           }
 
-          config.allowedLinks.push(dominio);
-          await config.save();
+          const updated = [...allowed, dominio];
+          await SettingsManager.updateSettings(guildId, { allowedLinks: updated });
           await interaction.editReply(`✅ **${dominio}** añadido a la whitelist de links.`);
           break;
         }
 
         case "remove-link": {
           const dominio = interaction.options.getString("dominio", true).toLowerCase().trim();
+          const allowed = config.allowedLinks || [];
 
-          if (!config.allowedLinks?.includes(dominio)) {
+          if (!allowed.includes(dominio)) {
             await interaction.editReply(`❌ **${dominio}** no estaba en la whitelist.`);
             break;
           }
 
-          config.allowedLinks = config.allowedLinks.filter((d) => d !== dominio);
-          await config.save();
+          const updated = allowed.filter((d) => d !== dominio);
+          await SettingsManager.updateSettings(guildId, { allowedLinks: updated });
           await interaction.editReply(`✅ **${dominio}** eliminado de la whitelist.`);
           break;
         }
@@ -181,6 +203,22 @@ const command: SlashCommand = {
             await AutomodManager.removeWhitelistUser(guildId, target.id);
             await interaction.editReply(`✅ **${target.tag}** eliminado de la whitelist del automod.`);
           }
+          break;
+        }
+
+        case "ai-mode": {
+          const modo = interaction.options.getString("modo", true) as "shadow" | "enforce";
+          const securityModules = {
+            ...(config.securityModules || {}),
+            aiMode: modo,
+          };
+          await SettingsManager.updateSettings(guildId, {
+            securityModules: securityModules as any,
+          });
+
+          await interaction.editReply(
+            `🧠 Modo de IA de moderación establecido en **${modo.toUpperCase()}** (${modo === "shadow" ? "audita en logs sin sanciones directas" : "aplica sanciones"}).`
+          );
           break;
         }
       }

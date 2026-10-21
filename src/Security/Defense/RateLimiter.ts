@@ -1,4 +1,15 @@
-const windows = new Map<string, { count: number; windowStart: number }>();
+import { LocalCacheService } from "../../App/infrastructure/cache/LocalCacheService";
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+const rateLimitCache = new LocalCacheService<RateLimitEntry>("rate_limiter", {
+  max: 10_000,
+  ttlMs: 30_000,
+});
+
 const DEFAULT_WINDOW_MS = 5000; // 5s
 const DEFAULT_LIMIT = 5; // 5 mensajes por ventana
 
@@ -9,21 +20,17 @@ export class RateLimiter {
     windowMs = DEFAULT_WINDOW_MS,
   ): boolean {
     const now = Date.now();
-    const rec = windows.get(userId);
-    if (!rec) {
-      windows.set(userId, { count: 1, windowStart: now });
-      return false;
-    }
-    if (now - rec.windowStart > windowMs) {
-      windows.set(userId, { count: 1, windowStart: now });
+    const rec = rateLimitCache.get(userId);
+    if (!rec || now - rec.windowStart > windowMs) {
+      rateLimitCache.set(userId, { count: 1, windowStart: now });
       return false;
     }
     rec.count += 1;
-    windows.set(userId, rec);
+    rateLimitCache.set(userId, rec);
     return rec.count > limit;
   }
 
   static reset(userId: string) {
-    windows.delete(userId);
+    rateLimitCache.delete(userId);
   }
 }

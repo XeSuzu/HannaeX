@@ -6,6 +6,7 @@ const {
   isValidSupportUrl,
   buildSupportButton,
   buildInviteActionRow,
+  resolveClientId,
   RECOMMENDED_INVITE_PERMISSIONS,
   getRecommendedPermissionsBitfield,
 } = require("../../dist/Utils/inviteUtils.js");
@@ -111,4 +112,23 @@ test("buildInviteActionRow - compone los tres botones de forma consistente", () 
   assert.strictEqual(json.components[2].style, ButtonStyle.Secondary);
   assert.strictEqual(json.components[2].label, "Soporte · Muy pronto");
   assert.strictEqual(json.components[2].disabled, true);
+});
+
+test("resolveClientId - resuelve correctamente desde interacción o cliente sin tomar el id del usuario humano", () => {
+  // Simulación de interacción donde el usuario que ejecuta es un humano
+  const mockInteraction = {
+    applicationId: "1475595196560572416",
+    id: "999999999999999999", // interaction ID
+    user: { id: "111122223333444455", bot: false }, // usuario humano ejecutor
+  };
+  assert.strictEqual(resolveClientId(mockInteraction), "1475595196560572416");
+
+  // Simulación de cliente con usuario bot
+  const mockClient = {
+    user: { id: "1475595196560572416", bot: true },
+  };
+  assert.strictEqual(resolveClientId(mockClient), "1475595196560572416");
+
+  // YOUR_CLIENT_ID placeholder debe ser descartado
+  assert.notStrictEqual(resolveClientId("YOUR_CLIENT_ID"), "YOUR_CLIENT_ID");
 });

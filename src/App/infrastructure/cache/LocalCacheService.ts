@@ -17,7 +17,10 @@ export class LocalCacheService<T extends object> {
   private hits = 0;
   private misses = 0;
 
-  constructor(cacheName: string, options: { max: number; ttlMs: number }) {
+  constructor(
+    cacheName: string,
+    options: { max: number; ttlMs: number; updateAgeOnGet?: boolean },
+  ) {
     if (!Number.isInteger(options.max) || options.max <= 0) {
       throw new Error(
         "LocalCacheService requires max to be a positive integer",
@@ -36,7 +39,7 @@ export class LocalCacheService<T extends object> {
     this.cache = new LRUCache<string, T>({
       max: options.max,
       ttl: options.ttlMs,
-      updateAgeOnGet: true,
+      updateAgeOnGet: options.updateAgeOnGet ?? true,
     });
   }
 

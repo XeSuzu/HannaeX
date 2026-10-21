@@ -14,15 +14,26 @@ import { QueueService } from "../../App/infrastructure/queue/QueueService";
 import { RedisClientService } from "../../App/infrastructure/redis/RedisClient";
 import { buildRedisKey } from "../../App/infrastructure/redis/RedisKeys";
 import GlobalProfile from "../../Database/moderation/globalProfile.model";
+import { SettingsManager } from "../../Database/guild/SettingsManager";
 import { HoshikoLogger, LogLevel } from "../../Security/Logger/HoshikoLogger";
 import { AutomodManager } from "../AutomodManager";
 import {
   addServerStress,
+  buildNormalizedFingerprint,
   getServerStress,
+  isRaidActive,
   rememberDeletedMessage,
   SECURITY_LEVEL_THRESHOLDS,
 } from "./automodState";
 import type { SecurityLevel } from "../../Database/guild/serverConfig.model";
+import {
+  judgeMessageWithAi,
+  resolvePolicyAction,
+  executeAiModerationDecision,
+  shouldEvaluateWithAi,
+} from "./aiJudge";
+
+export * from "./aiJudge";
 
 // ─── 1. TRUST FACTOR (Pilar 3.1) ───────────────────────────────────────────
 // Veteranos (historial impecable) → revisión manual. Resto → tolerancia cero.
@@ -260,7 +271,8 @@ async function flushGuildModBatch(
 }
 
 /**
- * Evalúa un mensaje cuando el Medidor de Estrés del servidor supera el umbral de su Perfil de Seguridad.
+ * Evalúa un mensaje utilizando el Juez IA con compuerta de seguridad,
+ * política determinista y modo sombra/enforce.
  */
 export async function evaluateHighStressMessage(
   message: Message,
@@ -275,11 +287,11 @@ export async function evaluateHighStressMessage(
   );
   if (content.length < 4 && !attachment) return;
 
-  const stress = await getServerStress(message.guild.id);
+  const guildId = message.guild.id;
+  const settings = await SettingsManager.getSettings(guildId);
+  const isRaid = await isRaidActive(guildId);
+  const stress = await getServerStress(guildId);
   const threshold = SECURITY_LEVEL_THRESHOLDS[securityLevel] ?? 100;
-
-  // Si el servidor está en calma, no gastamos llamadas a IA
-  if (stress < threshold) return;
 
   // Estrés crítico (Nivel 4 al doble de su umbral, o >= 160 pts en cualquier nivel) → El Torniquete
   if ((securityLevel === 4 && stress >= threshold * 2) || stress >= 160) {
@@ -289,28 +301,66 @@ export async function evaluateHighStressMessage(
     );
   }
 
-  if (!batcherInitialized) {
-    batcherInitialized = true;
-    QueueService.registerBatcher<PendingModMessage>(
-      AI_MOD_QUEUE,
-      { maxSize: MOD_BATCH_MAX, windowMs: MOD_BATCH_WINDOW_MS },
-      flushGuildModBatch,
-    );
+  // Compuerta: verificar si el mensaje califica para evaluación con IA
+  const now = Date.now();
+  const accountAgeDays = (now - message.author.createdTimestamp) / (86_400_000);
+  const joinAgeHours = message.member.joinedTimestamp
+    ? (now - message.member.joinedTimestamp) / (3_600_000)
+    : 999;
+  const isNewMember = accountAgeDays < 7 || joinAgeHours < 24;
+
+  const shouldEval = shouldEvaluateWithAi({
+    isRaid,
+    stress,
+    stressThreshold: threshold,
+    isNewMember,
+    hasUnresolvedSuspicion: false,
+    isReport: false,
+  });
+
+  // Si no cumple compuerta y el módulo no está forzado, no consumimos IA
+  if (!shouldEval && !settings?.securityModules?.aiModeration) return;
+
+  // Contexto de canal: últimos 3 mensajes (sanitizados y sin el actual)
+  const channelContext: string[] = [];
+  if ("messages" in message.channel && message.channel.messages?.cache) {
+    const recent = Array.from(message.channel.messages.cache.values())
+      .filter((m) => m.id !== message.id && m.content)
+      .slice(-3);
+    for (const m of recent) {
+      channelContext.push(`${m.author.username}: ${m.content.slice(0, 100)}`);
+    }
   }
 
-  const trusted = await isTrustedVeteran(message.author.id);
-  QueueService.enqueueBatchItem<PendingModMessage>(
-    AI_MOD_QUEUE,
-    message.guild.id,
-    {
-      message,
-      content,
-      trusted,
-      image: attachment
-        ? { url: attachment.url, mimeType: attachment.contentType!.split(";")[0] }
-        : undefined,
-    },
-  );
+  const fingerprint =
+    buildNormalizedFingerprint(content) || content.toLowerCase();
+
+  const { verdict } = await judgeMessageWithAi({
+    guildId,
+    content,
+    authorContext: { accountAgeDays, joinAgeHours },
+    channelContext,
+    serverRules: settings?.rules ?? [],
+    fingerprint,
+    staffFeedback: settings?.staffFeedback,
+  });
+
+  const action = resolvePolicyAction({
+    verdict: verdict.verdict,
+    confidence: verdict.confidence,
+    isRaid,
+  });
+
+  const aiMode = settings?.securityModules?.aiMode ?? "shadow";
+
+  await executeAiModerationDecision({
+    guild: message.guild,
+    message,
+    decision: verdict,
+    action,
+    aiMode,
+    isRaid,
+  });
 }
 
 // ─── 4. EL TORNIQUETE: EMERGENCY LOCKDOWN & RESTORE (Pilar 7.2) ───────────
@@ -334,12 +384,27 @@ export async function isServerLockedDown(guildId: string): Promise<boolean> {
       } catch {}
     }
   }
+
+  // Fallback a MongoDB (sobrevive a reinicios completos sin Redis)
+  try {
+    const settings = await SettingsManager.getSettings(guildId);
+    if (settings?.lockdownState?.active) {
+      lockdownL1.set(guildId, {
+        timestamp: settings.lockdownState.lockedAt
+          ? new Date(settings.lockdownState.lockedAt).getTime()
+          : Date.now(),
+      });
+      return true;
+    }
+  } catch {}
+
   return false;
 }
 
 export async function triggerServerLockdown(
   guild: Guild,
   reason: string,
+  raidDurationMs = 30 * 60 * 1000,
 ): Promise<boolean> {
   if (await isServerLockedDown(guild.id)) return false;
 
@@ -347,28 +412,49 @@ export async function triggerServerLockdown(
   if (!me?.permissions.has(PermissionFlagsBits.ManageRoles)) return false;
 
   const everyone = guild.roles.everyone;
-  // Si @everyone ya no puede escribir, no hay nada que revocar (ni que restaurar después)
-  if (!everyone.permissions.has(PermissionFlagsBits.SendMessages)) return false;
+  const previousSendMessages = everyone.permissions.has(
+    PermissionFlagsBits.SendMessages,
+  );
 
-  const ok = await everyone
-    .setPermissions(
-      new PermissionsBitField(everyone.permissions).remove(
-        PermissionFlagsBits.SendMessages,
-      ),
-      `Hoshiko Torniquete (Lockdown): ${reason}`,
-    )
-    .then(() => true)
-    .catch(() => false);
-  if (!ok) return false;
+  // Si @everyone podía escribir, le revocamos exclusivamente ese bit
+  if (previousSendMessages) {
+    const ok = await everyone
+      .setPermissions(
+        new PermissionsBitField(everyone.permissions).remove(
+          PermissionFlagsBits.SendMessages,
+        ),
+        `Hoshiko Torniquete (Lockdown): ${reason}`,
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) return false;
+  }
 
-  const snapshot = { timestamp: Date.now() };
+  const now = Date.now();
+  const snapshot = { timestamp: now };
   lockdownL1.set(guild.id, snapshot);
+
+  // Persistir en Mongo (Principio 4.2: recuperación quirúrgica sin pisar roles)
+  await SettingsManager.updateSettings(guild.id, {
+    lockdownState: {
+      active: true,
+      previousSendMessages,
+      reason,
+      lockedAt: new Date(now),
+      raidUntil: new Date(now + raidDurationMs),
+    },
+  });
 
   if (RedisClientService.getState() === "ready") {
     const redis = RedisClientService.getClient();
     if (redis) {
       void redis
-        .set(buildRedisKey("lockdown", guild.id), JSON.stringify(snapshot), "EX", 86400)
+        .set(
+          buildRedisKey("lockdown", guild.id),
+          JSON.stringify(snapshot),
+          "EX",
+          86400,
+        )
         .catch(() => undefined);
     }
   }
@@ -400,13 +486,16 @@ export async function triggerServerLockdown(
 }
 
 /**
- * Restaura SendMessages en @everyone. Devuelve true si había un lockdown activo y se restauró.
+ * Restaura SendMessages en @everyone quirúrgica e idempotentemente.
+ * Devuelve true si se restauró o si el servidor ya está desbloqueado.
  */
 export async function liftServerLockdown(
   guild: Guild,
   moderatorTag?: string,
 ): Promise<boolean> {
   const wasLocked = await isServerLockedDown(guild.id);
+  const settings = await SettingsManager.getSettings(guild.id);
+  const hadSendMessages = settings?.lockdownState?.previousSendMessages ?? true;
 
   lockdownL1.delete(guild.id);
   if (RedisClientService.getState() === "ready") {
@@ -416,19 +505,39 @@ export async function liftServerLockdown(
     }
   }
 
+  // Limpiar estado en Mongo
+  await SettingsManager.updateSettings(guild.id, {
+    lockdownState: {
+      active: false,
+      previousSendMessages: null,
+      reason: null,
+      lockedAt: null,
+      raidUntil: null,
+    },
+  });
+
   await addServerStress(guild.id, -200);
-  if (!wasLocked) return false;
 
   const everyone = guild.roles.everyone;
-  return everyone
-    .setPermissions(
-      new PermissionsBitField(everyone.permissions).add(
-        PermissionFlagsBits.SendMessages,
-      ),
-      `Lockdown levantado por ${moderatorTag || "Hoshiko"}`,
-    )
-    .then(() => true)
-    .catch(() => false);
+  const currentCanSend = everyone.permissions.has(
+    PermissionFlagsBits.SendMessages,
+  );
+
+  // Si no puede escribir y previamente podía, se lo devolvemos quirúrgicamente
+  if (!currentCanSend && hadSendMessages) {
+    const ok = await everyone
+      .setPermissions(
+        new PermissionsBitField(everyone.permissions).add(
+          PermissionFlagsBits.SendMessages,
+        ),
+        `Lockdown levantado por ${moderatorTag || "Hoshiko"}`,
+      )
+      .then(() => true)
+      .catch(() => false);
+    return ok;
+  }
+
+  return wasLocked || !currentCanSend;
 }
 
 // ─── 5. BANEOS MASIVOS POR LOTES (Chunking, Pilar 7.2) ────────────────────

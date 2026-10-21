@@ -4,11 +4,12 @@ import {
   LogLevel,
 } from "../../../Security/Logger/HoshikoLogger";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
+import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
 
-const roleDeletionTracker = new Map<
-  string,
-  { count: number; lastDeletion: number }
->();
+const roleDeletionTracker = new LocalCacheService<{
+  count: number;
+  lastDeletion: number;
+}>("antinuke_roles", { max: 5000, ttlMs: 60_000 });
 const LIMIT = 3;
 const TIME_WINDOW = 10000;
 
@@ -30,10 +31,11 @@ export default {
       if (!deletionLog) return;
 
       const { executor } = deletionLog;
-      if (!executor || executor.bot || executor.id === guild.ownerId) return;
+      if (!executor || executor.id === guild.client.user?.id || executor.id === guild.ownerId) return;
 
       const now = Date.now();
-      const userData = roleDeletionTracker.get(executor.id) || {
+      const trackKey = `${guild.id}:${executor.id}`;
+      const userData = roleDeletionTracker.get(trackKey) || {
         count: 0,
         lastDeletion: 0,
       };
@@ -45,9 +47,10 @@ export default {
       }
 
       userData.lastDeletion = now;
-      roleDeletionTracker.set(executor.id, userData);
+      roleDeletionTracker.set(trackKey, userData);
 
       if (userData.count >= LIMIT) {
+        roleDeletionTracker.delete(trackKey);
         const executorMember = await guild.members.fetch(executor.id);
 
         // Revocar permisos del usuario que borró roles masivamente

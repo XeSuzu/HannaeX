@@ -12,10 +12,12 @@ export interface IGuildConfig extends Document {
     antiAlt: boolean;
     antiLinks: boolean;
     antiSpam: boolean;
+    wordFilter: boolean;
     honeypotChannel?: string;
     aiModeration: boolean;
   };
   allowedLinks: string[];
+  bannedWords: string[];
   globalBlacklistEnabled: boolean;
   language: "es" | "en";
 }
@@ -32,10 +34,12 @@ const guildConfigSchema = new Schema<IGuildConfig>({
     antiAlt:         { type: Boolean, default: false },
     antiLinks:       { type: Boolean, default: false },
     antiSpam:        { type: Boolean, default: false },
+    wordFilter:      { type: Boolean, default: false },
     honeypotChannel: { type: String, default: null },
     aiModeration:    { type: Boolean, default: false },
   },
   allowedLinks:            { type: [String], default: [] },
+  bannedWords:             { type: [String], default: [] },
   globalBlacklistEnabled:  { type: Boolean, default: true },
   language:                { type: String, enum: ["es", "en"], default: "es" },
 });

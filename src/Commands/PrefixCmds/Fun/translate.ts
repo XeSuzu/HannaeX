@@ -3,6 +3,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { PrefixCommand } from "../../../Interfaces/Command";
+import {
+  ADMIN_MARKER,
+  markAsAdminMessage,
+} from "../../../Features/ai/adminMessageTracker";
 
 const command: PrefixCommand = {
   name: "translate",
@@ -113,9 +117,10 @@ const command: PrefixCommand = {
       }
 
       const autoNote = autoDetectTarget ? " (idioma detectado)" : "";
-      await channel.send(
-        `🌐 Traducción (${detectedLang} → ${targetLang})${autoNote}:\n${translated}`,
+      const sent = await channel.send(
+        `🌐 Traducción (${detectedLang} → ${targetLang})${autoNote}:\n${translated}${ADMIN_MARKER}`,
       );
+      if (sent?.id) markAsAdminMessage(sent.id);
     } catch (err) { 
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(

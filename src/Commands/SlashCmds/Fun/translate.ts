@@ -5,6 +5,10 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
+import {
+  ADMIN_MARKER,
+  markAsAdminMessage,
+} from "../../../Features/ai/adminMessageTracker";
 
 const LANG_CHOICES = [
   ["Auto Detect", "auto"],
@@ -49,9 +53,10 @@ const command: SlashCommand = {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      await interaction.editReply(
-        "❌ Falta la variable de entorno `GEMINI_API_KEY`.",
+      const reply = await interaction.editReply(
+        `❌ Falta la variable de entorno \`GEMINI_API_KEY\`.${ADMIN_MARKER}`,
       );
+      if (reply?.id) markAsAdminMessage(reply.id);
       return;
     }
 
@@ -63,9 +68,10 @@ const command: SlashCommand = {
       try {
         const channel = interaction.channel;
         if (!channel || !channel.isTextBased()) {
-          await interaction.editReply(
-            "❌ No puedo acceder al canal para obtener el mensaje.",
+          const reply = await interaction.editReply(
+            `❌ No puedo acceder al canal para obtener el mensaje.${ADMIN_MARKER}`,
           );
+          if (reply?.id) markAsAdminMessage(reply.id);
           return;
         }
         const messages = await channel.messages.fetch({ limit: 5 });
@@ -74,30 +80,36 @@ const command: SlashCommand = {
           .sort((a, b) => b.createdTimestamp - a.createdTimestamp)
           .first();
         if (!last) {
-          await interaction.editReply(
-            "❌ No encontré un mensaje válido para traducir.",
+          const reply = await interaction.editReply(
+            `❌ No encontré un mensaje válido para traducir.${ADMIN_MARKER}`,
           );
+          if (reply?.id) markAsAdminMessage(reply.id);
           return;
         }
         text = last.content;
       } catch (err) {
         console.error("Error obteniendo mensaje anterior:", err);
-        await interaction.editReply("❌ Error al obtener el mensaje anterior.");
+        const reply = await interaction.editReply(
+          `❌ Error al obtener el mensaje anterior.${ADMIN_MARKER}`,
+        );
+        if (reply?.id) markAsAdminMessage(reply.id);
         return;
       }
     }
 
     if (!text || text.trim().length === 0) {
-      await interaction.editReply(
-        "❌ Debes indicar texto a traducir o usar el comando en un canal con mensajes recientes.",
+      const reply = await interaction.editReply(
+        `❌ Debes indicar texto a traducir o usar el comando en un canal con mensajes recientes.${ADMIN_MARKER}`,
       );
+      if (reply?.id) markAsAdminMessage(reply.id);
       return;
     }
 
     if (text.length > 4000) {
-      await interaction.editReply(
-        "❌ El texto es demasiado largo para traducir (máx. 4000 caracteres).",
+      const reply = await interaction.editReply(
+        `❌ El texto es demasiado largo para traducir (máx. 4000 caracteres).${ADMIN_MARKER}`,
       );
+      if (reply?.id) markAsAdminMessage(reply.id);
       return;
     }
 
@@ -113,7 +125,10 @@ const command: SlashCommand = {
       );
 
       if (!translated) {
-        await interaction.editReply("❌ No se pudo obtener la traducción.");
+        const reply = await interaction.editReply(
+          `❌ No se pudo obtener la traducción.${ADMIN_MARKER}`,
+        );
+        if (reply?.id) markAsAdminMessage(reply.id);
         return;
       }
 
@@ -129,12 +144,16 @@ const command: SlashCommand = {
         )
         .setDescription(translated)
         .setColor(0x57f287)
-        .setFooter({ text: `Solicitado por ${interaction.user.username}` });
+        .setFooter({ text: `Solicitado por ${interaction.user.username}${ADMIN_MARKER}` });
 
-      await interaction.editReply({ embeds: [embed] });
+      const reply = await interaction.editReply({ embeds: [embed] });
+      if (reply?.id) markAsAdminMessage(reply.id);
     } catch (err: any) {
       console.error("Error en /translate:", err?.message || err);
-      await interaction.editReply("❌ Ocurrió un error al traducir.");
+      const reply = await interaction.editReply(
+        `❌ Ocurrió un error al traducir.${ADMIN_MARKER}`,
+      );
+      if (reply?.id) markAsAdminMessage(reply.id);
     }
   },
 };

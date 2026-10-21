@@ -1,5 +1,6 @@
 import { Message } from "discord.js";
 import { HoshikoClient } from "../index";
+import { isAdminMessage } from "../Features/ai/adminMessageTracker";
 
 /** Commands that use the "hoshi ask" trigger pattern */
 export const TRIGGER_COMMANDS = ["ask", "img"] as const;
@@ -53,40 +54,100 @@ export function isImgCommand(message: Message): boolean {
 }
 
 /**
- * Checks if a message mentions the bot with additional text.
- * Only activates if there is content after the @mention.
+ * Remueve bloques de código y citas de Markdown de Discord para no activar
+ * por menciones pasivas o accidentales encerradas en formato citado o técnico.
+ */
+export function stripQuotesAndCode(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/```[\s\S]*?```/g, " ") // Bloques de código multilínea
+    .replace(/`[^`\n]*`/g, " ")       // Código inline
+    .replace(/^>>>[\s\S]*$/gm, " ")   // Blockquotes multilínea
+    .replace(/^>[^\n]*/gm, " ");      // Blockquotes estándar de una línea
+}
+
+/**
+ * Checks if a message mentions the bot with direct and legitimate intent.
+ * Ignora menciones que estén dentro de blockquotes o código.
+ * Si existen múltiples menciones a usuarios, aplica reglas estructurales deterministas:
+ * 1. Si la primera mención en el texto activo es Hoshiko -> directa.
+ * 2. Si la primera mención es otro usuario humano, solo se activa si Hoshiko es interpelada
+ *    como vocativo explícito de cierre (ej. "... <@otro>, qué opinas, <@Hoshiko>?").
+ * 3. En cualquier caso referencial o ambiguo, evita falsas activaciones secundarias.
  * @param message - Discord message to evaluate
  * @param client - Hoshiko client instance
- * @returns True if bot is mentioned with additional content
+ * @returns True if bot is directly and legitimately mentioned
  */
 export function isMentionTrigger(
   message: Message,
   client: HoshikoClient,
 ): boolean {
-  const hasMention = message.mentions.users.has(client.user!.id);
-  const contentAfterMention = message.content
-    .replace(`<@${client.user!.id}>`, "")
-    .trim();
-  return hasMention && contentAfterMention.length > 0;
+  if (!client.user) return false;
+  if (!message.mentions.users.has(client.user.id)) return false;
+
+  // 1. Limpiar citas y bloques de código para comprobar si la mención vive fuera de ellos
+  const activeContent = stripQuotesAndCode(message.content);
+  const trimmed = activeContent.trimStart();
+
+  // 2. La mención debe situarse explícitamente al comienzo del contenido activo
+  // Acepta <@id> o <@!id> seguido de fin de string, espacio o puntuación
+  const initialMentionRegex = new RegExp(
+    `^<@!?${client.user.id}>(?:[\\s,:\\.!?¿¡]|$)`,
+  );
+
+  return initialMentionRegex.test(trimmed);
 }
 
 /**
- * Checks if the message is a reply directly to the bot.
- * @param message - Discord message to evaluate
- * @param client - Hoshiko client instance
- * @returns True if message is a reply to a bot message
+ * Resuelve si un mensaje es una respuesta legítima a una intervención previa del bot,
+ * retornando el mensaje referenciado para evitar llamadas REST duplicadas a Discord.
+ * Si el mensaje citado fue un anuncio o comando administrativo (/say), retorna isReply: false.
  */
-export async function checkReplyingToBot(
+export async function resolveReplyingToBot(
   message: Message,
   client: HoshikoClient,
-): Promise<boolean> {
-  if (!message.reference?.messageId) return false;
-  if (message.mentions.everyone) return false;
+): Promise<{ isReply: boolean; repliedMsg: Message | null }> {
+  if (!message.reference?.messageId) return { isReply: false, repliedMsg: null };
+  if (message.mentions.everyone) return { isReply: false, repliedMsg: null };
 
   const repliedMsg = await message.channel.messages
     .fetch(message.reference.messageId)
     .catch(() => null);
-  return repliedMsg?.author.id === client.user!.id;
+
+  if (!repliedMsg) return { isReply: false, repliedMsg: null };
+
+  // El mensaje debe haber sido emitido por la cuenta del bot
+  if (repliedMsg.author.id !== client.user!.id) {
+    return { isReply: false, repliedMsg };
+  }
+
+  // Si fue un mensaje administrativo (/say, etc.), NO es respuesta al personaje conversacional
+  if (isAdminMessage(repliedMsg)) {
+    return { isReply: false, repliedMsg };
+  }
+
+  return { isReply: true, repliedMsg };
+}
+
+/**
+ * Checks if the message is a reply directly to a legitimate AI bot message.
+ * @param message - Discord message to evaluate
+ * @param client - Hoshiko client instance
+ * @param preFetchedRepliedMsg - Optional pre-fetched message to avoid duplicate network calls
+ * @returns True if message is a reply to an AI bot message
+ */
+export async function checkReplyingToBot(
+  message: Message,
+  client: HoshikoClient,
+  preFetchedRepliedMsg?: Message | null,
+): Promise<boolean> {
+  if (preFetchedRepliedMsg !== undefined) {
+    if (!preFetchedRepliedMsg) return false;
+    if (preFetchedRepliedMsg.author.id !== client.user!.id) return false;
+    return !isAdminMessage(preFetchedRepliedMsg);
+  }
+  const res = await resolveReplyingToBot(message, client);
+  return res.isReply;
 }
 
 /**

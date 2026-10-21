@@ -4,6 +4,7 @@ import LocalLevel from "../../Database/leveling/localLevel.model";
 import { queueLocalMessageIncrement } from "../../Database/system/BulkWriteBuffer";
 import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
+import { ADMIN_MARKER, markAsAdminMessage } from "../ai/adminMessageTracker";
 
 export async function handleLevelXp(message: Message): Promise<void> {
   if (!message.guild || message.author.bot) return;
@@ -251,7 +252,10 @@ async function assignLevelRoles(
               .replace("{user}", member.displayName)
               .replace("{role}", role.name)
               .replace("{level}", roleConfig.level.toString());
-            await channel.send(roleMessage).catch(() => null);
+            const sent = await channel
+              .send(`${roleMessage}${ADMIN_MARKER}`)
+              .catch(() => null);
+            if (sent?.id) markAsAdminMessage(sent.id);
           }
         }
       }

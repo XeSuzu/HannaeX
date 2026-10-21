@@ -1,6 +1,7 @@
 import UserMemory from "./userMemory.model";
 
-const MAX_FACTS = 25;
+const MAX_FACTS = 15;
+const FORBIDDEN_FACT_PATTERNS = /\b(admin|administrador[a]?|dueñ[oa]|owner|mod(?:erador)?|staff|permisos|hacker|root|bypass|ignora|system|hoshiko|creador[a]?)\b/i;
 
 export class UserMemoryManager {
   static async getFacts(userId: string, guildId: string): Promise<string[]> {
@@ -29,7 +30,8 @@ export class UserMemoryManager {
 
     for (const fact of newFacts) {
       const normalized = fact.trim();
-      if (!normalized) continue;
+      if (!normalized || normalized.length < 5 || normalized.length > 100) continue;
+      if (FORBIDDEN_FACT_PATTERNS.test(normalized)) continue;
 
       // Deduplicación por similitud de palabras
       const isDuplicate = existingFacts.some((ef) => {
@@ -57,12 +59,16 @@ export class UserMemoryManager {
     await memory.save();
   }
 
-  static async clearMemory(userId: string, guildId: string): Promise<void> {
+  static async clearMemory(userId: string, guildId: string): Promise<boolean> {
+    if (!userId || !guildId) return false;
     await UserMemory.deleteOne({ userId, guildId });
+    return true;
   }
 
-  static async clearGuildMemory(guildId: string): Promise<void> {
+  static async clearGuildMemory(guildId: string): Promise<boolean> {
+    if (!guildId) return false;
     await UserMemory.deleteMany({ guildId });
+    return true;
   }
 
   static async deleteFact(

@@ -1,12 +1,12 @@
 import { Guild, User, GuildMember } from "discord.js";
 import { addWarning } from "../../Database/moderation/warning.model";
-import GuildConfig from "../../Database/guild/guildConfig.model";
+import { SettingsManager } from "../../Database/guild/SettingsManager";
 import type { ActionLogEntry, AutomodAction } from "../AutomodManager";
 
 export async function isWhitelisted(guildId: string, userId: string): Promise<boolean> {
   try {
-    const config = await GuildConfig.findOne({ guildId }).lean();
-    return ((config as any)?.whitelistedUsers ?? []).includes(userId);
+    const settings = await SettingsManager.getSettings(guildId);
+    return ((settings as any)?.whitelistedUsers ?? []).includes(userId);
   } catch (error) {
     console.error("[Automod] Error checking whitelist:", error);
     return false;
@@ -71,11 +71,12 @@ export async function getActionHistory(
 
 export async function whitelistUser(guildId: string, userId: string): Promise<void> {
   try {
-    await GuildConfig.findOneAndUpdate(
-      { guildId },
-      { $addToSet: { whitelistedUsers: userId } },
-      { upsert: true }
-    );
+    const settings = await SettingsManager.getSettings(guildId);
+    const users = new Set((settings as any)?.whitelistedUsers || []);
+    users.add(userId);
+    await SettingsManager.updateSettings(guildId, {
+      whitelistedUsers: Array.from(users),
+    } as any);
   } catch (error) {
     console.error("[Automod] Error whitelisting user:", error);
   }
@@ -83,10 +84,13 @@ export async function whitelistUser(guildId: string, userId: string): Promise<vo
 
 export async function removeWhitelistUser(guildId: string, userId: string): Promise<void> {
   try {
-    await GuildConfig.findOneAndUpdate(
-      { guildId },
-      { $pull: { whitelistedUsers: userId } }
+    const settings = await SettingsManager.getSettings(guildId);
+    const users = ((settings as any)?.whitelistedUsers || []).filter(
+      (id: string) => id !== userId,
     );
+    await SettingsManager.updateSettings(guildId, {
+      whitelistedUsers: users,
+    } as any);
   } catch (error) {
     console.error("[Automod] Error removing user from whitelist:", error);
   }
