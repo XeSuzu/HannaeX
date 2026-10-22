@@ -8,7 +8,7 @@ const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 const shortcuts = [
   { href: "#sobre-hoshiko", title: "Sobre Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
   { href: "#galeria", title: "Galería de arte", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
-  { href: "#funciones", title: "Viaje cósmico", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
+  { href: "#funciones", title: "Funciones", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
   { href: "#comunidad", title: "Comunidad", image: "/images/Shield1.jpg", alt: "Emblema ilustrado" },
 ];
 
@@ -32,7 +32,7 @@ export default function LandingPage() {
         <Container className="hero-inner">
           <div className="hero-copy">
             <p className="hero-kicker"><span>✧</span> DISCORD COMPANION / 001</p>
-            <h1>HOSHIKO<span className="title-sparkle">✦</span></h1>
+            <h1>HOSHIKO</h1>
             <h2>Tu compañera<br />cósmica de cerezo</h2>
             <p>Descubre su mundo lleno de flores y estrellas. Una kitsune dulce con un toque de magia cósmica.</p>
             <a className="sakura-button" href="#sobre-hoshiko">Explorar su mundo <span aria-hidden="true">✦</span></a>
