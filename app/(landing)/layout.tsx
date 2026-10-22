@@ -20,12 +20,12 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="site-shell">
+    <div className="site-shell"><a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="site-header">
         <Container className="nav-inner">
           <Link className="brand" href="#inicio" aria-label="Hoshiko, volver al inicio" onClick={() => setMenuOpen(false)}>
             <span className="brand-mark" aria-hidden="true">H</span>
-            <span><strong>Hoshiko</strong><small>TU COMPAÑERA CÓSMICA</small></span>
+            <span><strong translate="no">Hoshiko</strong><small>TU COMPAÑERA CÓSMICA</small></span>
           </Link>
           <button className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen((open) => !open)}>
             <span className="sr-only">{menuOpen ? "Cerrar menú" : "Abrir menú"}</span>

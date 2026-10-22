@@ -1,21 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 const tabs = ["Moderación", "Interacción", "Progreso"] as const;
 type Tab = (typeof tabs)[number];
 
 export function ProductDemo() {
   const [activeTab, setActiveTab] = useState<Tab>("Moderación");
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const nextIndex = event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % tabs.length : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+    if (nextIndex === -1) return;
+    event.preventDefault();
+    setActiveTab(tabs[nextIndex]);
+    tabRefs.current[nextIndex]?.focus();
+  }
 
   return (
-    <div className="product-demo" aria-label="Demostración ilustrativa de Hoshiko">
+    <section className="product-demo" aria-labelledby="demo-title">
+      <h3 id="demo-title" className="sr-only">Demostración ilustrativa de Hoshiko</h3>
       <div className="demo-window-bar"><span /><span /><span /><small># comunidad-hoshiko</small></div>
       <div className="demo-window-body">
         <div className="demo-sidebar" aria-hidden="true"><b>H</b><span /><span /><span /><span /></div>
         <div className="demo-main">
           <div className="demo-tabs" role="tablist" aria-label="Funciones de Hoshiko">
-            {tabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} aria-controls="demo-panel" id={`demo-tab-${tab.toLowerCase()}`} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+            {tabs.map((tab, index) => <button key={tab} ref={(element) => { tabRefs.current[index] = element; }} type="button" role="tab" aria-selected={activeTab === tab} aria-controls="demo-panel" tabIndex={activeTab === tab ? 0 : -1} id={`demo-tab-${tab.toLowerCase()}`} onClick={() => setActiveTab(tab)} onKeyDown={(event) => handleTabKeyDown(event, index)}>{tab}</button>)}
           </div>
           <div className="demo-panel" id="demo-panel" role="tabpanel" aria-labelledby={`demo-tab-${activeTab.toLowerCase()}`}>
             {activeTab === "Moderación" && <>
@@ -31,6 +41,6 @@ export function ProductDemo() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

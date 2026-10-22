@@ -25,13 +25,13 @@ function InviteLink({ className = "sakura-button", children = "Invitar a Hoshiko
 
 export default function LandingPage() {
   return (
-    <main className="hoshiko-home">
+    <main id="contenido" className="hoshiko-home">
       <section id="inicio" className="sakura-hero">
         <div className="hero-art"><div className="hero-atmosphere" aria-hidden="true"><span className="atmosphere-orb orb-pink" /><span className="atmosphere-orb orb-lavender" /><span className="atmosphere-glow" /></div><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="(max-width: 767px) 100vw, 58vw" /></div></div>
         <div className="hero-wash" aria-hidden="true" />
         <Container className="hero-inner">
           <div className="hero-copy">
-            <p className="hero-kicker"><span>✧</span> DISCORD COMPANION / 001</p>
+            <p className="hero-kicker" translate="no"><span>✧</span> DISCORD COMPANION / 001</p>
             <h1>HOSHIKO</h1>
             <h2>Tu compañera<br />cósmica de cerezo</h2>
             <p>Descubre su mundo lleno de flores y estrellas. Una kitsune dulce con un toque de magia cósmica.</p>
@@ -98,8 +98,8 @@ export default function LandingPage() {
             <p>Un espacio para la estética, las ilustraciones y los detalles que dan personalidad al mundo de Hoshiko.</p>
           </div>
           <div className="gallery-grid gallery-mosaic">
-            <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01</figcaption></figure>
-            <div className="gallery-stack"><figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02</figcaption></figure><aside className="gallery-note"><span>HOSHIKO / FIELD NOTES</span><strong>Una pequeña<br /><em>constelación</em><br />para tu comunidad.</strong><p>Arte, presencia y detalles que hacen que un servidor se sienta propio.</p></aside></div>
+            <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01 — Arte principal de Hoshiko</figcaption></figure>
+            <div className="gallery-stack"><figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02 — Ilustración del universo de Hoshiko</figcaption></figure><aside className="gallery-note"><span>HOSHIKO / FIELD NOTES</span><strong>Una pequeña<br /><em>constelación</em><br />para tu comunidad.</strong><p>Arte, presencia y detalles que hacen que un servidor se sienta propio.</p></aside></div>
           </div>
         </Container>
       </section>
