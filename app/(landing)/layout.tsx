@@ -7,6 +7,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 import { ExternalNavigationMenu, landingNavigationLinks } from "@/components/landing/ExternalNavigationMenu";
+import { HoshikoIntro } from "@/components/landing/HoshikoIntro";
 
 const links = landingNavigationLinks;
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
@@ -34,7 +35,7 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="site-shell"><a className="skip-link" href="#contenido">Saltar al contenido</a>
+      <div className="site-shell"><HoshikoIntro /><a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="site-header">
         <Container className="nav-inner">
           <Link className="brand" href="#inicio" aria-label="Hoshiko, volver al inicio" onClick={() => setMenuOpen(false)}>
