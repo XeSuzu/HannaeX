@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 
-const links = [["#sobre-hoshiko", "Sobre Hoshiko"], ["#funciones", "Funciones"], ["#cuidar", "Moderación"], ["#retrato", "Su universo"]] as const;
+const links = [["#sobre-hoshiko", "Sobre Hoshiko"], ["#galeria", "Galería"], ["#funciones", "Funciones"], ["#moderacion", "Moderación"]] as const;
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
 function InviteAction({ mobile = false }: { mobile?: boolean }) {
