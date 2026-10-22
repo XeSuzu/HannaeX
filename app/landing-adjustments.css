@@ -8,8 +8,8 @@
 .hero-visual { display: none; }
 .hero::after, .hero-visual::after { display: none; }
 .feature-card { position: relative; }
-.feature-icon { width: 86px; height: 86px; display: grid; place-items: center; margin: -48px auto 18px; overflow: hidden; border-radius: 22px; background: var(--white-pink); box-shadow: var(--shadow-soft); }
-.feature-icon img { width: 72px; height: 72px; object-fit: cover; mix-blend-mode: multiply; }
+.feature-icon { width: 80px; height: 80px; display: grid; place-items: center; margin: 0 0 18px; overflow: hidden; border-radius: 50%; background: #fff; box-shadow: var(--shadow-soft); padding: 8px; }
+.feature-icon img { width: 64px; height: 64px; object-fit: contain; }
 @media (max-width: 799px) {
   .site-header { top: 12px !important; width: calc(100% - 24px); }
   .hero { min-height: 0 !important; padding: 0 16px 54px !important; display: flex; flex-direction: column; align-items: stretch; background: var(--paper); }
