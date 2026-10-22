@@ -2,45 +2,31 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 
-const tabs = ["Moderación", "Interacción", "Progreso"] as const;
-type Tab = (typeof tabs)[number];
+const scenarios = ["Bienvenida", "Interacción", "Progreso"] as const;
+type Scenario = (typeof scenarios)[number];
+
+const scenarioCopy: Record<Scenario, { message: string; detail: string; accent: string }> = {
+  Bienvenida: { message: "¡Bienvenida a la comunidad, Luna!", detail: "Hoshiko acompaña la llegada de nuevos miembros con un saludo configurado por el servidor.", accent: "Nuevo miembro" },
+  Interacción: { message: "Hoshiko le dio un abrazo a Luna.", detail: "Las interacciones sociales incluyen comandos como /hug, /kiss, /pat y /highfive.", accent: "/hug usuario" },
+  Progreso: { message: "Luna alcanzó el nivel 12.", detail: "La actividad de mensajes y voz puede alimentar el progreso cuando el sistema está configurado.", accent: "Nivel 12" },
+};
 
 export function ProductDemo() {
-  const [activeTab, setActiveTab] = useState<Tab>("Moderación");
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const nextIndex = event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % tabs.length : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
-    if (nextIndex === -1) return;
-    event.preventDefault();
-    setActiveTab(tabs[nextIndex]);
-    tabRefs.current[nextIndex]?.focus();
+  const [active, setActive] = useState<Scenario>("Bienvenida");
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const copy = scenarioCopy[active];
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next = event.key === "ArrowRight" ? (index + 1) % scenarios.length : event.key === "ArrowLeft" ? (index - 1 + scenarios.length) % scenarios.length : event.key === "Home" ? 0 : event.key === "End" ? scenarios.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault(); setActive(scenarios[next]); refs.current[next]?.focus();
   }
-
-  return (
-    <section className="product-demo" aria-labelledby="demo-title">
-      <h3 id="demo-title" className="sr-only">Demostración ilustrativa de Hoshiko</h3>
-      <div className="demo-window-bar"><span /><span /><span /><small># comunidad-hoshiko</small></div>
-      <div className="demo-window-body">
-        <div className="demo-sidebar" aria-hidden="true"><b>H</b><span /><span /><span /><span /></div>
-        <div className="demo-main">
-          <div className="demo-tabs" role="tablist" aria-label="Funciones de Hoshiko">
-            {tabs.map((tab, index) => <button key={tab} ref={(element) => { tabRefs.current[index] = element; }} type="button" role="tab" aria-selected={activeTab === tab} aria-controls="demo-panel" tabIndex={activeTab === tab ? 0 : -1} id={`demo-tab-${tab.toLowerCase()}`} onClick={() => setActiveTab(tab)} onKeyDown={(event) => handleTabKeyDown(event, index)}>{tab}</button>)}
-          </div>
-          <div className="demo-panel" id="demo-panel" role="tabpanel" aria-labelledby={`demo-tab-${activeTab.toLowerCase()}`}>
-            {activeTab === "Moderación" && <>
-              <div className="demo-alert"><strong>Revisión sugerida</strong><span>Un mensaje puede necesitar atención del equipo.</span><em>Revisar contexto</em></div>
-              <div className="demo-message"><b>miembro_de_ejemplo</b><span>Mensaje señalado para revisión</span><small>El staff mantiene la decisión final.</small></div>
-              <div className="demo-actions"><span>Ver contexto</span><span>Resolver revisión</span></div>
-            </>}
-            {activeTab === "Interacción" && <>
-              <div className="demo-chat"><span className="demo-avatar">H</span><div><b>Hoshiko</b><p>Una compañera digital para las conversaciones de tu comunidad.</p></div></div>
-              <div className="demo-command"><span>Interacciones</span><small>Comandos y respuestas disponibles según la configuración del servidor.</small></div>
-            </>}
-            {activeTab === "Progreso" && <div className="demo-level"><div><span>Nivel de ejemplo</span><strong>12</strong></div><div className="demo-progress"><i /></div><small>Indicador visual ilustrativo, no datos reales de un servidor.</small></div>}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <div className="product-demo" aria-label="Demostración de Hoshiko en Discord">
+    <div className="demo-window-bar"><span /><span /><span /><small># bienvenida · Demostración · datos de ejemplo</small></div>
+    <div className="demo-window-body"><aside className="demo-sidebar" aria-hidden="true"><b>H</b><span /><span /><span /><span /></aside><div className="demo-main">
+      <div className="demo-channel"><strong># comunidad</strong><span>Demostración · datos de ejemplo</span></div>
+      <div className="demo-tabs" role="tablist" aria-label="Escenarios de conversación">{scenarios.map((scenario, index) => <button key={scenario} ref={(element) => { refs.current[index] = element; }} type="button" role="tab" aria-selected={active === scenario} aria-controls="conversation-panel" tabIndex={active === scenario ? 0 : -1} onClick={() => setActive(scenario)} onKeyDown={(event) => onKeyDown(event, index)}>{scenario}</button>)}</div>
+      <div className="demo-conversation" id="conversation-panel" role="tabpanel" aria-live="polite"><span className="demo-avatar">H</span><div className="demo-message-content"><div><b>Hoshiko</b><small> APP · hoy a las 20:14</small></div><p>{copy.message}</p><div className="demo-embed"><strong>{copy.accent}</strong><span>{copy.detail}</span></div></div></div>
+      <div className="demo-disclaimer">No conecta con Discord. Esta ventana solo muestra una interacción de ejemplo.</div>
+    </div></div>
+  </div>;
 }
