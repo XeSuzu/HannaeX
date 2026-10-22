@@ -228,15 +228,7 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    if (!interaction.guild) {
-      await interaction.reply({
-        content: "❌ Este comando solo puede usarse en un servidor.",
-        ephemeral: true,
-      });
-      return;
-    }
-
-    await interaction.deferReply();
+    if (!interaction.guild) return;
 
     try {
       const target = interaction.options.getUser("usuario") ?? interaction.user;

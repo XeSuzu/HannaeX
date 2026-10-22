@@ -1,4 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  GoogleGenerativeAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  SafetySetting,
+} from "@google/generative-ai";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -523,7 +528,32 @@ export async function judgeMessageWithAi(options: {
     return { verdict: fallbackVerdict, fromCache: false, fallbackRegex: true };
   }
 
-  // 3. Preparar prompt con blindaje anti-inyección
+  // 3. Verificar disponibilidad de API key antes de intentar llamada
+  const apiKey =
+    process.env.GEMINI_MODERATION_API_KEY || process.env.GEMINI_API_KEY;
+
+  if (!apiKey && !mockRunner) {
+    // Sin API key configurada: degradar limpiamente a regex local sin abrir el circuit breaker
+    const local = evaluateWithLocalRegex(content);
+    const fallbackVerdict: AiJudgeVerdict = local.toxic
+      ? {
+          verdict: "toxic",
+          confidence: 0.95,
+          rule_id: null,
+          reason: local.reason || "Filtro heurístico de respaldo (sin API key de IA)",
+          suggested_action: "delete",
+        }
+      : {
+          verdict: "ok",
+          confidence: 1.0,
+          rule_id: null,
+          reason: "Limpio según filtro de respaldo",
+          suggested_action: "none",
+        };
+    return { verdict: fallbackVerdict, fromCache: false, fallbackRegex: true };
+  }
+
+  // 4. Preparar prompt con blindaje anti-inyección
   const prompt = buildJudgePrompt(
     content,
     authorContext,
@@ -537,14 +567,16 @@ export async function judgeMessageWithAi(options: {
     if (mockRunner) {
       rawResponse = await mockRunner(prompt);
     } else {
-      const apiKey =
-        process.env.GEMINI_MODERATION_API_KEY || process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("Sin API key de Gemini para moderación");
-      }
-      const genAI = new GoogleGenerativeAI(apiKey);
+      const genAI = new GoogleGenerativeAI(apiKey!);
+      const safetySettings: SafetySetting[] = [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      ];
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash-lite",
+        safetySettings,
         generationConfig: {
           temperature: 0.1,
           maxOutputTokens: 256,
@@ -552,6 +584,18 @@ export async function judgeMessageWithAi(options: {
       });
 
       const res = await model.generateContent(prompt);
+      const candidate = res.response?.candidates?.[0];
+      if (candidate?.finishReason === "SAFETY") {
+        const safetyVerdict: AiJudgeVerdict = {
+          verdict: "toxic",
+          confidence: 0.99,
+          rule_id: null,
+          reason: "Bloqueado por filtros de seguridad de IA",
+          suggested_action: "delete",
+        };
+        setCachedAiVerdict(guildId, ruleVersion, fingerprint, safetyVerdict);
+        return { verdict: safetyVerdict, fromCache: false, fallbackRegex: false };
+      }
       rawResponse = res.response.text();
     }
 
@@ -566,8 +610,9 @@ export async function judgeMessageWithAi(options: {
     setCachedAiVerdict(guildId, ruleVersion, fingerprint, verdict);
 
     return { verdict, fromCache: false, fallbackRegex: false };
-  } catch {
+  } catch (err: any) {
     recordAiFailure();
+    console.warn(`[Automod/AIJudge] Fallo en llamada a Gemini (${err?.status || err?.name || "ERROR"}):`, err?.message || String(err));
     const local = evaluateWithLocalRegex(content);
     const fallbackVerdict: AiJudgeVerdict = local.toxic
       ? {

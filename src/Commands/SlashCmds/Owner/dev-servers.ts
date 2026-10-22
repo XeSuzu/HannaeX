@@ -23,10 +23,9 @@ const command: SlashCommand = {
 
     // Validación extra por si se te olvidó ponerlo en el .env
     if (!ownerId) {
-      return interaction.reply({
+      return interaction.editReply({
         content:
           "⚠️ **Error de Configuración:** Falta `BOT_OWNER_ID` en el archivo .env",
-        ephemeral: true,
       });
     }
 
@@ -34,9 +33,8 @@ const command: SlashCommand = {
       // 📊 Log de intento de acceso no autorizado
       await Logger.logSecurityBreach(interaction.user, "dev-servers");
       
-      return interaction.reply({
+      return interaction.editReply({
         content: "🚫 ¡Oye! Solo mi creador puede ver esto, ¡miau!",
-        ephemeral: true,
       });
     }
 

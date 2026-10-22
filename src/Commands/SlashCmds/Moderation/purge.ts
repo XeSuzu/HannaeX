@@ -11,6 +11,9 @@ import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Moderation",
+  options: {
+    ephemeral: true,
+  },
   data: new SlashCommandBuilder()
     .setName("purge")
     .setDescription("🧹 Elimina mensajes masivamente en el canal actual (hasta 100).")
@@ -29,8 +32,6 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
-
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const cantidad = interaction.options.getInteger("cantidad", true);
     const targetUser = interaction.options.getUser("usuario");

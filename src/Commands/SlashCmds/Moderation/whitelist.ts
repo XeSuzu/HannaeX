@@ -9,6 +9,7 @@ import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Moderation",
+  defer: false,
   cooldown: 5, // 5 segundos entre cambios de whitelist
   data: new SlashCommandBuilder()
     .setName("whitelist")

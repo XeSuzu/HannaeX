@@ -118,6 +118,27 @@ export async function handleCommands(
       console.error(`❌ [${cmdName}] Defer fallido:`, err);
       return;
     }
+
+    // Adaptador de resiliencia: si la interacción fue diferida centralmente,
+    // adaptamos llamadas directas a deferReply() o reply() para evitar que
+    // colisionen con Discord.js (InteractionAlreadyReplied).
+    if (interaction.deferred) {
+      const originalReply = interaction.reply.bind(interaction);
+      interaction.deferReply = (async () => interaction.fetchReply()) as any;
+      interaction.reply = (async (options: any) => {
+        if (interaction.deferred && !interaction.replied) {
+          const editPayload =
+            typeof options === "string" ? { content: options } : { ...options };
+          delete editPayload.flags;
+          delete editPayload.ephemeral;
+          return await interaction.editReply(editPayload);
+        }
+        if (interaction.replied) {
+          return await interaction.followUp(options);
+        }
+        return await originalReply(options);
+      }) as any;
+    }
   }
 
   timestamps.set(interaction.user.id, now);

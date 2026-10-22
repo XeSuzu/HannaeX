@@ -198,10 +198,9 @@ const command: SlashCommand = {
       // 📊 Log de intento de acceso no autorizado
       await Logger.logSecurityBreach(interaction.user, "servidores");
       
-      return interaction.reply({
+      return interaction.editReply({
         content:
           "❌ Nyaa... este es un comando solo para el propietario del bot. 😿",
-        ephemeral: true,
       });
     }
 

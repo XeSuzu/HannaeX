@@ -10,6 +10,7 @@ import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Information",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("report")
     .setDescription("🐛 Reporta un bug o error encontrado en Hoshiko."),

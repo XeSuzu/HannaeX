@@ -31,10 +31,9 @@ const command: SlashCommand = {
       // 🚨 ALERTA DE INTRUSO (Corregido: Sin 'client')
       Logger.logSecurityBreach(interaction.user, "give-premium");
 
-      return interaction.reply({
+      return interaction.editReply({
         content:
           "⛔ **ACCESO DENEGADO**\nIncidente reportado al administrador del sistema.",
-        ephemeral: true,
       });
     }
 

@@ -15,6 +15,7 @@ const MAX_RULE_LENGTH = 200;
 
 const command: SlashCommand = {
   category: "Moderation",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("reglas")
     .setDescription("📜 Consulta y administra las reglas oficiales de este servidor.")

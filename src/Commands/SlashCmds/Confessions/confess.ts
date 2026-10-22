@@ -10,6 +10,7 @@ import { SlashCommand } from "../../../Interfaces/Command";
 
 const command: SlashCommand = {
   category: "Confessions",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("confess")
     .setDescription("Envía una confesión anónima al servidor"),

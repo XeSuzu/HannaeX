@@ -9,6 +9,9 @@ import { summarizeUserHistoryWithAi } from "../../../Features/automod/aiHistoryS
 import { isAiFeatureAllowed } from "../../../Features/automod/aiFeatureGating";
 
 export default {
+  options: {
+    ephemeral: true,
+  },
   data: new SlashCommandBuilder()
     .setName("historial")
     .setDescription("Genera un resumen asistido por IA del historial disciplinario de un miembro.")
@@ -22,8 +25,6 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) return;
-
-    await interaction.deferReply({ ephemeral: true });
 
     const guildId = interaction.guild.id;
     const target = interaction.options.getUser("usuario", true);

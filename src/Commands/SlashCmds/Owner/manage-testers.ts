@@ -6,6 +6,7 @@ import { Logger } from "../../../Utils/SystemLogger";
 
 const command: SlashCommand = {
   category: "Owner", // 🔒 CRÍTICO: Categoría Owner
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("manage-testers")
     .setDescription("👑 [OWNER] Gestiona quién tiene acceso total al bot.")

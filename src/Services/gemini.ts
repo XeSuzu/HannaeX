@@ -8,6 +8,23 @@ import {
   Tool,
 } from "@google/generative-ai";
 
+export interface GoogleSearchTool {
+  googleSearch: Record<string, unknown>;
+}
+
+export type GeminiTool = Tool | GoogleSearchTool;
+
+export function sanitizeToolsForGemini25(tools?: GeminiTool[]): Tool[] | undefined {
+  if (!tools || tools.length === 0) return undefined;
+  return tools.map((t: any) => {
+    if (t && typeof t === "object" && "googleSearchRetrieval" in t) {
+      const { googleSearchRetrieval, ...rest } = t;
+      return { googleSearch: {}, ...rest };
+    }
+    return t;
+  }) as Tool[];
+}
+
 if (!process.env.GEMINI_API_KEY) {
   console.error("❌ Falta la variable de entorno GEMINI_API_KEY.");
 }
@@ -18,7 +35,7 @@ export async function generateResponseStream(
   systemInstruction: string,
   history: Content[],
   safetyLevel: "relaxed" | "standard" | "strict" = "standard",
-  tools?: Tool[],
+  tools?: GeminiTool[],
 ): Promise<GenerateContentStreamResult["stream"]> {
   const safetySettings: SafetySetting[] = [
     {
@@ -63,11 +80,12 @@ export async function generateResponseStream(
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
+    const sanitizedTools = sanitizeToolsForGemini25(tools);
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite",
       safetySettings,
       systemInstruction: systemInstruction,
-      ...(tools && tools.length > 0 && { tools }),
+      ...(sanitizedTools && sanitizedTools.length > 0 && { tools: sanitizedTools }),
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,

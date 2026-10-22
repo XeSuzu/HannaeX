@@ -18,6 +18,7 @@ const ACTION_EMOJIS: Record<string, string> = {
 
 const command: SlashCommand = {
   category: "Moderation",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("cases")
     .setDescription("📂 Consulta el historial de casos disciplinarios de un usuario.")

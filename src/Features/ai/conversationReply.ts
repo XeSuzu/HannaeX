@@ -1,7 +1,12 @@
-import type { Tool, Content } from "@google/generative-ai";
+import type { Content } from "@google/generative-ai";
 import type { Message } from "discord.js";
-import { generateResponseStream } from "../../Services/gemini";
+import { generateResponseStream, type GeminiTool } from "../../Services/gemini";
 import { markAsAiMessage } from "./adminMessageTracker";
+
+export interface ConversationReplyResult {
+  fullText: string;
+  groundingMetadata?: any;
+}
 
 export async function sendConversationReply(
   message: Message,
@@ -9,26 +14,61 @@ export async function sendConversationReply(
   historyForApi: Content[],
   isDirectInteraction: boolean,
   safety: "relaxed" | "standard" | "strict",
-): Promise<void> {
-  const tools: Tool[] = isDirectInteraction ? [{ googleSearchRetrieval: {} }] : [];
+): Promise<ConversationReplyResult> {
+  const tools: GeminiTool[] = isDirectInteraction ? [{ googleSearch: {} }] : [];
   let stream;
+  let fullText = "";
+  let lastGroundingMetadata: any = null;
+
+  async function consumeStream(s: AsyncIterable<any>): Promise<string> {
+    let text = "";
+    for await (const chunk of s) {
+      if (chunk.candidates?.[0]?.finishReason === "SAFETY") throw new Error("PROHIBITED_CONTENT");
+      if (typeof chunk.text === "function") {
+        text += chunk.text();
+      }
+      const meta = chunk.candidates?.[0]?.groundingMetadata;
+      if (meta) {
+        if (!lastGroundingMetadata) {
+          lastGroundingMetadata = { ...meta };
+        } else {
+          lastGroundingMetadata = {
+            ...lastGroundingMetadata,
+            ...meta,
+            webSearchQueries: [
+              ...new Set([
+                ...(lastGroundingMetadata.webSearchQueries || []),
+                ...(meta.webSearchQueries || []),
+              ]),
+            ],
+            groundingChunks: [
+              ...(lastGroundingMetadata.groundingChunks || []),
+              ...(meta.groundingChunks || []),
+            ],
+          };
+        }
+      }
+    }
+    return text;
+  }
+
   try {
     stream = await generateResponseStream(systemInstruction, historyForApi, safety, tools);
+    fullText = await consumeStream(stream);
   } catch (toolErr: any) {
+    if (toolErr?.message === "PROHIBITED_CONTENT") throw toolErr;
+
     if (tools.length > 0) {
       const errCode = toolErr?.status || toolErr?.code || "TOOL_SEARCH_ERROR";
       const errMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
-      console.warn(`[AI/SearchFallback] Herramienta googleSearchRetrieval falló (${errCode}: ${errMsg.slice(0, 100)}). Degradando a generación de texto puro.`);
+      console.warn(`[AI/SearchFallback] Herramienta googleSearch falló (${errCode}: ${errMsg.slice(0, 100)}). Degradando a generación de texto puro.`);
       stream = await generateResponseStream(systemInstruction, historyForApi, safety, []);
+      fullText = await consumeStream(stream);
     } else {
       throw toolErr;
     }
   }
-  let fullText = "";
-  for await (const chunk of stream) {
-    if (chunk.candidates?.[0]?.finishReason === "SAFETY") throw new Error("PROHIBITED_CONTENT");
-    fullText += chunk.text();
-  }
+
   const MAX = 1996;
   const cleanText = (fullText.trim() || "...").replace(/^>>>\s*/, "");
   if (cleanText.length <= MAX) {
@@ -51,4 +91,9 @@ export async function sendConversationReply(
       if (extraSent?.id) markAsAiMessage(extraSent.id);
     }
   }
+
+  return {
+    fullText: cleanText,
+    groundingMetadata: lastGroundingMetadata,
+  };
 }

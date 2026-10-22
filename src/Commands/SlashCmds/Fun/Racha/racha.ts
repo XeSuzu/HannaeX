@@ -84,6 +84,7 @@ const helpContent = {
 
 const command: SlashCommand = {
   category: "Fun",
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("racha")
     .setDescription("🔥 Sistema de rachas diarias.")
