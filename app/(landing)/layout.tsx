@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 
@@ -19,7 +20,8 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="site-shell"><a className="skip-link" href="#contenido">Saltar al contenido</a>
+    <MotionConfig reducedMotion="user">
+      <div className="site-shell"><a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="site-header">
         <Container className="nav-inner">
           <Link className="brand" href="#inicio" aria-label="Hoshiko, volver al inicio" onClick={() => setMenuOpen(false)}>
@@ -30,10 +32,12 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
             <span className="sr-only">{menuOpen ? "Cerrar menú" : "Abrir menú"}</span>
             <span className={`menu-icon ${menuOpen ? "is-open" : ""}`} aria-hidden="true"><i /><i /><i /></span>
           </button>
-          <nav id="main-navigation" className={menuOpen ? "is-open" : ""} aria-label="Navegación principal">
-            {links.map(([href, label]) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}
-            <InviteAction mobile />
-          </nav>
+          <AnimatePresence initial={false}>
+            <motion.nav id="main-navigation" className={menuOpen ? "is-open" : ""} aria-label="Navegación principal" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+              {links.map(([href, label]) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}
+              <InviteAction mobile />
+            </motion.nav>
+          </AnimatePresence>
           <InviteAction />
         </Container>
       </header>
@@ -45,6 +49,7 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
           {SHOW_LEGAL_LINKS && <nav aria-label="Información legal"><Link href={siteConfig.privacyPath}>Privacidad</Link><Link href={siteConfig.termsPath}>Términos</Link></nav>}
         </Container>
       </footer>
-    </div>
+      </div>
+    </MotionConfig>
   );
 }

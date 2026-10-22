@@ -2,14 +2,15 @@ import Image from "next/image";
 import { siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 import { ProductDemo } from "@/components/landing/ProductDemo";
+import { ShortcutGrid } from "@/components/landing/ShortcutGrid";
 
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
 const shortcuts = [
-  { href: "#sobre-hoshiko", title: "Conocer a Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
-  { href: "#galeria", title: "Ver su universo", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
-  { href: "#funciones", title: "Descubrir funciones", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
-  { href: "#comunidad", title: "Unirse a la comunidad", image: "/images/Shield1.jpg", alt: "Emblema ilustrado" },
+  { href: "#sobre-hoshiko", title: "Sobre Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
+  { href: "#galeria", title: "Galería de Arte", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
+  { href: "#funciones", title: "Viaje Cósmico", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
+  { href: "#comunidad", title: "Comunidad", image: "/images/foxes1.jpg", alt: "Dos kitsunes juntos" },
 ];
 
 const features = [
@@ -40,13 +41,8 @@ export default function LandingPage() {
       </section>
 
       <section className="shortcut-section" aria-label="Explora el mundo de Hoshiko">
-        <Container className="shortcut-grid">
-          {shortcuts.map((item) => (
-            <a className="shortcut-card" href={item.href} key={item.title}>
-              <span className="shortcut-image"><Image src={item.image} alt={item.alt} fill sizes="76px" /></span>
-              <span>{item.title}</span>
-            </a>
-          ))}
+        <Container className="shortcut-grid-wrap">
+          <ShortcutGrid items={shortcuts} />
         </Container>
       </section>
 
