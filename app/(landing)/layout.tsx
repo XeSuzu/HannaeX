@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
+import { ExternalNavigationMenu } from "@/components/landing/ExternalNavigationMenu";
 
 const links = [["#sobre-hoshiko", "Sobre Hoshiko"], ["#galeria", "Galería"], ["#funciones", "Funciones"], ["#moderacion", "Moderación"]] as const;
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
@@ -38,6 +39,7 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
               <InviteAction mobile />
             </motion.nav>
           </AnimatePresence>
+          <div className="desktop-external-nav" aria-label="Secciones principales"><ExternalNavigationMenu /></div>
           <InviteAction />
         </Container>
       </header>
