@@ -5,73 +5,84 @@ import { ProductDemo } from "@/components/landing/ProductDemo";
 
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
-const features = [
-  {
-    number: "01",
-    title: "Moderación asistida",
-    text: "Detecta situaciones que merecen una revisión y ayuda al staff a decidir con más contexto.",
-    icon: "/images/Shield1.jpg",
-  },
-  {
-    number: "02",
-    title: "Conversación con personalidad",
-    text: "Interacciones pensadas para que Hoshiko se sienta parte de la comunidad, no otro comando sin alma.",
-    icon: "/images/fox1.jpg",
-  },
-  {
-    number: "03",
-    title: "Niveles y progreso",
-    text: "Reconoce la actividad de los miembros con un sistema de experiencia y niveles.",
-    icon: "/images/Planet1.jpg",
-  },
+const shortcuts = [
+  { href: "#sobre-hoshiko", title: "Sobre Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
+  { href: "#galeria", title: "Galería de arte", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
+  { href: "#funciones", title: "Viaje cósmico", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
+  { href: "#comunidad", title: "Comunidad", image: "/images/Shield1.jpg", alt: "Emblema ilustrado" },
 ];
 
-function Arrow() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-6 6 6-6 6" /></svg>;
-}
+const features = [
+  { title: "Una compañera con personalidad", text: "Interacciones y respuestas con una identidad propia, pensadas para convivir con la comunidad.", image: "/images/fox1.jpg" },
+  { title: "Moderación que ayuda", text: "Herramientas asistidas por IA para señalar situaciones que merecen atención y dar más contexto al staff.", image: "/images/Shield1.jpg" },
+  { title: "Actividad y progreso", text: "Funciones para acompañar la actividad de la comunidad con niveles y pequeñas recompensas.", image: "/images/Planet1.jpg" },
+];
 
-function InviteLink({ secondary = false }: { secondary?: boolean }) {
-  if (!inviteConfigured) {
-    return <span className={secondary ? "invite-unavailable" : "button button-disabled"} aria-disabled="true">Invitación próximamente</span>;
-  }
-
-  return <a className={secondary ? "text-link" : "button"} href={siteConfig.inviteUrl}>Invitar a Hoshiko <span aria-hidden="true">↗</span></a>;
+function InviteLink({ className = "sakura-button", children = "Invitar a Hoshiko" }: { className?: string; children?: React.ReactNode }) {
+  if (!inviteConfigured) return <span className={`${className} is-disabled`} aria-disabled="true">Invitación próximamente</span>;
+  return <a className={className} href={siteConfig.inviteUrl}>{children}<span aria-hidden="true"> ✦</span></a>;
 }
 
 export default function LandingPage() {
   return (
-    <main>
-      <section id="inicio" className="hero">
-        <div className="hero-media">
-          <Image src="/images/hoshiko-banner.jpg" alt="Ilustración de Hoshiko entre flores de cerezo" fill priority sizes="100vw" />
-        </div>
-        <div className="hero-shade" aria-hidden="true" />
-        <Container className="hero-content">
+    <main className="hoshiko-home">
+      <section id="inicio" className="sakura-hero">
+        <div className="hero-art"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div>
+        <div className="hero-wash" aria-hidden="true" />
+        <Container className="hero-inner">
           <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-mark">✳</span> HOSHIKO · BOT PARA DISCORD</p>
-            <h1>Tu comunidad,<br /><em>con más cuidado.</em></h1>
-            <p className="hero-description">Moderación asistida por IA, herramientas para tu staff e interacciones con personalidad. Todo en un mismo lugar.</p>
-            <div className="hero-actions">
-              <InviteLink />
-              <a className="button button-secondary" href="#funciones">Conocer Hoshiko <span aria-hidden="true">↓</span></a>
-            </div>
-            <p className="hero-note"><span aria-hidden="true">✦</span> En desarrollo activo · Algunas funciones siguen en beta</p>
+            <p className="hero-kicker"><span>✧</span> TU COMPAÑERA CÓSMICA DE CEREZO</p>
+            <h1>HOSHIKO<span className="title-sparkle">✦</span></h1>
+            <h2>Tu compañera<br />cósmica de cerezo</h2>
+            <p>Descubre su mundo lleno de flores y estrellas. Una kitsune dulce con un toque de magia cósmica.</p>
+            <a className="sakura-button" href="#sobre-hoshiko">Explorar su mundo <span aria-hidden="true">✦</span></a>
           </div>
         </Container>
-        <span className="hero-side-note" aria-hidden="true">A LITTLE MORE HUMAN</span>
+        <div className="hero-petals" aria-hidden="true">✧　✦　✧</div>
       </section>
 
-      <section id="sobre-hoshiko" className="section section-paper">
+      <section className="shortcut-section" aria-label="Explora el mundo de Hoshiko">
+        <Container className="shortcut-grid">
+          {shortcuts.map((item) => (
+            <a className="shortcut-card" href={item.href} key={item.title}>
+              <span className="shortcut-image"><Image src={item.image} alt={item.alt} fill sizes="76px" /></span>
+              <span>{item.title}</span>
+            </a>
+          ))}
+        </Container>
+      </section>
+
+      <section id="sobre-hoshiko" className="world-section world-cream">
         <Container>
-          <div className="section-heading">
-            <p className="section-label"><span>01</span> / QUÉ ES HOSHIKO</p>
-            <h2>Herramientas útiles.<br /><em>Un poco de carácter.</em></h2>
-            <p>Hoshiko reúne las herramientas que ayudan a cuidar un servidor y las pequeñas interacciones que hacen que la gente quiera quedarse.</p>
+          <div className="center-heading">
+            <p className="section-kicker">✿ UN GUSTO EN CONOCERTE ✿</p>
+            <h2>Un poquito sobre <em>Hoshiko</em></h2>
+            <p>Más que un conjunto de comandos, Hoshiko quiere ser parte de esos pequeños momentos que hacen especial a una comunidad.</p>
           </div>
-          <div className="feature-grid">
-            {features.map((feature) => (
-              <article className="feature-card" key={feature.number}>
-                <div className="feature-topline"><span>{feature.number}</span><div className="feature-icon"><Image src={feature.icon} alt="" fill sizes="64px" /></div></div>
+          <div className="intro-grid">
+            <div className="intro-art"><Image src="/images/fox1.jpg" alt="Ilustración kitsune de Hoshiko" fill sizes="(min-width: 768px) 38vw, 90vw" /></div>
+            <div className="intro-copy">
+              <span className="decorative-star" aria-hidden="true">✧</span>
+              <h3>Flores, estrellas<br />y buena compañía.</h3>
+              <p>Hoshiko combina herramientas para cuidar tu servidor con una personalidad cálida y un pequeño universo visual propio. Está en desarrollo activo, así que algunas funciones siguen en beta y continúan mejorando.</p>
+              <a className="soft-link" href="#funciones">Conoce lo que puede hacer <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <section id="funciones" className="world-section world-pink">
+        <Container>
+          <div className="center-heading">
+            <p className="section-kicker">✧ PEQUEÑAS COSAS, GRANDES MOMENTOS ✧</p>
+            <h2>¿Qué encontrarás en <em>su mundo?</em></h2>
+            <p>Un conjunto de herramientas para acompañar a tu comunidad sin perder el encanto de Hoshiko.</p>
+          </div>
+          <div className="world-card-grid">
+            {features.map((feature, index) => (
+              <article className="world-card" key={feature.title}>
+                <div className="world-card-art"><Image src={feature.image} alt="" fill sizes="(min-width: 768px) 28vw, 80vw" /></div>
+                <span className="world-card-number">✦ 0{index + 1}</span>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
               </article>
@@ -80,68 +91,40 @@ export default function LandingPage() {
         </Container>
       </section>
 
-      <section id="funciones" className="section section-demo">
+      <section id="galeria" className="world-section world-cream">
         <Container>
-          <div className="demo-intro">
-            <div className="section-heading">
-              <p className="section-label"><span>02</span> / EN CONTEXTO</p>
-              <h2>Así se ve<br /><em>cuando ayuda.</em></h2>
-            </div>
-            <p>Una demostración ilustrativa de algunas ideas de interfaz. Las funciones disponibles pueden variar mientras Hoshiko continúa en beta.</p>
+          <div className="center-heading">
+            <p className="section-kicker">✿ UN RINCÓN DE SU UNIVERSO ✿</p>
+            <h2>Pequeña galería <em>de arte</em></h2>
+            <p>Un espacio para la estética, las ilustraciones y los detalles que dan personalidad al mundo de Hoshiko.</p>
           </div>
-          <ProductDemo />
-          <p className="demo-caption"><span aria-hidden="true">✳</span> Vista conceptual, no una captura real de Discord.</p>
-        </Container>
-      </section>
-
-      <section id="cuidar" className="section section-blue">
-        <Container>
-          <div className="care-grid">
-            <div className="care-copy">
-              <p className="section-label"><span>03</span> / MODERACIÓN</p>
-              <h2>Más contexto.<br /><em>Mejores decisiones.</em></h2>
-              <p>La moderación asistida ayuda a identificar mensajes que merecen atención. El equipo puede revisar el contexto y actuar según las herramientas disponibles.</p>
-              <span className="care-principle"><span aria-hidden="true">✦</span> La IA apoya al equipo; no reemplaza su criterio.</span>
-            </div>
-            <ol className="moderation-flow" aria-label="Flujo ilustrativo de moderación">
-              <li className="flow-step"><span className="flow-index">01</span><span><strong>Señalar</strong><small>Una situación requiere atención.</small></span><span className="flow-tag">Hoshiko</span></li>
-              <li className="flow-connector" aria-hidden="true"><span /></li>
-              <li className="flow-step"><span className="flow-index">02</span><span><strong>Revisar</strong><small>El staff valora el contexto.</small></span><span className="flow-tag">Staff</span></li>
-              <li className="flow-connector" aria-hidden="true"><span /></li>
-              <li className="flow-step"><span className="flow-index">03</span><span><strong>Actuar</strong><small>Según las herramientas configuradas.</small></span><span className="flow-tag flow-tag-gold">Decisión</span></li>
-            </ol>
+          <div className="gallery-grid">
+            <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01</figcaption></figure>
+            <figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02</figcaption></figure>
           </div>
         </Container>
       </section>
 
-      <section id="retrato" className="section section-portrait">
+      <section id="moderacion" className="world-section world-blue">
         <Container>
-          <div className="portrait-grid">
-            <div className="portrait-copy">
-              <p className="section-label"><span>04</span> / SU UNIVERSO</p>
-              <h2>Un bot con<br /><em>su propia voz.</em></h2>
-              <p>Hoshiko también está hecha para los momentos cotidianos: conversar, compartir pequeñas interacciones y darle un toque propio al servidor.</p>
-              <a className="text-link" href="#invitar">Conocer Hoshiko <Arrow /></a>
-            </div>
-            <figure className="portrait-figure">
-              <div className="portrait-media"><Image src="/images/fox1.jpg" alt="Ilustración del universo visual de Hoshiko" fill sizes="(min-width: 1024px) 42vw, 100vw" /></div>
-              <figcaption><span>HOSHIKO'S REALM</span><span>01 — SAKURA NOTES</span></figcaption>
-            </figure>
+          <div className="center-heading">
+            <p className="section-kicker">✧ CUIDAR TAMBIÉN ES ACOMPAÑAR ✧</p>
+            <h2>Una comunidad más segura, <em>a su manera.</em></h2>
+            <p>La moderación asistida por IA puede ayudar a detectar situaciones que merecen una revisión. El contexto y las herramientas configuradas importan.</p>
+          </div>
+          <div className="moderation-showcase">
+            <div className="moderation-copy"><span className="round-flower">✿</span><h3>La tecnología ayuda.<br />La comunidad importa.</h3><p>Hoshiko está diseñada para sumar herramientas al trabajo del staff, no para reemplazar el criterio humano. Las capacidades de moderación siguen evolucionando durante la beta.</p></div>
+            <ProductDemo />
           </div>
         </Container>
       </section>
 
-      <section id="invitar" className="section section-invite">
+      <section id="comunidad" className="community-section">
         <Container>
-          <div className="invite-panel">
-            <div className="invite-copy">
-              <p className="section-label"><span>05</span> / EL SIGUIENTE PASO</p>
-              <h2>Tu servidor también<br /><em>puede tenerla.</em></h2>
-              <p>Conoce Hoshiko y descubre si encaja con la comunidad que estás construyendo.</p>
-              <InviteLink />
-            </div>
-            <div className="invite-art"><Image src="/images/foxes1.jpg" alt="" fill sizes="(min-width: 768px) 280px, 180px" /></div>
-            <span className="invite-decoration" aria-hidden="true">✳</span>
+          <div className="community-panel">
+            <div className="community-copy"><p className="section-kicker">✿ TU AVENTURA COMIENZA AQUÍ ✿</p><h2>Un lugarcito para <em>Hoshiko</em></h2><p>Conoce el proyecto, explora sus funciones y descubre si encaja con tu servidor de Discord.</p><InviteLink /></div>
+            <div className="community-art"><Image src="/images/foxes1.jpg" alt="Ilustración del mundo de Hoshiko" fill sizes="(min-width: 768px) 28vw, 70vw" /></div>
+            <span className="community-sparkle" aria-hidden="true">✧</span>
           </div>
         </Container>
       </section>
