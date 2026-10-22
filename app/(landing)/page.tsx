@@ -28,11 +28,11 @@ export default function LandingPage() {
   return (
     <main className="hoshiko-home">
       <section id="inicio" className="sakura-hero">
-        <div className="hero-art"><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div></div>
+        <div className="hero-art"><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div><span className="hero-orbit-label label-one">Sakura / 01</span><span className="hero-orbit-label label-two">✦ Hoshiko</span><span className="hero-orbit-line" aria-hidden="true" /></div>
         <div className="hero-wash" aria-hidden="true" /><CosmicSpotlight />
         <Container className="hero-inner">
           <div className="hero-copy">
-            <p className="hero-kicker"><span>✧</span> TU COMPAÑERA CÓSMICA DE CEREZO</p>
+            <p className="hero-kicker"><span>✧</span> DISCORD COMPANION / 001</p>
             <h1>HOSHIKO<span className="title-sparkle">✦</span></h1>
             <h2>Tu compañera<br />cósmica de cerezo</h2>
             <p>Descubre su mundo lleno de flores y estrellas. Una kitsune dulce con un toque de magia cósmica.</p>
@@ -101,7 +101,7 @@ export default function LandingPage() {
           </div>
           <div className="gallery-grid gallery-mosaic">
             <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01</figcaption></figure>
-            <figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02</figcaption></figure>
+            <div className="gallery-stack"><figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02</figcaption></figure><aside className="gallery-note"><span>HOSHIKO / FIELD NOTES</span><strong>Una pequeña<br /><em>constelación</em><br />para tu comunidad.</strong><p>Arte, presencia y detalles que hacen que un servidor se sienta propio.</p></aside></div>
           </div>
         </Container>
       </section>
