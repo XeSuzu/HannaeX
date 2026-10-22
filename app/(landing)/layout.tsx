@@ -2,13 +2,13 @@
 
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
-import { ExternalNavigationMenu } from "@/components/landing/ExternalNavigationMenu";
+import { ExternalNavigationMenu, landingNavigationLinks } from "@/components/landing/ExternalNavigationMenu";
 
-const links = [["#sobre-hoshiko", "Sobre Hoshiko"], ["#galeria", "Galería"], ["#funciones", "Funciones"], ["#moderacion", "Moderación"]] as const;
+const links = landingNavigationLinks;
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
 function InviteAction({ mobile = false }: { mobile?: boolean }) {
@@ -19,6 +19,18 @@ function InviteAction({ mobile = false }: { mobile?: boolean }) {
 
 export default function LandingLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      requestAnimationFrame(() => menuButtonRef.current?.focus());
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -29,15 +41,15 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
             <span className="brand-mark" aria-hidden="true">H</span>
             <span><strong translate="no">Hoshiko</strong><small>TU COMPAÑERA CÓSMICA</small></span>
           </Link>
-          <button className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen((open) => !open)}>
+          <button ref={menuButtonRef} className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen((open) => !open)}>
             <span className="sr-only">{menuOpen ? "Cerrar menú" : "Abrir menú"}</span>
             <span className={`menu-icon ${menuOpen ? "is-open" : ""}`} aria-hidden="true"><i /><i /><i /></span>
           </button>
           <AnimatePresence initial={false}>
-            <motion.nav id="main-navigation" className={menuOpen ? "is-open" : ""} aria-label="Navegación principal" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+            {menuOpen && <motion.nav id="main-navigation" className="is-open" aria-label="Navegación principal" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
               {links.map(([href, label]) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}
               <InviteAction mobile />
-            </motion.nav>
+            </motion.nav>}
           </AnimatePresence>
           <div className="desktop-external-nav" aria-label="Secciones principales"><ExternalNavigationMenu /></div>
           <InviteAction />

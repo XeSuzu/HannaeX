@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { NavigationMenu } from "@base-ui/react/navigation-menu";
 
-const links = [
+export const landingNavigationLinks = [
   ["#sobre-hoshiko", "Sobre Hoshiko"],
   ["#galeria", "Galería"],
   ["#funciones", "Funciones"],
   ["#moderacion", "Moderación"],
 ] as const;
 
-export function ExternalNavigationMenu() {
+export function ExternalNavigationMenu({ links = landingNavigationLinks }: { links?: readonly (readonly [string, string])[] }) {
   return (
     <NavigationMenu.Root className="external-navigation">
       <NavigationMenu.List className="external-navigation-list">
