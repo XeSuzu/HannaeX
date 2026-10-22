@@ -1,0 +1,14 @@
+import Link from "next/link";
+import { siteConfig } from "@/lib/config";
+
+export default function LandingLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <div className="site-shell">
+    <header className="site-header">
+      <Link className="brand" href="#inicio" aria-label="Hoshiko, volver al inicio"><span className="brand-mark" aria-hidden="true">H</span><span><strong>Hoshiko</strong><small>tu compañera cósmica</small></span></Link>
+      <nav aria-label="Navegación principal"><Link href="#sobre-hoshiko">Sobre Hoshiko</Link><Link href="#galeria">Galería</Link><Link href="#viaje">Viaje cósmico</Link><Link href="#comunidad">Comunidad</Link></nav>
+      <a className="button button-small" href={siteConfig.inviteUrl}>Invitar a Hoshiko <span aria-hidden="true">↗</span></a>
+    </header>
+    {children}
+    <footer className="site-footer"><span>© Hoshiko&apos;s Realm</span><span>Hecha de cerezo, estrellas y un poquito de magia.</span></footer>
+  </div>;
+}

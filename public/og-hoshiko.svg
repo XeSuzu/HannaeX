@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Hoshiko's Realm</title>
+  <desc id="desc">Marcador Open Graph de Hoshiko</desc>
+  <rect width="1200" height="630" fill="#fff9f4"/>
+  <circle cx="930" cy="100" r="230" fill="#f5d7d8"/>
+  <circle cx="1050" cy="500" r="230" fill="#e7a9ae" opacity=".35"/>
+  <path d="M890 184 925 80l52 103c-27-8-57-8-87 1ZM1091 183l52-103 35 104c-30-9-60-9-87-1Z" fill="#4c234b" opacity=".82"/>
+  <circle cx="990" cy="317" r="152" fill="#fffdfb" stroke="#4c234b" stroke-opacity=".16" stroke-width="3"/>
+  <circle cx="944" cy="315" r="18" fill="#2f426e"/><circle cx="1036" cy="315" r="18" fill="#2f426e"/>
+  <circle cx="948" cy="308" r="6" fill="#fff9f4"/><circle cx="1040" cy="308" r="6" fill="#fff9f4"/>
+  <path d="M970 360c12 10 28 10 40 0" stroke="#7a496f" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <circle cx="832" cy="425" r="24" fill="#e7a9ae"/><circle cx="867" cy="449" r="24" fill="#e7a9ae"/><circle cx="1110" cy="425" r="24" fill="#e7a9ae"/>
+  <text x="92" y="235" fill="#4c234b" font-family="Arial, sans-serif" font-size="112" font-weight="800">Hoshiko.</text>
+  <text x="98" y="315" fill="#18294c" font-family="Arial, sans-serif" font-size="36" font-weight="700">Tu compañera cósmica de cerezo</text>
+  <text x="100" y="390" fill="#725e70" font-family="Arial, sans-serif" font-size="24">Moderación asistida por IA para Discord.</text>
+  <circle cx="105" cy="475" r="8" fill="#d9a969"/><text x="130" y="484" fill="#725e70" font-family="Arial, sans-serif" font-size="20">La IA marca, tú decides con un botón.</text>
+</svg>
