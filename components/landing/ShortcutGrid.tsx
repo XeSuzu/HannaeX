@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MotionConfig, motion } from "motion/react";
+import { MotionConfig, motion, useReducedMotion } from "motion/react";
 
 type Shortcut = {
   href: string;
@@ -11,15 +11,16 @@ type Shortcut = {
 };
 
 export function ShortcutGrid({ items }: { items: Shortcut[] }) {
+  const reducedMotion = useReducedMotion();
   return (
     <MotionConfig reducedMotion="user">
       <div className="shortcut-grid">
         {items.map((item, index) => (
           <motion.a
-            className="shortcut-card"
+            className="shortcut-card fade-in"
             href={item.href}
             key={item.title}
-            initial={{ opacity: 0, y: 18 }}
+            initial={reducedMotion ? false : { opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.35 }}
             transition={{ duration: 0.42, delay: index * 0.07, ease: "easeOut" }}

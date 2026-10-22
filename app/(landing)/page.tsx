@@ -3,6 +3,8 @@ import { siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 import { ProductDemo } from "@/components/landing/ProductDemo";
 import { ShortcutGrid } from "@/components/landing/ShortcutGrid";
+import { FadeIn } from "@/components/landing/FadeIn";
+import { SakuraPetals } from "@/components/landing/SakuraPetals";
 
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
@@ -30,6 +32,7 @@ export default function LandingPage() {
       <section id="inicio" className="sakura-hero hero-scene">
         <div className="hero-art"><div className="hero-atmosphere" aria-hidden="true"><span className="atmosphere-orb orb-pink" /><span className="atmosphere-orb orb-lavender" /><span className="atmosphere-glow" /></div><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="(max-width: 767px) 100vw, 58vw" /></div></div>
         <div className="hero-wash" aria-hidden="true" />
+        <SakuraPetals />
         <Container className="hero-inner">
           <div className="hero-copy">
             <h1 translate="no">HOSHIKO</h1>
@@ -48,12 +51,12 @@ export default function LandingPage() {
 
       <section id="sobre-hoshiko" className="world-section world-cream">
         <Container>
-          <div className="center-heading">
+          <FadeIn className="center-heading">
             <p className="section-kicker">✿ UN GUSTO EN CONOCERTE ✿</p>
             <h2>Un poquito sobre <em>Hoshiko</em></h2>
             <p>Más que un conjunto de comandos, Hoshiko quiere ser parte de esos pequeños momentos que hacen especial a una comunidad.</p>
-          </div>
-          <div className="intro-grid">
+          </FadeIn>
+          <FadeIn className="intro-grid">
             <div className="intro-art"><Image src="/images/fox1.jpg" alt="Ilustración kitsune de Hoshiko" fill sizes="(min-width: 768px) 38vw, 90vw" /></div>
             <div className="intro-copy">
               <span className="decorative-star" aria-hidden="true">✧</span>
@@ -61,17 +64,17 @@ export default function LandingPage() {
               <p>Hoshiko combina herramientas para cuidar tu servidor con una personalidad cálida y un pequeño universo visual propio. Está en desarrollo activo, así que algunas funciones siguen en beta y continúan mejorando.</p>
               <a className="soft-link" href="#funciones">Conoce lo que puede hacer <span aria-hidden="true">↗</span></a>
             </div>
-          </div>
+          </FadeIn>
         </Container>
       </section>
 
       <section id="funciones" className="world-section world-pink">
         <Container>
-          <div className="center-heading">
+          <FadeIn className="center-heading">
             <p className="section-kicker">✧ PEQUEÑAS COSAS, GRANDES MOMENTOS ✧</p>
             <h2>¿Qué encontrarás en <em>su mundo?</em></h2>
             <p>Un conjunto de herramientas para acompañar a tu comunidad sin perder el encanto de Hoshiko.</p>
-          </div>
+          </FadeIn>
           <div className="world-card-grid">
             {features.map((feature, index) => (
               <article className="world-card glow-card" key={feature.title}>
@@ -92,19 +95,19 @@ export default function LandingPage() {
             <h2>Pequeña galería <em>de arte</em></h2>
             <p>Un espacio para la estética, las ilustraciones y los detalles que dan personalidad al mundo de Hoshiko.</p>
           </div>
-          <div className="gallery-grid gallery-mosaic">
+          <FadeIn className="gallery-grid gallery-mosaic">
             <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01 — Arte principal de Hoshiko</figcaption></figure>
             <div className="gallery-stack"><figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02 — Ilustración del universo de Hoshiko</figcaption></figure><aside className="gallery-note"><span>HOSHIKO / FIELD NOTES</span><strong>Una pequeña<br /><em>constelación</em><br />para tu comunidad.</strong><p>Arte, presencia y detalles que hacen que un servidor se sienta propio.</p></aside></div>
-          </div>
+          </FadeIn>
         </Container>
       </section>
 
       <section id="moderacion" className="world-section world-blue">
         <Container>
-          <div className="moderation-layout">
+          <FadeIn className="moderation-layout">
             <div className="moderation-copy"><p className="section-kicker">✧ CUIDAR TAMBIÉN ES ACOMPAÑAR ✧</p><h2>La tecnología ayuda.<br /><em>La comunidad importa.</em></h2><p>La moderación asistida por IA puede ayudar a detectar situaciones que merecen una revisión. Hoshiko suma contexto al trabajo del staff, sin reemplazar su criterio.</p><a className="soft-link" href="#funciones">Explorar sus funciones <span aria-hidden="true">↗</span></a></div>
             <div className="moderation-product"><span className="product-caption">HOSHIKO / MODERATION LAB</span><ProductDemo /></div>
-          </div>
+          </FadeIn>
         </Container>
       </section>
 
