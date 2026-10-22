@@ -2,7 +2,6 @@ import Image from "next/image";
 import { siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 import { ProductDemo } from "@/components/landing/ProductDemo";
-import { CosmicSpotlight } from "@/components/landing/CosmicSpotlight";
 
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
@@ -28,8 +27,8 @@ export default function LandingPage() {
   return (
     <main className="hoshiko-home">
       <section id="inicio" className="sakura-hero">
-        <div className="hero-art"><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div><span className="hero-orbit-label label-one">Sakura / 01</span><span className="hero-orbit-label label-two">✦ Hoshiko</span><span className="hero-orbit-line" aria-hidden="true" /></div>
-        <div className="hero-wash" aria-hidden="true" /><CosmicSpotlight />
+        <div className="hero-art"><div className="hero-atmosphere" aria-hidden="true"><span className="atmosphere-orb orb-pink" /><span className="atmosphere-orb orb-lavender" /><span className="atmosphere-glow" /></div><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="(max-width: 767px) 100vw, 58vw" /></div></div>
+        <div className="hero-wash" aria-hidden="true" />
         <Container className="hero-inner">
           <div className="hero-copy">
             <p className="hero-kicker"><span>✧</span> DISCORD COMPANION / 001</p>
@@ -39,7 +38,6 @@ export default function LandingPage() {
             <a className="sakura-button" href="#sobre-hoshiko">Explorar su mundo <span aria-hidden="true">✦</span></a>
           </div>
         </Container>
-        <div className="hero-petals" aria-hidden="true">✧　✦　✧</div>
       </section>
 
       <section className="shortcut-section" aria-label="Explora el mundo de Hoshiko">
@@ -108,14 +106,9 @@ export default function LandingPage() {
 
       <section id="moderacion" className="world-section world-blue">
         <Container>
-          <div className="center-heading">
-            <p className="section-kicker">✧ CUIDAR TAMBIÉN ES ACOMPAÑAR ✧</p>
-            <h2>Una comunidad más segura, <em>a su manera.</em></h2>
-            <p>La moderación asistida por IA puede ayudar a detectar situaciones que merecen una revisión. El contexto y las herramientas configuradas importan.</p>
-          </div>
-          <div className="moderation-showcase">
-            <div className="moderation-copy"><span className="round-flower">✿</span><h3>La tecnología ayuda.<br />La comunidad importa.</h3><p>Hoshiko está diseñada para sumar herramientas al trabajo del staff, no para reemplazar el criterio humano. Las capacidades de moderación siguen evolucionando durante la beta.</p></div>
-            <ProductDemo />
+          <div className="moderation-layout">
+            <div className="moderation-copy"><p className="section-kicker">✧ CUIDAR TAMBIÉN ES ACOMPAÑAR ✧</p><h2>La tecnología ayuda.<br /><em>La comunidad importa.</em></h2><p>La moderación asistida por IA puede ayudar a detectar situaciones que merecen una revisión. Hoshiko suma contexto al trabajo del staff, sin reemplazar su criterio.</p><a className="soft-link" href="#funciones">Explorar sus funciones <span aria-hidden="true">↗</span></a></div>
+            <div className="moderation-product"><span className="product-caption">HOSHIKO / MODERATION LAB</span><ProductDemo /></div>
           </div>
         </Container>
       </section>
