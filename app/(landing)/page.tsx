@@ -2,6 +2,7 @@ import Image from "next/image";
 import { siteConfig } from "@/lib/config";
 import { Container } from "@/components/layout/Container";
 import { ProductDemo } from "@/components/landing/ProductDemo";
+import { CosmicSpotlight } from "@/components/landing/CosmicSpotlight";
 
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
@@ -28,7 +29,7 @@ export default function LandingPage() {
     <main className="hoshiko-home">
       <section id="inicio" className="sakura-hero">
         <div className="hero-art"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div>
-        <div className="hero-wash" aria-hidden="true" />
+        <div className="hero-wash" aria-hidden="true" /><CosmicSpotlight />
         <Container className="hero-inner">
           <div className="hero-copy">
             <p className="hero-kicker"><span>✧</span> TU COMPAÑERA CÓSMICA DE CEREZO</p>
@@ -80,7 +81,7 @@ export default function LandingPage() {
           </div>
           <div className="world-card-grid">
             {features.map((feature, index) => (
-              <article className="world-card" key={feature.title}>
+              <article className="world-card glow-card" key={feature.title}>
                 <div className="world-card-art"><Image src={feature.image} alt="" fill sizes="(min-width: 768px) 28vw, 80vw" /></div>
                 <span className="world-card-number">✦ 0{index + 1}</span>
                 <h3>{feature.title}</h3>
@@ -98,7 +99,7 @@ export default function LandingPage() {
             <h2>Pequeña galería <em>de arte</em></h2>
             <p>Un espacio para la estética, las ilustraciones y los detalles que dan personalidad al mundo de Hoshiko.</p>
           </div>
-          <div className="gallery-grid">
+          <div className="gallery-grid gallery-mosaic">
             <figure className="gallery-large"><Image src="/images/hoshiko-banner.jpg" alt="Arte principal de Hoshiko" fill sizes="(min-width: 768px) 60vw, 100vw" /><figcaption>SAKURA DREAMS · 01</figcaption></figure>
             <figure><Image src="/images/foxes1.jpg" alt="Ilustración del universo de Hoshiko" fill sizes="(min-width: 768px) 30vw, 100vw" /><figcaption>STARLIGHT · 02</figcaption></figure>
           </div>
