@@ -13,5 +13,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body className={`${display.variable} ${body.variable}`}>{children}</body></html>;
+  return <html lang="es" suppressHydrationWarning><body suppressHydrationWarning className={`${display.variable} ${body.variable}`}>{children}</body></html>;
 }
