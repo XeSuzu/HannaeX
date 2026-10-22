@@ -7,9 +7,9 @@ const body = DM_Sans({ subsets: ["latin"], variable: "--font-body", display: "sw
 
 export const metadata: Metadata = {
   title: { default: "Hoshiko | Tu compañera cósmica", template: "%s | Hoshiko" },
-  description: "Hoshiko es una kitsune para comunidades de Discord: cercana, curiosa y siempre lista para echar una pata.",
+  description: "Hoshiko combina moderación asistida por IA, herramientas para tu staff e interacciones con personalidad para comunidades de Discord.",
   icons: { icon: "/icon.svg" },
-  openGraph: { title: "Hoshiko | Tu compañera cósmica", description: "Conoce a Hoshiko, tu kitsune de cerezo para Discord.", images: ["/og-hoshiko.svg"] },
+  openGraph: { title: "Hoshiko | Una experiencia más humana para Discord", description: "Moderación asistida por IA, herramientas para el staff e interacciones con personalidad.", images: ["/og-hoshiko.svg"] },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

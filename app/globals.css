@@ -1,4 +1,5 @@
 @import "./landing.css";
+@import "./landing-showcase.css";
 
 :root { --sakura: #e7a9ae; --sakura-soft: #f5d7d8; --soft-gold: #d9a969; --plum: #4c234b; --plum-soft: #7e5579; --deep-blue: #18294c; --white-pink: #fff9f4; --paper: #fcf4ef; --ink-muted: #725e70; --line: rgba(76,35,75,.15); --font-display: "Nunito", sans-serif; --font-body: "DM Sans", sans-serif; --shadow-soft: 0 18px 45px rgba(76,35,75,.12); }
 * { box-sizing: border-box; }
