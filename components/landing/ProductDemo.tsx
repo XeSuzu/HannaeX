@@ -12,14 +12,23 @@ export function ProductDemo() {
     <div className="product-demo" aria-label="Demostración ilustrativa de Hoshiko">
       <div className="demo-window-bar"><span /><span /><span /><small># comunidad-hoshiko</small></div>
       <div className="demo-window-body">
-        <div className="demo-sidebar"><b>H</b><span /><span /><span /><span /></div>
+        <div className="demo-sidebar" aria-hidden="true"><b>H</b><span /><span /><span /><span /></div>
         <div className="demo-main">
           <div className="demo-tabs" role="tablist" aria-label="Funciones de Hoshiko">
-            {tabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+            {tabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} aria-controls="demo-panel" id={`demo-tab-${tab.toLowerCase()}`} onClick={() => setActiveTab(tab)}>{tab}</button>)}
           </div>
-          {activeTab === "Moderación" && <div className="demo-panel"><div className="demo-alert"><strong>Revisión sugerida</strong><span>Hoshiko detectó un mensaje que puede necesitar atención.</span><em>Revisar contexto</em></div><div className="demo-message"><b>luna.sakura</b><span>mensaje marcado para revisión</span><small>El staff mantiene la decisión final.</small></div><div className="demo-actions"><button type="button">Ver contexto</button><button type="button">Cerrar revisión</button></div></div>}
-          {activeTab === "Interacción" && <div className="demo-panel"><div className="demo-chat"><span className="demo-avatar">H</span><div><b>Hoshiko</b><p>Estoy aquí para acompañar la conversación de la comunidad.</p></div></div><div className="demo-command"><span>/activity</span><small>Consulta una tarjeta de actividad y presencia.</small></div></div>}
-          {activeTab === "Progreso" && <div className="demo-panel"><div className="demo-level"><div><span>Nivel de comunidad</span><strong>12</strong></div><div className="demo-progress"><i /></div><small>Progreso de participación · tarjeta ilustrativa</small></div></div>}
+          <div className="demo-panel" id="demo-panel" role="tabpanel" aria-labelledby={`demo-tab-${activeTab.toLowerCase()}`}>
+            {activeTab === "Moderación" && <>
+              <div className="demo-alert"><strong>Revisión sugerida</strong><span>Un mensaje puede necesitar atención del equipo.</span><em>Revisar contexto</em></div>
+              <div className="demo-message"><b>miembro_de_ejemplo</b><span>Mensaje señalado para revisión</span><small>El staff mantiene la decisión final.</small></div>
+              <div className="demo-actions"><span>Ver contexto</span><span>Resolver revisión</span></div>
+            </>}
+            {activeTab === "Interacción" && <>
+              <div className="demo-chat"><span className="demo-avatar">H</span><div><b>Hoshiko</b><p>Una compañera digital para las conversaciones de tu comunidad.</p></div></div>
+              <div className="demo-command"><span>Interacciones</span><small>Comandos y respuestas disponibles según la configuración del servidor.</small></div>
+            </>}
+            {activeTab === "Progreso" && <div className="demo-level"><div><span>Nivel de ejemplo</span><strong>12</strong></div><div className="demo-progress"><i /></div><small>Indicador visual ilustrativo, no datos reales de un servidor.</small></div>}
+          </div>
         </div>
       </div>
     </div>
