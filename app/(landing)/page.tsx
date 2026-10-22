@@ -5,6 +5,10 @@ import { ProductDemo } from "@/components/landing/ProductDemo";
 import { LevelDemo } from "@/components/landing/LevelDemo";
 import { CustomizationDemo } from "@/components/landing/CustomizationDemo";
 import { ModerationDemo } from "@/components/landing/ModerationDemo";
+import { Aurora } from "@/components/landing/Aurora";
+import { BorderBeam } from "@/components/landing/BorderBeam";
+import { StartSteps } from "@/components/landing/StartSteps";
+import { FAQ } from "@/components/landing/FAQ";
 import { ShortcutGrid } from "@/components/landing/ShortcutGrid";
 import { FadeIn } from "@/components/landing/FadeIn";
 import { SakuraPetals } from "@/components/landing/SakuraPetals";
@@ -33,14 +37,18 @@ export default function LandingPage() {
 
     <section id="conversar" className="product-section product-cream product-conversation"><Container><FadeIn className="product-intro"><div><p className="section-kicker">✿ HOSHIKO EN TU SERVIDOR ✿</p><h2>Pequeños momentos.<br /><em>Una comunidad más cercana.</em></h2><p>Hoshiko acompaña la convivencia con saludos, interacciones y respuestas que conservan su propia personalidad.</p></div><span className="product-note">Demostración local<br />datos de ejemplo</span></FadeIn><ProductDemo /></Container></section>
 
-    <section id="progresar" className="product-section product-pink product-progress"><Container><div className="split-heading"><div><p className="section-kicker">✧ PROGRESO Y NIVELES ✧</p><h2>Cada conversación deja<br /><em>una pequeña huella.</em></h2></div><p>El bot soporta XP por mensajes y voz, niveles, rangos y clasificaciones configurables por servidor.</p></div><LevelDemo /></Container></section>
+    <section id="progresar" className="product-section product-pink product-progress"><Container><div className="split-heading"><div><p className="section-kicker">✧ PROGRESO Y NIVELES ✧</p><h2>Cada conversación deja<br /><em>una pequeña huella.</em></h2></div><p>El bot soporta XP por mensajes y voz, niveles, rangos y clasificaciones configurables por servidor.</p></div><div className="rank-beam-wrap"><LevelDemo /><BorderBeam /></div></Container></section>
 
     <section id="cuidar" className="product-section product-night product-moderation"><Container><div className="moderation-layout product-moderation-copy"><div><p className="section-kicker">✧ CUIDAR LA COMUNIDAD ✧</p><h2>Más contexto<br /><em>para cuidar mejor.</em></h2><p>La moderación asistida puede señalar situaciones y guardar contexto. El staff conserva la decisión final; esta vista no ejecuta acciones reales.</p><a className="soft-link light-link" href="#catalogo">Ver herramientas disponibles <span aria-hidden="true">↗</span></a></div><ModerationDemo /></div></Container></section>
 
     <section id="personalizar" className="product-section product-cream product-custom"><Container><div className="split-heading"><div><p className="section-kicker">✿ PERSONALIZACIÓN ✿</p><h2>Su mundo, con el estilo<br /><em>de tu comunidad.</em></h2></div><p>Configura mensajes, roles y sistemas del servidor sin perder la identidad cálida de Hoshiko.</p></div><CustomizationDemo /></Container></section>
 
+    <section className="journey-section"><Aurora /><Container><div className="journey-heading"><div><p className="section-kicker">✧ ASÍ EMPIEZAS CON HOSHIKO ✧</p><h2>Una entrada sencilla<br /><em>al jardín nocturno.</em></h2></div><p>El recorrido previsto para cuando la invitación esté disponible, basado en las funciones reales del bot.</p></div><StartSteps /></Container></section>
+
     <section id="catalogo" className="catalog-section"><Container><FadeIn className="center-heading"><p className="section-kicker">✧ UN MAPA PEQUEÑO DE SUS FUNCIONES ✧</p><h2>Todo lo que puede <em>acompañar.</em></h2><p>Capacidades verificadas en el repositorio; los detalles dependen de la configuración de cada servidor.</p></FadeIn><div className="catalog-grid">{catalog.map(([title, text], index) => <article key={title} className="catalog-item"><span>0{index + 1}</span><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></Container></section>
 
-    <section id="comunidad" className="community-section"><Container><div className="community-panel"><div className="community-copy"><p className="section-kicker">✿ TU AVENTURA COMIENZA AQUÍ ✿</p><h2>Un lugarcito para <em>Hoshiko.</em></h2><p>Explora el proyecto y descubre si encaja con el ritmo de tu servidor.</p><InviteLink /></div><div className="community-art"><Image src="/images/foxes1.jpg" alt="Ilustración del mundo de Hoshiko" fill sizes="(min-width: 768px) 28vw, 70vw" /></div></div></Container></section>
+    <section className="faq-section"><Container><div className="faq-heading"><p className="section-kicker">✿ PREGUNTAS FRECUENTES ✿</p><h2>Lo esencial, <em>sin ruido.</em></h2><p>Respuestas concretas sobre capacidades verificadas, configuración y disponibilidad.</p></div><FAQ /></Container></section>
+
+      <section id="comunidad" className="community-section"><Container><div className="community-panel"><div className="community-copy"><p className="section-kicker">✿ TU AVENTURA COMIENZA AQUÍ ✿</p><h2>Un lugarcito para <em>Hoshiko.</em></h2><p>Explora el proyecto y descubre si encaja con el ritmo de tu servidor.</p><InviteLink /></div><div className="community-art"><Image src="/images/foxes1.jpg" alt="Ilustración del mundo de Hoshiko" fill sizes="(min-width: 768px) 28vw, 70vw" /></div></div></Container></section>
   </main>;
 }
