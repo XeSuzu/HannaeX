@@ -1,7 +1,8 @@
 /* Approved visual corrections */
-.hero { width: 100%; min-height: min(760px, 82vh); margin: 0; padding: 0 max(16px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; position: relative; isolation: isolate; overflow: hidden; }
+.site-header { position: absolute !important; top: 16px !important; left: 50% !important; transform: translateX(-50%) !important; margin: 0 !important; }
+.hero { width: 100% !important; min-height: 85svh !important; margin: 0 !important; padding: 116px max(16px, calc((100vw - 1180px) / 2)) 110px !important; display: flex; align-items: center; position: relative; isolation: isolate; overflow: hidden; }
 .hero-banner { position: absolute !important; inset: 0; z-index: -2; object-fit: cover; object-position: 70% 40%; }
-.hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(252,244,239,.98) 0%, rgba(252,244,239,.88) 25%, rgba(252,244,239,.4) 45%, transparent 55%); }
+.hero-overlay { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(252,244,239,.98) 0%, rgba(252,244,239,.88) 25%, rgba(252,244,239,.4) 45%, transparent 55%), linear-gradient(to bottom, transparent calc(100% - 140px), var(--paper) 100%); }
 .hero-copy { position: relative; z-index: 1; max-width: 430px; }
 .hero-copy h1 { color: var(--plum); text-shadow: none; }
 .hero-visual { display: none; }
@@ -10,8 +11,9 @@
 .feature-icon { width: 86px; height: 86px; display: grid; place-items: center; margin: -48px auto 18px; overflow: hidden; border-radius: 22px; background: var(--white-pink); box-shadow: var(--shadow-soft); }
 .feature-icon img { width: 72px; height: 72px; object-fit: cover; mix-blend-mode: multiply; }
 @media (max-width: 799px) {
-  .hero { min-height: 0; padding: 0 16px 54px; display: flex; flex-direction: column; align-items: stretch; background: var(--paper); }
-  .hero-banner { position: relative !important; inset: auto; width: calc(100% + 32px) !important; height: 250px !important; margin-left: -16px; object-fit: cover; object-position: 70% 40%; order: 0; }
+  .site-header { top: 12px !important; width: calc(100% - 24px); }
+  .hero { min-height: 0 !important; padding: 0 16px 54px !important; display: flex; flex-direction: column; align-items: stretch; background: var(--paper); }
+  .hero-banner { position: relative !important; inset: auto; width: calc(100% + 32px) !important; height: 290px !important; margin-left: -16px; object-fit: cover; object-position: 70% 35%; order: 0; }
   .hero-overlay { display: none; }
   .hero-copy { order: 1; max-width: none; padding-top: 38px; }
   .feature-icon { margin-top: -32px; }
