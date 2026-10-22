@@ -28,7 +28,7 @@ export default function LandingPage() {
   return (
     <main className="hoshiko-home">
       <section id="inicio" className="sakura-hero">
-        <div className="hero-art"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div>
+        <div className="hero-art"><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="100vw" /></div></div>
         <div className="hero-wash" aria-hidden="true" /><CosmicSpotlight />
         <Container className="hero-inner">
           <div className="hero-copy">
