@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import Link from "next/link";
 import { useState } from "react";
 import { SHOW_LEGAL_LINKS, siteConfig } from "@/lib/config";
@@ -27,7 +29,7 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
           </Link>
           <button className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen((open) => !open)}>
             <span className="sr-only">{menuOpen ? "Cerrar menú" : "Abrir menú"}</span>
-            <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
+            <span className={`menu-icon ${menuOpen ? "is-open" : ""}`} aria-hidden="true"><i /><i /><i /></span>
           </button>
           <nav id="main-navigation" className={menuOpen ? "is-open" : ""} aria-label="Navegación principal">
             {links.map(([href, label]) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}
