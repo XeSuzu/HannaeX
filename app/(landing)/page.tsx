@@ -6,10 +6,10 @@ import { ProductDemo } from "@/components/landing/ProductDemo";
 const inviteConfigured = siteConfig.inviteUrl !== "#invitar";
 
 const shortcuts = [
-  { href: "#sobre-hoshiko", title: "Sobre Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
-  { href: "#galeria", title: "Galería de arte", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
-  { href: "#funciones", title: "Funciones", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
-  { href: "#comunidad", title: "Comunidad", image: "/images/Shield1.jpg", alt: "Emblema ilustrado" },
+  { href: "#sobre-hoshiko", title: "Conocer a Hoshiko", image: "/images/fox1.jpg", alt: "Ilustración kitsune" },
+  { href: "#galeria", title: "Ver su universo", image: "/images/foxes1.jpg", alt: "Ilustración del universo de Hoshiko" },
+  { href: "#funciones", title: "Descubrir funciones", image: "/images/Planet1.jpg", alt: "Planeta ilustrado" },
+  { href: "#comunidad", title: "Unirse a la comunidad", image: "/images/Shield1.jpg", alt: "Emblema ilustrado" },
 ];
 
 const features = [
@@ -26,13 +26,12 @@ function InviteLink({ className = "sakura-button", children = "Invitar a Hoshiko
 export default function LandingPage() {
   return (
     <main id="contenido" className="hoshiko-home">
-      <section id="inicio" className="sakura-hero">
+      <section id="inicio" className="sakura-hero hero-scene">
         <div className="hero-art"><div className="hero-atmosphere" aria-hidden="true"><span className="atmosphere-orb orb-pink" /><span className="atmosphere-orb orb-lavender" /><span className="atmosphere-glow" /></div><div className="hero-art-frame"><Image src="/images/hoshiko-banner.jpg" alt="Hoshiko entre flores de cerezo" fill priority sizes="(max-width: 767px) 100vw, 58vw" /></div></div>
         <div className="hero-wash" aria-hidden="true" />
         <Container className="hero-inner">
           <div className="hero-copy">
-            <p className="hero-kicker" translate="no"><span>✧</span> DISCORD COMPANION / 001</p>
-            <h1>HOSHIKO</h1>
+            <h1 translate="no">HOSHIKO</h1>
             <h2>Tu compañera<br />cósmica de cerezo</h2>
             <p>Descubre su mundo lleno de flores y estrellas. Una kitsune dulce con un toque de magia cósmica.</p>
             <a className="sakura-button" href="#sobre-hoshiko">Explorar su mundo <span aria-hidden="true">✦</span></a>
