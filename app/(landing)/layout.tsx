@@ -60,7 +60,7 @@ export default function LandingLayout({ children }: Readonly<{ children: React.R
       <footer className="site-footer">
         <Container className="footer-inner">
           <span>© Hoshiko&apos;s Realm</span>
-          <span>Hecha de cerezo, estrellas y un poquito de magia.</span>
+          <span>Un bot de Discord en desarrollo activo, hecho de cerezo, contexto y comunidad.</span>
           {SHOW_LEGAL_LINKS && <nav aria-label="Información legal"><Link href={siteConfig.privacyPath}>Privacidad</Link><Link href={siteConfig.termsPath}>Términos</Link></nav>}
         </Container>
       </footer>
