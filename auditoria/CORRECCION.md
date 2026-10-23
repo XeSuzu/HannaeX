@@ -150,6 +150,24 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/moderation-guards.test.cjs`: 4 pruebas ejecutadas, 4 pasadas (exit 0).
   - `npm test`: 164 pruebas ejecutadas, 164 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(CMD-02): guardas de permisos internos y jerarquia de roles en comandos de moderacion`
+- **Commit:** `e46bd9a` (`fix(CMD-02): guardas de permisos internos y jerarquia de roles en comandos de moderacion`)
+
+---
+
+## Lote 6: Operaciones atómicas de array en tracking de usuarios y avatares (`DB-02`)
+
+- **Estado:** APLICADO
+- **Archivos modificados:**
+  - `src/Database/tracking/UserHistoryManager.ts`:
+    - Reemplazada la secuencia propensa a colisiones concurrentes (`findOne` $\rightarrow$ `unshift` en memoria $\rightarrow$ `save()`, que desencadenaba `VersionError` por control de versión `__v`) por una verificación ligera con `exists` y una mutación atómica `updateOne` con `$push: { records: { $each: [rec], $position: 0, $slice: 40 } }` y `upsert: true`.
+  - `src/Database/tracking/AvatarHistoryManager.ts`:
+    - Reemplazada la secuencia de lectura y guardado por actualización atómica `updateOne` con `$push: { avatars: { $each: [rec], $position: 0, $slice: 30 } }` y `upsert: true`.
+  - `tests/unit/history-atomic-ops.test.cjs`: Suite con 2 pruebas unitarias verificando la emisión de `$push`, `$position: 0`, `$slice` y la erradicación de llamadas a `save()`.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/history-atomic-ops.test.cjs`: 2 pruebas ejecutadas, 2 pasadas (exit 0).
+  - `npm test`: 166 pruebas ejecutadas, 166 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(DB-02): operaciones atomicas de array en historial de usuarios y avatares`
 
 ---
