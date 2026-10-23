@@ -26,13 +26,13 @@ export function ProductDemo() {
     event.preventDefault(); setActive(scenarios[next]); refs.current[next]?.focus();
   }
   return <div className="product-demo" aria-label="Demostración de Hoshiko en Discord">
-    <div className="demo-window-bar"><span /><span /><span /><small># bienvenida · Demostración · datos de ejemplo</small></div>
+    <div className="demo-window-bar"><span /><span /><span /><small># bienvenida · Vista de muestra</small></div>
     <div className="demo-window-body"><aside className="demo-sidebar" aria-hidden="true"><b>H</b><span /><span /><span /><span /></aside><div className="demo-main">
-      <div className="demo-channel"><strong># comunidad</strong><span>Demostración · datos de ejemplo</span></div>
+      <div className="demo-channel"><strong># comunidad</strong><span>Vista de muestra</span></div>
       <div className="demo-tabs" role="tablist" aria-label="Escenarios de conversación">{scenarios.map((scenario, index) => <button key={scenario} ref={(element) => { refs.current[index] = element; }} type="button" role="tab" aria-selected={active === scenario} aria-controls="conversation-panel" tabIndex={active === scenario ? 0 : -1} onClick={() => setActive(scenario)} onKeyDown={(event) => onKeyDown(event, index)}>{scenario}</button>)}</div>
       <ConversationPanel active={active} />
-      <div className="demo-disclaimer">No conecta con Discord. Esta ventana solo muestra una interacción de ejemplo.</div>
-      <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger className="demo-expand" type="button">Ampliar demo <span aria-hidden="true">↗</span></Dialog.Trigger><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Popup className="demo-dialog"><Dialog.Title className="dialog-title">Hoshiko en tu servidor</Dialog.Title><Dialog.Description className="dialog-description">Escenario seleccionado: {active}. Datos de ejemplo, sin conexión a Discord.</Dialog.Description><div className="demo-dialog-window"><div className="demo-window-bar"><span /><span /><span /><small># comunidad · {active}</small></div><ConversationPanel active={active} /></div><Dialog.Close className="dialog-close" type="button">Cerrar</Dialog.Close></Dialog.Popup></Dialog.Portal></Dialog.Root>
+      <div className="demo-disclaimer">Una vista de muestra para imaginar cómo acompaña Hoshiko a tu comunidad.</div>
+      <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger className="demo-expand" type="button">Ampliar demo <span aria-hidden="true">↗</span></Dialog.Trigger><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Popup className="demo-dialog"><Dialog.Title className="dialog-title">Hoshiko en tu servidor</Dialog.Title><Dialog.Description className="dialog-description">Escenario seleccionado: {active}. Una recreación ilustrativa del escenario seleccionado.</Dialog.Description><div className="demo-dialog-window"><div className="demo-window-bar"><span /><span /><span /><small># comunidad · {active}</small></div><ConversationPanel active={active} /></div><Dialog.Close className="dialog-close" type="button">Cerrar</Dialog.Close></Dialog.Popup></Dialog.Portal></Dialog.Root>
     </div></div>
   </div>;
 }
