@@ -64,6 +64,27 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/ops-health-logs.test.cjs`: 3 pruebas ejecutadas, 3 pasadas (exit 0).
   - `npm test`: 155 pruebas ejecutadas, 155 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(OPS-03-04): enlace local para health server y retencion de logs rotativos`
+- **Commit:** `9c6227f` (`fix(OPS-03-04): enlace local para health server y retencion de logs rotativos`)
+
+---
+
+## Lote 3: Aislamiento conversacional y purga de moderación vestigial (`AI-01`, `AI-02`)
+
+- **Estado:** APLICADO
+- **Archivos modificados:**
+  - `src/Database/ai/conversation.model.ts`:
+    - Incorporado campo `guildId: string` (con valor por defecto `"dm"`) en `IConversation` y en el schema Mongoose.
+    - Creado índice compuesto `{ userId: 1, guildId: 1 }` con restricción de unicidad (`unique: true`), eliminando la restricción global en `userId`.
+    - Actualizadas las funciones `getHistory`, `addToHistory`, `clearHistory` y `getHistoryStats` para parametrizar `guildId` (con fallback transparente a `"dm"`), previniendo fugas contextuales entre servidores.
+  - `src/Features/automod/aiModeration.ts`:
+    - Eliminadas 180 líneas de código muerto vestigial (antiguo micro-batching nunca invocado y función `applyVerdict` con sanciones automáticas en conflicto con la política de mediación humana).
+    - Preservada la constante `MAX_IMAGE_BYTES` para compuertas de imágenes y la función `evaluateWithLocalRegex`.
+  - `tests/unit/ai-conversation-scope.test.cjs`: Suite con 3 pruebas unitarias para índice compuesto único, aislamiento de consultas por servidor y verificación de eliminación de símbolos vestigiales.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/ai-conversation-scope.test.cjs`: 3 pruebas ejecutadas, 3 pasadas (exit 0).
+  - `npm test`: 158 pruebas ejecutadas, 158 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(AI-01-02): aislamiento de historial por servidor y purga de codigo muerto en aiModeration`
 
 ---
