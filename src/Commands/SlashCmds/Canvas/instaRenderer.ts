@@ -178,7 +178,7 @@ export async function generateInstaPost(
     captionY + 45,
   );
 
-  return canvas.toBuffer("image/png");
+  return canvas.encode("png");
 }
 
 // ── UTILIDADES GRÁFICAS ───────────────────────────────────────

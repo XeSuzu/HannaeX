@@ -284,5 +284,5 @@ export async function renderSpotifyCard(
   ctx.textBaseline = "bottom";
   ctx.fillText(data.username, W - PAD, USER_Y);
 
-  return canvas.toBuffer("image/png");
+  return canvas.encode("png");
 }

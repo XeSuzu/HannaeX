@@ -70,7 +70,7 @@ export async function generateVCRankBanner(
       L.statsY,
     );
 
-    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+    return new AttachmentBuilder(await canvas.encode("png"), {
       name: "vc-rank.png",
     });
   } catch (err) {

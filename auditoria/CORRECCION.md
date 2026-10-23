@@ -168,6 +168,30 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/history-atomic-ops.test.cjs`: 2 pruebas ejecutadas, 2 pasadas (exit 0).
   - `npm test`: 166 pruebas ejecutadas, 166 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(DB-02): operaciones atomicas de array en historial de usuarios y avatares`
+- **Commit:** `e706396` (`fix(DB-02): operaciones atomicas de array en historial de usuarios y avatares`)
+
+---
+
+## Lote 7: Migración de Canvas a encode asíncrono no bloqueante (`PERF-01`)
+
+- **Estado:** APLICADO
+- **Archivos modificados:**
+  - `src/Services/CardService.ts`: Migrado `canvas.toBuffer("image/png")` a `await canvas.encode("png")`.
+  - `src/Commands/SlashCmds/Canvas/post-twitter.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Commands/SlashCmds/Canvas/instaRenderer.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Commands/SlashCmds/Information/avatars.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Renderers/spotifyRenderer.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Renderers/robloxRenderer.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Utils/levelBanners/serverRank.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Utils/levelBanners/globalRank.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Utils/levelBanners/vcRank.ts`: Migrado a `await canvas.encode("png")`.
+  - `src/Utils/confessionCard.ts`: Migrado a `await canvas.encode("png")`.
+  - `tests/unit/canvas-async-encode.test.cjs`: Suite con 3 pruebas unitarias verificando la cabecera mágica PNG (`89 50 4E 47 0D 0A 1A 0A`), generación asíncrona y erradicación total de llamadas síncronas bloqueantes en `src/`.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/canvas-async-encode.test.cjs`: 3 pruebas ejecutadas, 3 pasadas (exit 0).
+  - `npm test`: 169 pruebas ejecutadas, 169 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(PERF-01): migracion de renderizadores canvas a encode asincrono`
 
 ---
