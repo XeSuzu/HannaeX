@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import { processMissedCycles } from "../Services/StreakService";
 import { TempModerationService } from "../Services/TempModerationService";
 import type { HoshikoClient } from "../client/HoshikoClient";
@@ -13,10 +13,16 @@ import type { HoshikoClient } from "../client/HoshikoClient";
  *     y aplica la lógica de freeze/reset según cuántos miembros fallaron.
  *     Es idempotente: puede correr múltiples veces sin efectos secundarios.
  */
+let streakCronTask: ScheduledTask | null = null;
+
 export function startCronJobs(client: HoshikoClient): void {
   TempModerationService.start(client);
 
-  cron.schedule("*/15 * * * *", async () => {
+  if (streakCronTask) {
+    streakCronTask.stop();
+  }
+
+  streakCronTask = cron.schedule("*/15 * * * *", async () => {
     const result = await processMissedCycles(client);
 
     if (result.errors.length > 0) {
@@ -26,4 +32,12 @@ export function startCronJobs(client: HoshikoClient): void {
       );
     }
   });
+}
+
+export function stopCronJobs(): void {
+  if (streakCronTask) {
+    streakCronTask.stop();
+    streakCronTask = null;
+  }
+  TempModerationService.stop();
 }

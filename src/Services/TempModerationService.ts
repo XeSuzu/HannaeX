@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import type { HoshikoClient } from "../client/HoshikoClient";
 import TempModeration, {
   ITempModeration,
@@ -36,6 +36,7 @@ function hasDiscordCode(error: unknown, code: number): boolean {
 
 export class TempModerationService {
   private static isProcessing = false;
+  private static cronTask: ScheduledTask | null = null;
 
   static async schedule(
     input: ScheduleTempModerationInput,
@@ -104,10 +105,20 @@ export class TempModerationService {
   }
 
   static start(client: HoshikoClient): void {
-    cron.schedule("* * * * *", () => {
+    if (this.cronTask) {
+      this.cronTask.stop();
+    }
+    this.cronTask = cron.schedule("* * * * *", () => {
       void this.processExpirations(client);
     });
     void this.processExpirations(client);
+  }
+
+  static stop(): void {
+    if (this.cronTask) {
+      this.cronTask.stop();
+      this.cronTask = null;
+    }
   }
 
   private static async processRecord(

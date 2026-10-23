@@ -5,14 +5,14 @@ import { RedisClientService } from "../infrastructure/redis/RedisClient";
 export const SHUTDOWN_GRACE_TIMEOUT_MS = 15000;
 
 export class ShutdownService {
-  private static shutdownPromise: Promise<void> | null = null;
+  private static shutdownPromise: Promise<boolean> | null = null;
   private static graceTimer: NodeJS.Timeout | null = null;
 
   static async shutdown(
     signalName: string,
     destroyDiscord: () => Promise<void> | void,
     closeHealthServer: () => Promise<void> | void = () => undefined,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (this.shutdownPromise) {
       return this.shutdownPromise;
     }
@@ -24,28 +24,34 @@ export class ShutdownService {
         message: `Signal ${signalName} received. Marking process as not ready and shutting down gracefully.`,
       });
 
+      let allClean = true;
+
       const shutdownSteps = async (): Promise<void> => {
         try {
           await destroyDiscord();
         } catch (error) {
+          allClean = false;
           console.error("[Shutdown] Discord destroy failed:", error);
         }
 
         try {
           await closeHealthServer();
         } catch (error) {
+          allClean = false;
           console.error("[Shutdown] Health server close failed:", error);
         }
 
         try {
           await RedisClientService.close();
         } catch (error) {
+          allClean = false;
           console.error("[Shutdown] Redis close failed:", error);
         }
 
         try {
           await disconnectMongo();
         } catch (error) {
+          allClean = false;
           console.error("[Shutdown] Mongo disconnect failed:", error);
         }
       };
@@ -61,6 +67,7 @@ export class ShutdownService {
           }),
         ]);
       } catch (error: unknown) {
+        allClean = false;
         console.error(
           "[Shutdown] Graceful shutdown timed out or failed:",
           error,
@@ -77,6 +84,8 @@ export class ShutdownService {
         context: "System/Shutdown",
         message: "Shutdown sequence complete.",
       });
+
+      return allClean;
     })();
 
     return this.shutdownPromise;

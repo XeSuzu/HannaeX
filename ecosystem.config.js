@@ -13,6 +13,7 @@ module.exports = {
       instances: 1,
       watch: false,
       autorestart: true,
+      kill_timeout: 10000,
       env: {
         NODE_ENV: "staging",
       },
@@ -25,6 +26,7 @@ module.exports = {
       instances: 1,
       watch: false,
       autorestart: true,
+      kill_timeout: 10000,
       out_file: "/root/.pm2/logs/hoshiko-bot-out.log",
       error_file: "/root/.pm2/logs/hoshiko-bot-error.log",
       // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
@@ -41,6 +43,7 @@ module.exports = {
       instances: 1,
       watch: false,
       autorestart: false,
+      kill_timeout: 10000,
       out_file: "/root/.pm2/logs/hoshiko-worker-out.log",
       error_file: "/root/.pm2/logs/hoshiko-worker-error.log",
       // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
