@@ -42,6 +42,28 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/lifecycle-shutdown.test.cjs`: 6 pruebas ejecutadas, 6 pasadas (exit 0).
   - `npm test`: 152 pruebas ejecutadas, 152 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(LIF-01): orden de apagado, manejo de senales y detencion de cron jobs`
+- **Commit:** `c8e4d1b` (`fix(LIF-01): orden de apagado, manejo de senales y detencion de cron jobs`)
+
+---
+
+## Lote 2: Servidor de salud seguro y retención de logs (`OPS-03`, `OPS-04`)
+
+- **Estado:** APLICADO
+- **Archivos modificados:**
+  - `src/App/config/envSchema.ts`: Añadido campo `HEALTH_HOST` con valor por defecto `"127.0.0.1"`.
+  - `src/http/healthServer.ts`:
+    - Enlace explícito de `app.listen(port, host, ...)` a `127.0.0.1` (o variable `HEALTH_HOST`) en lugar de `0.0.0.0`.
+    - Cierre seguro en `close()` que sincroniza y espera el evento `listening` si el servidor aún se encuentra inicializando, evitando puertos colgados.
+  - `src/scripts/cronJobs.ts`:
+    - Implementada función pura y asíncrona `cleanOldLogs({ logDir, maxAgeDays = 14 })` que audita y elimina ficheros `hoshiko-*.jsonl` con antigüedad mayor a 14 días.
+    - Manejo tolerante ante directorios inexistentes o archivos con bloqueo.
+    - Registro de tarea cron diaria a las 03:00 (`0 3 * * *`) y cancelación en `stopCronJobs()`.
+  - `tests/unit/ops-health-logs.test.cjs`: Suite con 3 pruebas unitarias para enlace de red 127.0.0.1 y retención de logs.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/ops-health-logs.test.cjs`: 3 pruebas ejecutadas, 3 pasadas (exit 0).
+  - `npm test`: 155 pruebas ejecutadas, 155 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(OPS-03-04): enlace local para health server y retencion de logs rotativos`
 
 ---

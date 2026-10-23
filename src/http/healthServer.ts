@@ -10,6 +10,7 @@ export function createHealthServer(
 ) {
   const app = express();
   const port = AppConfig.get().PORT;
+  const host = AppConfig.get().HEALTH_HOST || "127.0.0.1";
   let server: Server | null = null;
   let closePromise: Promise<void> | null = null;
 
@@ -61,8 +62,8 @@ export function createHealthServer(
         return server;
       }
 
-      server = app.listen(port, () => {
-        console.log(`[Health] health server active on port ${port}`);
+      server = app.listen(port, host, () => {
+        console.log(`[Health] health server active on ${host}:${port}`);
       });
       return server;
     },
@@ -72,21 +73,28 @@ export function createHealthServer(
       }
 
       const activeServer = server;
-      if (!activeServer?.listening) {
-        server = null;
+      if (!activeServer) {
         return Promise.resolve();
       }
 
       closePromise = new Promise<void>((resolve, reject) => {
-        activeServer.close((error?: Error) => {
-          const code = (error as NodeJS.ErrnoException | undefined)?.code;
-          if (error && code !== "ERR_SERVER_NOT_RUNNING") {
-            reject(error);
-            return;
-          }
+        const doClose = () => {
+          activeServer.close((error?: Error) => {
+            const code = (error as NodeJS.ErrnoException | undefined)?.code;
+            if (error && code !== "ERR_SERVER_NOT_RUNNING") {
+              reject(error);
+              return;
+            }
 
-          resolve();
-        });
+            resolve();
+          });
+        };
+
+        if (activeServer.listening) {
+          doClose();
+        } else {
+          activeServer.once("listening", doClose);
+        }
       }).finally(() => {
         if (server === activeServer) {
           server = null;

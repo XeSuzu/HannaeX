@@ -30,6 +30,7 @@ const booleanString = z.preprocess((value) => {
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "staging", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8080),
+  HEALTH_HOST: z.string().default("127.0.0.1"),
   TOKEN: blankToUndefined,
   BOT_ID: blankToUndefined,
   PREFIX: z.string().default("!"),
