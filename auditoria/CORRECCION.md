@@ -120,6 +120,36 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/ai-models-centralization.test.cjs`: 2 pruebas ejecutadas, 2 pasadas (exit 0).
   - `npm test`: 160 pruebas ejecutadas, 160 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(AI-03): centralizar modelos oficiales de gemini con soporte de variables de entorno`
+- **Commit:** `36c977e` (`fix(AI-03): centralizar modelos oficiales de gemini con soporte de variables de entorno`)
+
+---
+
+## Lote 5: Guardas de permisos y jerarquía en comandos de moderación (`CMD-02`)
+
+- **Estado:** APLICADO
+- **Archivos creados y modificados:**
+  - `src/Utils/moderationGuards.ts`: Creado módulo centralizado con:
+    - `checkModeratorPermissions`: Comprobación interna de permisos de ejecución en `interaction.memberPermissions` con bypass automático para el dueño del servidor (`interaction.guild.ownerId`).
+    - `checkBotPermissions`: Validación de permisos requeridos del bot (`interaction.guild.members.me`) previo a cualquier intento de mutación.
+    - `canModerateTarget`: Validación de objetivo (no auto-sanción, no bot, no owner, jerarquía estricta moderador vs objetivo y bot vs objetivo).
+    - `canManageRole`: Validación de jerarquía para roles gestionados respecto al rol del moderador y del bot.
+  - Comandos integrados con las nuevas guardas:
+    - `src/Commands/SlashCmds/Moderation/ban.ts`
+    - `src/Commands/SlashCmds/Moderation/kick.ts`
+    - `src/Commands/SlashCmds/Moderation/softban.ts`
+    - `src/Commands/SlashCmds/Moderation/tempban.ts`
+    - `src/Commands/SlashCmds/Moderation/Mute.ts`
+    - `src/Commands/SlashCmds/Moderation/tempmute.ts`
+    - `src/Commands/SlashCmds/Moderation/mass-ban.ts`
+    - `src/Commands/SlashCmds/Moderation/purge.ts`
+    - `src/Commands/SlashCmds/Moderation/mass-role-add.ts`
+    - `src/Commands/SlashCmds/Moderation/mass-role-remove.ts`
+  - `tests/unit/moderation-guards.test.cjs`: Suite unitaria con 4 pruebas verificando permisos internos, privilegios de dueño y jerarquía de roles.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/moderation-guards.test.cjs`: 4 pruebas ejecutadas, 4 pasadas (exit 0).
+  - `npm test`: 164 pruebas ejecutadas, 164 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(CMD-02): guardas de permisos internos y jerarquia de roles en comandos de moderacion`
 
 ---

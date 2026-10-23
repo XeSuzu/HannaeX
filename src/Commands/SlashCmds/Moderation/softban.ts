@@ -6,6 +6,11 @@ import {
   GuildMember,
   MessageFlags,
 } from "discord.js";
+import {
+  canModerateTarget,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { AutomodManager } from "../../../Features/AutomodManager";
@@ -29,22 +34,50 @@ const command: SlashCommand = {
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!interaction.guild) return;
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!modPermCheck.ok) {
+      await interaction.followUp({
+        content: modPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!botPermCheck.ok) {
+      await interaction.followUp({
+        content: botPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const target = interaction.options.getMember("usuario");
     const reason = interaction.options.getString("razon") || "Softban";
     const deleteMessages = interaction.options.getBoolean("eliminar-mensajes") ?? true;
 
     if (!target || !(target instanceof GuildMember)) {
-      await interaction.followUp({ content: "❌ No pude encontrar a ese usuario.", flags: MessageFlags.Ephemeral });
+      await interaction.followUp({ content: "❌ No pude encontrar a ese usuario en este servidor.", flags: MessageFlags.Ephemeral });
       return;
     }
-    if (target.id === interaction.user.id) {
-      await interaction.followUp({ content: "🌸 No puedes softbanearte a ti mismo.", flags: MessageFlags.Ephemeral });
-      return;
-    }
-    if (target.permissions.has(PermissionFlagsBits.BanMembers)) {
-      await interaction.followUp({ content: "❌ No puedo softbanear a un miembro del staff.", flags: MessageFlags.Ephemeral });
+
+    const targetCheck = canModerateTarget(
+      interaction.member as GuildMember,
+      target,
+    );
+    if (!targetCheck.canModerate) {
+      await interaction.followUp({
+        content: targetCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 

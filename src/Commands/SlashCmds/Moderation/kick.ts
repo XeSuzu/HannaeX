@@ -7,6 +7,11 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import {
+  canModerateTarget,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import { AutomodManager } from "../../../Features/AutomodManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
@@ -37,7 +42,31 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ): Promise<void> {
-    if (!interaction.guild) return;
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.KickMembers,
+    );
+    if (!modPermCheck.ok) {
+      await interaction.followUp({
+        content: modPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.KickMembers,
+    );
+    if (!botPermCheck.ok) {
+      await interaction.followUp({
+        content: botPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const target = interaction.options.getMember("usuario");
     const reason =
@@ -45,21 +74,19 @@ const command: SlashCommand = {
 
     if (!target || !(target instanceof GuildMember)) {
       await interaction.followUp({
-        content: "❌ No pude encontrar a ese usuario.",
+        content: "❌ No pude encontrar a ese usuario en este servidor.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
-    if (target.id === interaction.user.id) {
+
+    const targetCheck = canModerateTarget(
+      interaction.member as GuildMember,
+      target,
+    );
+    if (!targetCheck.canModerate) {
       await interaction.followUp({
-        content: "🌸 No puedes expulsarte a ti mismo.",
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-    if (target.permissions.has(PermissionFlagsBits.KickMembers)) {
-      await interaction.followUp({
-        content: "❌ No puedo expulsar a un miembro del staff.",
+        content: targetCheck.reason!,
         flags: MessageFlags.Ephemeral,
       });
       return;

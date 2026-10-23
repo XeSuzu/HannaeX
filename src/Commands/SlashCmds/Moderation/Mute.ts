@@ -8,6 +8,11 @@ import {
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
+import {
+  canModerateTarget,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import ms, { StringValue } from "ms";
 import { AutomodManager } from "../../../Features/AutomodManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
@@ -45,7 +50,31 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ): Promise<void> {
-    if (!interaction.guild) return;
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.ModerateMembers,
+    );
+    if (!modPermCheck.ok) {
+      await interaction.followUp({
+        content: modPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.ModerateMembers,
+    );
+    if (!botPermCheck.ok) {
+      await interaction.followUp({
+        content: botPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const target = interaction.options.getMember("usuario");
     const timeInput = interaction.options.getString("tiempo", true);
@@ -54,21 +83,19 @@ const command: SlashCommand = {
 
     if (!target || !(target instanceof GuildMember)) {
       await interaction.followUp({
-        content: "❌ No pude encontrar a ese usuario.",
+        content: "❌ No pude encontrar a ese usuario en este servidor.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
-    if (target.id === interaction.user.id) {
+
+    const targetCheck = canModerateTarget(
+      interaction.member as GuildMember,
+      target,
+    );
+    if (!targetCheck.canModerate) {
       await interaction.followUp({
-        content: "🌸 No puedes silenciarte a ti mismo.",
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-    if (target.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.followUp({
-        content: "❌ No puedo silenciar a un miembro del staff.",
+        content: targetCheck.reason!,
         flags: MessageFlags.Ephemeral,
       });
       return;

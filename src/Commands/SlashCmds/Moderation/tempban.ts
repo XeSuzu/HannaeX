@@ -7,6 +7,11 @@ import {
   MessageFlags,
 } from "discord.js";
 import ms from "ms";
+import {
+  canModerateTarget,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { AutomodManager } from "../../../Features/AutomodManager";
@@ -31,7 +36,31 @@ const command: SlashCommand = {
     ) as SlashCommandBuilder,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    if (!interaction.guild) return;
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!modPermCheck.ok) {
+      await interaction.followUp({
+        content: modPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!botPermCheck.ok) {
+      await interaction.followUp({
+        content: botPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     let rollbackFailed = false;
 
@@ -40,15 +69,19 @@ const command: SlashCommand = {
     const reason = interaction.options.getString("razon") || "No se especificó un motivo.";
 
     if (!target || !(target instanceof GuildMember)) {
-      await interaction.followUp({ content: "❌ No pude encontrar a ese usuario.", flags: MessageFlags.Ephemeral });
+      await interaction.followUp({ content: "❌ No pude encontrar a ese usuario en este servidor.", flags: MessageFlags.Ephemeral });
       return;
     }
-    if (target.id === interaction.user.id) {
-      await interaction.followUp({ content: "🌸 No puedes banearte a ti mismo.", flags: MessageFlags.Ephemeral });
-      return;
-    }
-    if (target.permissions.has(PermissionFlagsBits.BanMembers)) {
-      await interaction.followUp({ content: "❌ No puedo banear a un miembro del staff.", flags: MessageFlags.Ephemeral });
+
+    const targetCheck = canModerateTarget(
+      interaction.member as GuildMember,
+      target,
+    );
+    if (!targetCheck.canModerate) {
+      await interaction.followUp({
+        content: targetCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 

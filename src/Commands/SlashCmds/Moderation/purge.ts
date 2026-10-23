@@ -5,6 +5,10 @@ import {
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
+import {
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import { createCase } from "../../../Database/moderation/case.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
 import { SlashCommand } from "../../../Interfaces/Command";
@@ -32,6 +36,30 @@ const command: SlashCommand = {
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild || !interaction.channel || !interaction.channel.isTextBased()) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.ManageMessages,
+    );
+    if (!modPermCheck.ok) {
+      await interaction.reply({
+        content: modPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.ManageMessages,
+    );
+    if (!botPermCheck.ok) {
+      await interaction.reply({
+        content: botPermCheck.reason!,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
 
     const cantidad = interaction.options.getInteger("cantidad", true);
     const targetUser = interaction.options.getUser("usuario");
