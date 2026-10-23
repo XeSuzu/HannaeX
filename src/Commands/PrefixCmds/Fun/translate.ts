@@ -1,5 +1,6 @@
 import { Message, TextChannel, DMChannel, NewsChannel } from "discord.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL_FLASH } from "../../../config/aiModels";
 import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { PrefixCommand } from "../../../Interfaces/Command";
@@ -59,7 +60,7 @@ const command: PrefixCommand = {
             const userTexts = userMsgs.join("\n\n");
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({
-              model: "gemini-2.5-flash",
+              model: GEMINI_MODEL_FLASH,
             });
             const detectUserLangPrompt = `Detect the language of this text and respond with ONLY the language name in English (e.g., Spanish, English, French):\n\n${userTexts}`;
             const detectUserResult = await model.generateContent({

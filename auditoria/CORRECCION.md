@@ -85,6 +85,41 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
   - `node --test tests/unit/ai-conversation-scope.test.cjs`: 3 pruebas ejecutadas, 3 pasadas (exit 0).
   - `npm test`: 158 pruebas ejecutadas, 158 pasadas, 0 fallidas (exit 0).
   - ESLint: No configurado en el proyecto.
-- **Commit:** `fix(AI-01-02): aislamiento de historial por servidor y purga de codigo muerto en aiModeration`
+- **Commit:** `4328e50` (`fix(AI-01-02): aislamiento de historial por servidor y purga de codigo muerto en aiModeration`)
+
+---
+
+## Lote 4: Centralización de modelos oficiales de Gemini (`AI-03`)
+
+- **Estado:** APLICADO
+- **Archivos modificados:**
+  - `src/config/aiModels.ts`: Módulo central con identificadores oficiales de Google Gemini y soporte para sobreescritura limpia vía variables de entorno (`GEMINI_MODEL_FLASH`, `GEMINI_MODEL_FLASH_LITE`).
+  - `src/Services/gemini.ts`: Sustituidas referencias `"gemini-2.5-flash-lite"` por `GEMINI_MODEL_FLASH_LITE`.
+  - `src/Services/translationService.ts`: Sustituida referencia `"gemini-2.5-flash"` por `GEMINI_MODEL_FLASH`.
+  - `src/Commands/PrefixCmds/Fun/translate.ts`: Sustituida referencia `"gemini-2.5-flash"` por `GEMINI_MODEL_FLASH`.
+  - `src/Features/automod/aiJudge.ts`: Sustituida referencia `"gemini-2.5-flash-lite"` por `GEMINI_MODEL_FLASH_LITE`.
+  - `src/Features/automod/raidAlertManager.ts`: Sustituida referencia `"gemini-2.5-flash-lite"` por `GEMINI_MODEL_FLASH_LITE`.
+  - `src/Features/automod/aiHistorySummarizer.ts`: Sustituida referencia `"gemini-2.5-flash-lite"` por `GEMINI_MODEL_FLASH_LITE`.
+  - `src/Features/automod/aiConfigAssistant.ts`: Sustituida referencia `"gemini-2.5-flash-lite"` por `GEMINI_MODEL_FLASH_LITE`.
+  - `tests/unit/ai-models-centralization.test.cjs`: Pruebas unitarias para validar exportación de modelos oficiales y consumo en servicios.
+- **Tabla de auditoría de modelos por punto de llamada:**
+
+| Archivo | Función / Contexto | Modelo Anterior | Modelo Corregido |
+|---|---|---|---|
+| `src/Services/gemini.ts:132` | `generateResponseStream` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+| `src/Services/gemini.ts:205` | `extractFacts` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+| `src/Services/translationService.ts:25` | `translateText` | `gemini-2.5-flash` | `GEMINI_MODEL_FLASH` (`gemini-2.0-flash`) |
+| `src/Commands/PrefixCmds/Fun/translate.ts:62` | `detectUserLang` | `gemini-2.5-flash` | `GEMINI_MODEL_FLASH` (`gemini-2.0-flash`) |
+| `src/Features/automod/aiJudge.ts:578` | `judgeMessageWithAi` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+| `src/Features/automod/raidAlertManager.ts:108` | `classifyRaidSuspects` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+| `src/Features/automod/aiHistorySummarizer.ts:73` | `summarizeUserHistoryWithAi` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+| `src/Features/automod/aiConfigAssistant.ts:165` | `generateConfigDraft` | `gemini-2.5-flash-lite` | `GEMINI_MODEL_FLASH_LITE` (`gemini-2.0-flash-lite`) |
+
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/ai-models-centralization.test.cjs`: 2 pruebas ejecutadas, 2 pasadas (exit 0).
+  - `npm test`: 160 pruebas ejecutadas, 160 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(AI-03): centralizar modelos oficiales de gemini con soporte de variables de entorno`
 
 ---

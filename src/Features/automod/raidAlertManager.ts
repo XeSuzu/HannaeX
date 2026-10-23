@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL_FLASH_LITE } from "../../config/aiModels";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -105,7 +106,7 @@ export async function analyzeRaidWithAi(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
+      model: GEMINI_MODEL_FLASH_LITE,
       generationConfig: { temperature: 0.1, maxOutputTokens: 256 },
     });
 
