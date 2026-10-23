@@ -1,6 +1,6 @@
 const steps = [
   ["01", "Incorporarla al servidor", "La invitación está prevista; por ahora no hay un enlace operativo."],
-  ["02", "Configurar lo necesario", "El staff ajusta autojoin, estados, niveles, canales y moderación según su comunidad."],
+  ["02", "Hazla parte del lugar", "Elige cómo quieres que salude, acompañe y cuide los espacios de tu comunidad."],
   ["03", "Empezar a utilizarla", "La comunidad puede conversar, progresar, participar y cuidar sus espacios."],
 ] as const;
 

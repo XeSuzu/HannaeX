@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 const examples = [
-  { label: "Mención directa", user: "@Hoshiko ¿qué puedo hacer aquí?", reply: "¡Te cuento! Puedes usar /help para descubrir los comandos disponibles~", tone: "reply" },
-  { label: "Reply a Hoshiko", user: "¿Y recuerdas cómo me gusta que me llamen?", reply: "Sí, puedo conservar preferencias cuando la conversación lo permite.", tone: "reply" },
-  { label: "Conversación ajena", user: "alguien: mañana jugamos a las 8", reply: "Hoshiko observa en silencio · sin mención ni reply", tone: "quiet" },
+  { label: "Cuando la llamas", user: "@Hoshiko ¿qué puedo hacer aquí?", reply: "¡Te cuento! Puedo enseñarte algunos comandos para empezar~", tone: "reply" },
+  { label: "Sigues la charla", user: "¿Y recuerdas cómo me gusta que me llamen?", reply: "Sí, puedo tenerlo en cuenta para que la conversación se sienta más tuya.", tone: "reply" },
+  { label: "La charla sigue", user: "alguien: mañana jugamos a las 8", reply: "Hoshiko deja que el momento sea de ustedes.", tone: "quiet" },
 ];
 
 export function ContextDemo() {
@@ -20,6 +20,6 @@ export function ContextDemo() {
       <div className="context-rule" aria-hidden="true" />
       <div className="context-message hoshiko-message"><span className="context-avatar hoshiko-avatar">H</span><div><b>Hoshiko <small>asistente</small></b><p>{example.reply}</p></div></div>
     </div>
-    <p className="context-note">La respuesta depende de la mención, el reply y el contexto disponible. No es un chat autónomo permanente.</p>
+    <p className="context-note">Una compañía que aparece cuando la necesitas y sabe cuándo dejar espacio.</p>
   </div>;
 }

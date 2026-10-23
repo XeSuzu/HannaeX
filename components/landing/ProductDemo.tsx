@@ -6,9 +6,9 @@ import { Dialog } from "@base-ui/react/dialog";
 const scenarios = ["Bienvenida", "Interacción", "Progreso"] as const;
 type Scenario = (typeof scenarios)[number];
 const scenarioCopy: Record<Scenario, { message: string; detail: string; accent: string }> = {
-  Bienvenida: { message: "¡Bienvenida a la comunidad, Luna!", detail: "Hoshiko acompaña la llegada de nuevos miembros con un saludo configurado por el servidor.", accent: "Nuevo miembro" },
+  Bienvenida: { message: "¡Bienvenida a la comunidad, Luna!", detail: "Hoshiko acompaña la llegada de nuevos miembros con un saludo elegido para tu comunidad.", accent: "Nuevo miembro" },
   Interacción: { message: "Hoshiko le dio un abrazo a Luna.", detail: "Las interacciones sociales incluyen comandos como /hug, /kiss, /pat y /highfive.", accent: "/hug usuario" },
-  Progreso: { message: "Luna alcanzó el nivel 12.", detail: "La actividad de mensajes y voz puede alimentar el progreso cuando el sistema está configurado.", accent: "Nivel 12" },
+  Progreso: { message: "Luna alcanzó el nivel 12.", detail: "Cada mensaje y cada rato compartido puede acercarte un poco más al siguiente nivel.", accent: "Nivel 12" },
 };
 
 function ConversationPanel({ active }: { active: Scenario }) {
