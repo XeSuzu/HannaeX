@@ -4,7 +4,7 @@
  */
 
 export const GEMINI_MODEL_FLASH =
-  process.env.GEMINI_MODEL_FLASH || "gemini-2.0-flash";
+  process.env.GEMINI_MODEL_FLASH || "gemini-3.8-flash";
 
 export const GEMINI_MODEL_FLASH_LITE =
-  process.env.GEMINI_MODEL_FLASH_LITE || "gemini-2.0-flash-lite";
+  process.env.GEMINI_MODEL_FLASH_LITE || "gemini-3.5-flash-lite";
