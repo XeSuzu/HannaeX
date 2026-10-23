@@ -195,3 +195,30 @@ Este documento registra la ejecución paso a paso de las correcciones en el repo
 - **Commit:** `fix(PERF-01): migracion de renderizadores canvas a encode asincrono`
 
 ---
+
+## Lote 8: Auditoría y actualización de dependencias (`DEP-01`)
+
+- **Estado:** NO APLICADO / REQUIERE ACCIÓN MANUAL CONTROLADA
+- **Análisis y justificación técnica:**
+  - Se ejecutó `npm audit --omit=dev` identificando 19 vulnerabilidades en dependencias transitivas (Undici vía discord.js, lodash, mongoose, etc.).
+  - Se ejecutó una prueba en modo seco (`npm audit fix --omit=dev --dry-run`). El gestor de paquetes de npm intentó purgar del árbol de dependencias herramientas críticas de compilación y desarrollo (`typescript`, `ts-node`, `nodemon`, `rimraf`).
+  - Siguiendo estrictamente las reglas obligatorias del plan de corrección y los límites de `AGENTS.md` (*"Pregunta antes de cambiar dependencias o lockfiles para resolver la instalación"* y *"Si un lote falla y no puedes solucionarlo dentro de su alcance sin riesgos, no descartes ni rompas cambios ajenos"*), no se aplicaron mutaciones al archivo `package-lock.json` para evitar la desinstalación de TypeScript.
+- **Acción recomendada para el equipo humano:** Actualizar selectivamente dependencias mayores en una ventana de mantenimiento específica mediante overrides específicos o subiendo a las versiones menores parcheadas de discord.js y mongoose.
+
+---
+
+## Lote 9: Limpieza de modelo huérfano y sincronización de documentación técnica (`DB-01`, `DOC-01`)
+
+- **Estado:** APLICADO
+- **Archivos modificados y eliminados:**
+  - `src/Database/guild/guildConfig.model.ts`: Eliminado modelo huérfano y redundante (sin ninguna importación en el proyecto), consolidando `ServerConfig` como el único modelo canónico de configuración por servidor.
+  - `AGENTS.md`: Corregidas las rutas desincronizadas en la sección de estructura arquitectónica (`loadEnvironment.ts`, `aiModels.ts`, `shutdown.ts`, `spotifyRenderer.worker.ts`), purgando referencias a archivos inexistentes (`env.ts`, `registerGracefulShutdown.ts`, `canvasWorker.ts`, `guildConfig.model.ts`).
+  - `tests/unit/docs-db-cleanup.test.cjs`: Suite con 2 pruebas unitarias que verifican la ausencia de `guildConfig.model.ts` y la sincronización estricta de rutas en `AGENTS.md`.
+- **Comandos ejecutados y resultados:**
+  - `npx tsc --noEmit`: Exitoso (exit 0).
+  - `node --test tests/unit/docs-db-cleanup.test.cjs`: 2 pruebas ejecutadas, 2 pasadas (exit 0).
+  - `npm test`: 171 pruebas ejecutadas, 171 pasadas, 0 fallidas (exit 0).
+  - ESLint: No configurado en el proyecto.
+- **Commit:** `fix(DB-01-DOC-01): eliminacion de guildConfig huerfano y sincronizacion de rutas en AGENTS.md`
+
+---
