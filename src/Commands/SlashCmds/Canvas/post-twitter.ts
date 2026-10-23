@@ -235,7 +235,7 @@ const command: SlashCommand = {
     ctx.stroke();
 
     // --- ENVÍO ---
-    const buffer = canvas.toBuffer("image/png");
+    const buffer = await canvas.encode("png");
     const file = new AttachmentBuilder(buffer, { name: "tweet.png" });
 
     // Enviar el tweet al canal

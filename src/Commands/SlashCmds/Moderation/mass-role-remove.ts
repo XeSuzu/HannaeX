@@ -1,9 +1,15 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  GuildMember,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import {
+  canManageRole,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 const BATCH_SIZE = 10;
@@ -104,15 +110,29 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient
   ) {
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.ManageRoles,
+    );
+    if (!modPermCheck.ok) {
+      return interaction.editReply({ content: modPermCheck.reason! });
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.ManageRoles,
+    );
+    if (!botPermCheck.ok) {
+      return interaction.editReply({ content: botPermCheck.reason! });
+    }
+
     const role = interaction.options.getRole("rol", true);
 
-    // Verificar jerarquía
-    const botMember = interaction.guild?.members.me;
-    if (!botMember || role.position >= botMember.roles.highest.position) {
-      return interaction.editReply({
-        content:
-          "❌ No puedo gestionar ese rol. Asegúrate de que esté **por debajo** de mi rol más alto.",
-      });
+    const roleCheck = canManageRole(interaction.member as GuildMember, role);
+    if (!roleCheck.ok) {
+      return interaction.editReply({ content: roleCheck.reason! });
     }
 
     // Fetch completo de miembros

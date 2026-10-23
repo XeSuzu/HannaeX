@@ -170,5 +170,5 @@ export async function generateStreakCard(
     420
   );
 
-  return canvas.toBuffer("image/png");
+  return canvas.encode("png");
 }

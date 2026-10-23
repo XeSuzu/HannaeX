@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL_FLASH_LITE } from "../../config/aiModels";
 import { ICase } from "../../Database/moderation/case.model";
 import { isCircuitBreakerOpen } from "./aiJudge";
 
@@ -70,7 +71,7 @@ export async function summarizeUserHistoryWithAi(params: {
       }
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
+        model: GEMINI_MODEL_FLASH_LITE,
         generationConfig: { temperature: 0.2, maxOutputTokens: 300 },
       });
       const res = await model.generateContent(prompt);

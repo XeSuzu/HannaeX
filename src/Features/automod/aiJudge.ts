@@ -13,6 +13,7 @@ import {
   Message,
 } from "discord.js";
 import { LocalCacheService } from "../../App/infrastructure/cache/LocalCacheService";
+import { GEMINI_MODEL_FLASH_LITE } from "../../config/aiModels";
 import { createCase } from "../../Database/moderation/case.model";
 import { HoshikoLogger, LogLevel } from "../../Security/Logger/HoshikoLogger";
 import { rememberDeletedMessage } from "./automodState";
@@ -575,7 +576,7 @@ export async function judgeMessageWithAi(options: {
         { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
       ];
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
+        model: GEMINI_MODEL_FLASH_LITE,
         safetySettings,
         generationConfig: {
           temperature: 0.1,

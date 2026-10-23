@@ -191,5 +191,5 @@ export async function renderRobloxCard(data: RobloxCardData): Promise<Buffer> {
   ctx.textBaseline = "bottom";
   ctx.fillText(data.username, W - PAD, H - PAD);
 
-  return canvas.toBuffer("image/png");
+  return canvas.encode("png");
 }

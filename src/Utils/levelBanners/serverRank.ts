@@ -70,7 +70,7 @@ export async function generateServerRankBanner(
       L.statsY,
     );
 
-    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+    return new AttachmentBuilder(await canvas.encode("png"), {
       name: "server-rank.png",
     });
   } catch (err) {

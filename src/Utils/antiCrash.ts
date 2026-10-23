@@ -2,6 +2,12 @@ import { EmbedBuilder, WebhookClient } from "discord.js";
 import { AppConfig } from "../App/config/AppConfig";
 
 let webhook: WebhookClient | null | undefined;
+export type FatalErrorHandler = (error: Error) => Promise<void> | void;
+let fatalErrorHandler: FatalErrorHandler | null = null;
+
+export function setFatalErrorHandler(handler: FatalErrorHandler | null): void {
+  fatalErrorHandler = handler;
+}
 
 function redactString(value: string): string {
   const sensitiveEnvironmentKey =
@@ -142,11 +148,30 @@ function getWebhook(): WebhookClient | null {
 
 export const loadAntiCrash = (): void => {
   process.on("unhandledRejection", (reason: unknown) => {
-    sendErrorLog("Unhandled Rejection", reason);
+    void sendErrorLog("Unhandled Rejection", reason);
   });
 
   process.on("uncaughtException", (error: Error, _origin: unknown) => {
-    sendErrorLog("Uncaught Exception", error);
+    void (async () => {
+      try {
+        await sendErrorLog("Uncaught Exception", error);
+      } catch (e) {
+        console.error(
+          "[AntiCrash] Error enviando log de excepción no capturada:",
+          e,
+        );
+      }
+
+      if (fatalErrorHandler) {
+        try {
+          await fatalErrorHandler(error);
+        } catch {
+          process.exit(1);
+        }
+      } else {
+        process.exit(1);
+      }
+    })();
   });
 
   process.on("uncaughtExceptionMonitor", (error: Error, _origin: unknown) => {
@@ -156,7 +181,7 @@ export const loadAntiCrash = (): void => {
   });
 };
 
-function sendErrorLog(type: string, error: unknown): void {
+async function sendErrorLog(type: string, error: unknown): Promise<void> {
   const safeType = redactString(type);
   const safeError = serializeRedactedError(error);
   console.error(`[AntiCrash] ${safeType}: ${safeError}`);
@@ -172,7 +197,13 @@ function sendErrorLog(type: string, error: unknown): void {
     .setColor(0xff0000)
     .setTimestamp();
 
-  errorWebhook
+  const webhookPromise = errorWebhook
     .send({ embeds: [embed] })
+    .then(() => undefined)
     .catch(() => console.error("[AntiCrash] Failed to send log to webhook"));
+
+  await Promise.race([
+    webhookPromise,
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
 }

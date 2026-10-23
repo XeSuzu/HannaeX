@@ -7,6 +7,7 @@ import {
   SafetySetting,
   Tool,
 } from "@google/generative-ai";
+import { GEMINI_MODEL_FLASH_LITE } from "../config/aiModels";
 
 export interface GoogleSearchTool {
   googleSearch: Record<string, unknown>;
@@ -129,7 +130,7 @@ export async function generateResponseStream(
     const sanitizedTools = sanitizeToolsForGemini25(tools);
     const sanitizedContents = sanitizeContentsForGemini(history);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
+      model: GEMINI_MODEL_FLASH_LITE,
       safetySettings,
       systemInstruction: systemInstruction,
       ...(sanitizedTools && sanitizedTools.length > 0 && { tools: sanitizedTools }),
@@ -202,7 +203,7 @@ export async function extractFacts(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
+      model: GEMINI_MODEL_FLASH_LITE,
       generationConfig: {
         temperature: 0.1,
         maxOutputTokens: 256,

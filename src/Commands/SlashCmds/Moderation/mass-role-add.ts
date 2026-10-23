@@ -1,9 +1,15 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  GuildMember,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import {
+  canManageRole,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 interface RoleResult {
@@ -37,17 +43,41 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.ManageRoles,
+    );
+    if (!modPermCheck.ok) {
+      return interaction.editReply({ content: modPermCheck.reason! });
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.ManageRoles,
+    );
+    if (!botPermCheck.ok) {
+      return interaction.editReply({ content: botPermCheck.reason! });
+    }
+
     const role = interaction.options.getRole("rol", true);
     const usersArg = interaction.options.getString("usuarios", true);
     const roleToRemove = interaction.options.getRole("rol-remover");
 
-    // Verificar que el bot pueda gestionar el rol
-    const botMember = interaction.guild?.members.me;
-    if (!botMember || role.position >= botMember.roles.highest.position) {
-      return interaction.editReply({
-        content:
-          "❌ No puedo gestionar ese rol. Asegúrate de que esté **por debajo** de mi rol más alto.",
-      });
+    const roleCheck = canManageRole(interaction.member as GuildMember, role);
+    if (!roleCheck.ok) {
+      return interaction.editReply({ content: roleCheck.reason! });
+    }
+
+    if (roleToRemove) {
+      const removeCheck = canManageRole(
+        interaction.member as GuildMember,
+        roleToRemove,
+      );
+      if (!removeCheck.ok) {
+        return interaction.editReply({ content: removeCheck.reason! });
+      }
     }
 
     const members = usersArg

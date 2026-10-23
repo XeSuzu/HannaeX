@@ -14,36 +14,36 @@ export class AvatarHistoryManager {
   ): Promise<void> {
     if (!avatarUrl || !options.guildId) return;
 
-    const history =
-      (await AvatarHistory.findOne({
-        userId,
-        guildId: options.guildId,
-      })) ||
-      new AvatarHistory({
-        userId,
-        guildId: options.guildId,
-        avatars: [],
-      });
+    const alreadyExists = await AvatarHistory.exists({
+      userId,
+      guildId: options.guildId,
+      "avatars.url": avatarUrl,
+    });
 
-    const alreadyExists = history.avatars.some(
-      (record) => record.url === avatarUrl,
-    );
     if (alreadyExists) return;
 
-    history.avatars.unshift({
+    const newAvatar = {
       url: avatarUrl,
       createdAt: new Date(),
       guildId: options.guildId,
       guildName: options.guildName ?? null,
       source: options.source ?? "guild",
-    });
+    };
 
-    if (history.avatars.length > MAX_AVATARS) {
-      history.avatars = history.avatars.slice(0, MAX_AVATARS);
-    }
-
-    history.updatedAt = new Date();
-    await history.save();
+    await AvatarHistory.updateOne(
+      { userId, guildId: options.guildId },
+      {
+        $push: {
+          avatars: {
+            $each: [newAvatar],
+            $position: 0,
+            $slice: MAX_AVATARS,
+          },
+        },
+        $set: { updatedAt: new Date() },
+      },
+      { upsert: true },
+    );
   }
 
   static async getAvatars(userId: string, guildId: string) {

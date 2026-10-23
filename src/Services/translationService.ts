@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GEMINI_MODEL_FLASH } from "../config/aiModels";
 
 export const LANGUAGE_MAP: Record<string, string> = {
   en: "English",
@@ -22,7 +23,7 @@ export async function translateText(
   apiKey: string,
 ): Promise<TranslationResult> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_FLASH });
 
   const detectPrompt = `Detect the language of this text and respond with ONLY the language name in English (e.g., Spanish, English, French):\n\n${text}`;
   const detectResult = await model.generateContent({

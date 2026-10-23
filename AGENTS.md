@@ -15,16 +15,16 @@
 - `src/worker.ts`: entrada principal de workers de cola/eventos.
 - `src/bootstrap/`: carga los handlers de nivel superior (`loadHandlers.ts`).
 - `src/client/`: clase (`HoshikoClient`) y fábrica del cliente de Discord.
-- `src/config/`: validación y carga de configuración del entorno (`env.ts`).
+- `src/config/`: carga del entorno (`loadEnvironment.ts`) y configuración centralizada de modelos IA (`aiModels.ts`). Validación de entorno Zod en `src/App/config/`.
 - `src/http/`: servidor HTTP de salud (`healthServer.ts`).
-- `src/lifecycle/`: apagado ordenado (`registerGracefulShutdown.ts`).
-- `src/workers/`: entradas para worker threads de renderizado (`canvasWorker.ts`, `statCardWorker.ts`).
+- `src/lifecycle/`: apagado ordenado y manejo de señales (`shutdown.ts`).
+- `src/workers/`: entradas para worker threads (`spotifyRenderer.worker.ts`).
 - `src/App/`: infraestructura de Redis, caché local y colas (`infrastructure/`).
 - `src/Database/`: capa de persistencia Mongoose organizada por dominio (sin barriles globales):
   - `connect.ts`: conexión única y configuración de Mongoose.
   - `ai/`: memorias y perfiles de usuario para IA (`userMemory.model.ts`, `conversation.model.ts`).
   - `community/`: confesiones, sugerencias y niveles de patrocinio (`confession.model.ts`, `suggestion.model.ts`, `sponsor.models.ts`).
-  - `guild/`: configuración por servidor y triggers (`guildConfig.model.ts`, `serverConfig.model.ts`, `trigger.model.ts`).
+  - `guild/`: configuración por servidor y triggers (`serverConfig.model.ts`, `trigger.model.ts`).
   - `leveling/`: niveles, XP, actividad diaria y logros (`userLevel.model.ts`, `dailyActivity.model.ts`, `achievement.models.ts`, `globalConfig.model.ts`).
   - `moderation/`: advertencias, contadores de automod y silencios temporales (`warning.model.ts`, `automodCount.model.ts`, `tempMute.model.ts`).
   - `streaks/`: rachas individuales y grupales (`streak.model.ts`, `streakGroup.model.ts`).

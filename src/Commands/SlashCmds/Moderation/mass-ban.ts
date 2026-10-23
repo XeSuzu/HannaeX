@@ -1,9 +1,15 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  GuildMember,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import {
+  canModerateTarget,
+  checkBotPermissions,
+  checkModeratorPermissions,
+} from "../../../Utils/moderationGuards";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 
 interface BanResult {
@@ -36,6 +42,24 @@ export default {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
+    if (!interaction.guild || !interaction.member) return;
+
+    const modPermCheck = checkModeratorPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!modPermCheck.ok) {
+      return interaction.editReply({ content: modPermCheck.reason! });
+    }
+
+    const botPermCheck = checkBotPermissions(
+      interaction,
+      PermissionFlagsBits.BanMembers,
+    );
+    if (!botPermCheck.ok) {
+      return interaction.editReply({ content: botPermCheck.reason! });
+    }
+
     const usersArg = interaction.options.getString("usuarios", true);
     const reason = interaction.options.getString("razon") || "No especificada";
 
@@ -73,6 +97,21 @@ export default {
 
         const userId = userIds[index];
         try {
+          const cachedMember = interaction.guild?.members.cache.get(userId);
+          if (cachedMember) {
+            const check = canModerateTarget(
+              interaction.member as GuildMember,
+              cachedMember,
+            );
+            if (!check.canModerate) {
+              results[index] = {
+                id: userId,
+                success: false,
+                error: check.reason || "Jerarquía insuficiente",
+              };
+              continue;
+            }
+          }
           await interaction.guild?.bans.create(userId, { reason });
           results[index] = { id: userId, success: true };
         } catch (err: any) {

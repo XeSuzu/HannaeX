@@ -221,7 +221,7 @@ const buildAvatarGridAttachment = async (
     }
   }
 
-  return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+  return new AttachmentBuilder(await canvas.encode("png"), {
     name: "saved-avatars-grid.png",
   });
 };

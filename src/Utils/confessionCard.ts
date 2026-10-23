@@ -180,7 +180,7 @@ export async function generateConfessionCard(
     ctx.textAlign = "right";
     ctx.fillText(`Hoshiko 🐾 • ${data.serverName}`, px + pw - 28, footerY - 5);
 
-    return new AttachmentBuilder(canvas.toBuffer("image/png"), {
+    return new AttachmentBuilder(await canvas.encode("png"), {
       name: `confession-${data.confessionId}.png`,
     });
   } catch (err) {
