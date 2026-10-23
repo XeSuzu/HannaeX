@@ -25,6 +25,52 @@ export function sanitizeToolsForGemini25(tools?: GeminiTool[]): Tool[] | undefin
   }) as Tool[];
 }
 
+export function sanitizeContentsForGemini(rawHistory: Content[]): Content[] {
+  if (!rawHistory || rawHistory.length === 0) {
+    return [{ role: "user", parts: [{ text: "..." }] }];
+  }
+
+  // 1. Filtrar elementos inválidos o sin parts
+  const valid = rawHistory.filter(
+    (item) => item && item.parts && Array.isArray(item.parts) && item.parts.length > 0,
+  );
+
+  if (valid.length === 0) {
+    return [{ role: "user", parts: [{ text: "..." }] }];
+  }
+
+  // 2. Eliminar modelos huérfanos al inicio (Gemini exige empezar en 'user')
+  while (valid.length > 0 && valid[0].role === "model") {
+    valid.shift();
+  }
+
+  if (valid.length === 0) {
+    return [{ role: "user", parts: [{ text: "..." }] }];
+  }
+
+  // 3. Fusionar turnos consecutivos del mismo rol para garantizar alternancia estricta (user -> model -> user)
+  const merged: Content[] = [];
+  for (const item of valid) {
+    const role: "user" | "model" = item.role === "model" ? "model" : "user";
+    if (merged.length > 0 && merged[merged.length - 1].role === role) {
+      merged[merged.length - 1].parts.push(...item.parts);
+    } else {
+      merged.push({ role, parts: [...item.parts] });
+    }
+  }
+
+  // 4. El último turno debe ser 'user'
+  while (merged.length > 0 && merged[merged.length - 1].role === "model") {
+    merged.pop();
+  }
+
+  if (merged.length === 0) {
+    return [{ role: "user", parts: [{ text: "..." }] }];
+  }
+
+  return merged;
+}
+
 if (!process.env.GEMINI_API_KEY) {
   console.error("❌ Falta la variable de entorno GEMINI_API_KEY.");
 }
@@ -81,6 +127,7 @@ export async function generateResponseStream(
 
   try {
     const sanitizedTools = sanitizeToolsForGemini25(tools);
+    const sanitizedContents = sanitizeContentsForGemini(history);
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite",
       safetySettings,
@@ -89,25 +136,14 @@ export async function generateResponseStream(
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
-        topK: 40,
         maxOutputTokens: 4096,
       },
     });
 
-    let chatHistory = history.slice(0, -1);
-    while (chatHistory.length > 0 && chatHistory[0].role === "model") {
-      chatHistory.shift();
-    }
-
-    const chat = model.startChat({ history: chatHistory });
-    const lastParts = history[history.length - 1]?.parts;
-    const lastMessage =
-      lastParts && lastParts.length > 0
-        ? (lastParts.length === 1 && lastParts[0].text ? lastParts[0].text : (lastParts as any))
-        : "";
-    const result = await chat.sendMessageStream(lastMessage, {
-      signal: controller.signal,
-    });
+    const result = await model.generateContentStream(
+      { contents: sanitizedContents },
+      { signal: controller.signal },
+    );
 
     clearTimeout(timeout);
     return result.stream;
@@ -150,7 +186,9 @@ export async function generateResponseStream(
       throw new Error("TIMEOUT_ERROR");
     }
 
-    console.error("⚠️ [GEMINI] Error inesperado:", err.message);
+    const errStatus = err?.status || err?.code || "";
+    const errDetails = err?.errorDetails ? ` | Detalles: ${JSON.stringify(err.errorDetails)}` : "";
+    console.error(`⚠️ [GEMINI] Error inesperado (${errStatus}):`, err.message, errDetails);
     throw err;
   }
 }

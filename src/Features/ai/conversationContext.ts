@@ -63,7 +63,9 @@ export async function buildConversationContext(
   options: { isPremium: boolean; isMentioned: boolean; prefixMatch: boolean; isReplyToMe: boolean; isRandomTrigger: boolean },
 ): Promise<{ systemInstruction: string; historyForApi: Content[]; userMessage: string }> {
   const limit = options.isPremium ? 15 : 10;
-  const prevMessages = await (message.channel as any).messages.fetch({ limit });
+  const fetchOptions: any = { limit };
+  if (message.id) fetchOptions.before = message.id;
+  const prevMessages = await (message.channel as any).messages.fetch(fetchOptions);
   const triggerType: SystemPromptContext["triggerType"] = options.isRandomTrigger ? "spontaneous" : options.isReplyToMe ? "reply" : "direct";
   const channelName = "name" in message.channel ? (message.channel as any).name : undefined;
   const userFacts = await UserMemoryManager.getFacts(message.author.id, message.guild!.id);
@@ -71,12 +73,10 @@ export async function buildConversationContext(
     guildName: message.guild!.name, channelName, triggerType, userFacts, currentUsername: message.author.username,
   };
   const systemInstruction = SystemPrompts.getInstruction(config, promptContext);
-  const rawRecent = Array.from(prevMessages.values()).reverse() as Message[];
-  // Si el mensaje actual fue devuelto en la ventana, descartarlo del historial previo para evitar duplicidad
-  if (rawRecent.length > 0 && rawRecent[rawRecent.length - 1]?.id === message.id) {
-    rawRecent.pop();
-  }
-  const recentMessages = rawRecent;
+  // Descartar defensivamente el mensaje actual si fue devuelto en la ventana (por mocks o fetch amplio)
+  const recentMessages = (Array.from(prevMessages.values()).reverse() as Message[]).filter(
+    (m) => m && m.id !== message.id,
+  );
   const rawTurns: Array<{ role: "user" | "model"; text: string }> = [];
 
   for (const m of recentMessages) {
@@ -165,6 +165,17 @@ export async function buildConversationContext(
   if (!userMessage) {
     userMessage = EMPTY_MENTION_RESPONSES[Math.floor(Math.random() * EMPTY_MENTION_RESPONSES.length)];
   }
+  function appendUserTurn(parts: Content["parts"]) {
+    if (
+      historyForApi.length > 0 &&
+      historyForApi[historyForApi.length - 1].role === "user"
+    ) {
+      historyForApi[historyForApi.length - 1].parts.push(...parts);
+    } else {
+      historyForApi.push({ role: "user", parts });
+    }
+  }
+
   const attachment = message.attachments?.first
     ? message.attachments.first()
     : null;
@@ -172,15 +183,9 @@ export async function buildConversationContext(
 
   if (attachment && rawMime && rawMime.startsWith("image/")) {
     if (!SUPPORTED_IMAGE_MIMES.has(rawMime)) {
-      historyForApi.push({
-        role: "user",
-        parts: [{ text: `[${message.author.username} dice]: ${userMessage} [Formato de imagen no compatible: ${rawMime}]` }],
-      });
+      appendUserTurn([{ text: `[${message.author.username} dice]: ${userMessage} [Formato de imagen no compatible: ${rawMime}]` }]);
     } else if (attachment.size && attachment.size > MAX_IMAGE_SIZE_BYTES) {
-      historyForApi.push({
-        role: "user",
-        parts: [{ text: `[${message.author.username} dice]: ${userMessage} [La imagen enviada excede el límite de 5MB y no pudo ser procesada]` }],
-      });
+      appendUserTurn([{ text: `[${message.author.username} dice]: ${userMessage} [La imagen enviada excede el límite de 5MB y no pudo ser procesada]` }]);
     } else {
       try {
         const imgResponse = await fetch(attachment.url);
@@ -193,22 +198,19 @@ export async function buildConversationContext(
         if (imgBuffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
           throw new Error("payload_too_large");
         }
-        historyForApi.push({
-          role: "user",
-          parts: [
-            { text: `[${message.author.username} dice]: ${userMessage || "Mira esta imagen:"}` },
-            { inlineData: { mimeType: rawMime, data: Buffer.from(imgBuffer).toString("base64") } },
-          ],
-        });
+        appendUserTurn([
+          { text: `[${message.author.username} dice]: ${userMessage || "Mira esta imagen:"}` },
+          { inlineData: { mimeType: rawMime, data: Buffer.from(imgBuffer).toString("base64") } },
+        ]);
       } catch (err: any) {
         const reason = err?.message === "payload_too_large"
           ? "[La imagen enviada excede el límite de 5MB]"
           : "[Error al cargar la imagen enviada]";
-        historyForApi.push({ role: "user", parts: [{ text: `[${message.author.username} dice]: ${userMessage} ${reason}` }] });
+        appendUserTurn([{ text: `[${message.author.username} dice]: ${userMessage} ${reason}` }]);
       }
     }
   } else {
-    historyForApi.push({ role: "user", parts: [{ text: `[${message.author.username} dice]: ${userMessage}` }] });
+    appendUserTurn([{ text: `[${message.author.username} dice]: ${userMessage}` }]);
   }
   return { systemInstruction, historyForApi, userMessage };
 }

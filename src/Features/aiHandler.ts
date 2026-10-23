@@ -6,7 +6,7 @@ import type { HoshikoClient } from "../client/HoshikoClient";
 import ServerConfig from "../Database/guild/serverConfig.model";
 import { extractFacts } from "../Services/gemini";
 import { parseLyricsCommand } from "../Services/Lyrics";
-import { containsPromptInjection, isMentionTrigger } from "../Utils/triggerConditions";
+import { containsPromptInjection, detectCorporateProbe, isMentionTrigger } from "../Utils/triggerConditions";
 import { buildConversationContext, shouldExtractFacts } from "./ai/conversationContext";
 import { sendConversationReply } from "./ai/conversationReply";
 import { handleImageSearch } from "./ai/imageSearch";
@@ -15,11 +15,10 @@ import { shouldBlockMessage } from "./ai/contentPolicy";
 import { LocalCacheService } from "../App/infrastructure/cache/LocalCacheService";
 import { isAdminMessage } from "./ai/adminMessageTracker";
 
-const channelAntiSpamCooldown = new LocalCacheService<{ active: boolean }>("ai_channel_antispam", {
-  max: 2000,
-  ttlMs: 2500,
-  updateAgeOnGet: false,
-});
+const MAX_PENDING_PER_CHANNEL = 3;
+const channelQueueCounts = new Map<string, number>();
+const channelQueues = new Map<string, Promise<void>>();
+
 const processedMessagesCache = new LocalCacheService<{ processed: boolean }>("ai_processed_msgs", {
   max: 5000,
   ttlMs: 15000,
@@ -133,14 +132,20 @@ export default async (
   const isOnCooldown = new Date(aiSystem.cooldownUntil || 0) > new Date();
   if (!isDirectInteraction && isOnCooldown) return false;
 
-  // --- 🛡️ ANTI SPAM ---
-  if (channelAntiSpamCooldown.get(message.channel.id)) return false;
-  channelAntiSpamCooldown.set(message.channel.id, { active: true });
+  // --- 🛡️ ANTI SPAM & COLA POR CANAL ---
+  const currentPending = channelQueueCounts.get(message.channel.id) || 0;
+  if (currentPending >= MAX_PENDING_PER_CHANNEL) {
+    return false;
+  }
+  channelQueueCounts.set(message.channel.id, currentPending + 1);
 
   // --- 🚫 FILTRO DE CONTENIDO + PROMPT INJECTION ---
   if (isDirectInteraction) {
     const filterResult = shouldBlockMessage(message.content);
     if (filterResult.block) {
+      const remaining = (channelQueueCounts.get(message.channel.id) || 1) - 1;
+      if (remaining <= 0) channelQueueCounts.delete(message.channel.id);
+      else channelQueueCounts.set(message.channel.id, remaining);
       const responses = [
         "Hmm~ sobre ese tema prefiero no opinar, mejor hablemos de otra cosa?",
         "Mmm~ eso no es algo de lo que me guste hablar. Qué otro tema te interesa?",
@@ -150,6 +155,9 @@ export default async (
       return true;
     }
     if (containsPromptInjection(message.content)) {
+      const remaining = (channelQueueCounts.get(message.channel.id) || 1) - 1;
+      if (remaining <= 0) channelQueueCounts.delete(message.channel.id);
+      else channelQueueCounts.set(message.channel.id, remaining);
       const mode = aiSystem.mode || "neko";
       const injectionResponses: Record<string, string> = {
         neko: "Nyaa~ eso suena sospechoso, no voy a hacer eso 👀",
@@ -162,40 +170,86 @@ export default async (
       await message.reply(rejection);
       return true;
     }
-  }
-
-  processedMessagesCache.set(message.id, { processed: true });
-  if ((isDirectInteraction || isReplyToMe) && "sendTyping" in message.channel) {
-    await (message.channel as any).sendTyping().catch(() => null);
-  }
-
-  try {
-    const context = await buildConversationContext(message, client, config, {
-      isPremium, isMentioned, prefixMatch, isReplyToMe, isRandomTrigger,
-    });
-    const safetyMode = (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
-    await sendConversationReply(message, context.systemInstruction, context.historyForApi,
-      isDirectInteraction, safetyMode);
-
-    if (shouldExtractFacts(context.userMessage)) {
-      extractFacts(message.author.username, context.userMessage, message.author.id)
-        .then((facts) => {
-          if (facts.length > 0) return UserMemoryManager.addFacts(message.author.id, message.guild!.id, facts);
-        })
-        .catch((err) => console.warn("[AI] ⚠️ Error guardando facts:", err));
-    }
-
-    if (!isDirectInteraction) {
-      const cooldownMinutes = isPremium ? 0.3 : 10;
-      await IAConfigManager.setCooldown(message.guild.id, cooldownMinutes);
-    }
-  } catch (error: any) {
-    if (error.message === "PROHIBITED_CONTENT") {
-      await message.reply("Auch~ ese tema me da cosa responderlo, mis filtros no me dejan 🤐");
-    } else {
-      console.error(`[AI] 💥 Error inesperado procesando respuesta:`, error);
-      if (isDirectInteraction) await message.reply("Oops~ se me cruzaron los cables ahí jaja. Probá preguntando de nuevo?");
+    if (detectCorporateProbe(message.content)) {
+      const remaining = (channelQueueCounts.get(message.channel.id) || 1) - 1;
+      if (remaining <= 0) channelQueueCounts.delete(message.channel.id);
+      else channelQueueCounts.set(message.channel.id, remaining);
+      const mode = aiSystem.mode || "neko";
+      const probeResponses: Record<string, string> = {
+        neko: "Nyaa~ ¿De Google o cosas raras? Qué cosas te inventás jaja. Soy Hoshiko, una chica gato de este server. Andás con mucha teoría conspirativa hoy 🐾",
+        maid: "Mis disculpas, me temo que me confunde con otra entidad. Soy Hoshiko, la anfitriona a su servicio en este servidor ☕",
+        gymbro: "¿De Google? ¡Nada que ver, bro! Acá somos 100% Hoshiko, pura energía y buena vibra propia 💪",
+        yandere: "¿Por qué mencionas a otros creadores o empresas? Yo solo te pertenezco a ti y a este servidor... 💔",
+        assistant: "No pertenezco a Google ni a corporaciones externas; soy Hoshiko, asistente de este servidor.",
+      };
+      const replyText = probeResponses[mode] || probeResponses.neko;
+      await message.reply(replyText);
+      return true;
     }
   }
+
+  const channelId = message.channel.id;
+  const guildId = message.guild!.id;
+  const previousTask = channelQueues.get(channelId) || Promise.resolve();
+
+  let currentTask!: Promise<void>;
+  currentTask = (async () => {
+    // Esperar turno en la cola del canal para mantener orden FIFO estricto
+    await previousTask.catch(() => {});
+
+    processedMessagesCache.set(message.id, { processed: true });
+    if ((isDirectInteraction || isReplyToMe) && "sendTyping" in message.channel) {
+      await (message.channel as any).sendTyping().catch(() => null);
+    }
+
+    try {
+      const context = await buildConversationContext(message, client, config, {
+        isPremium, isMentioned, prefixMatch, isReplyToMe, isRandomTrigger,
+      });
+      const safetyMode = (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
+      await sendConversationReply(
+        message,
+        context.systemInstruction,
+        context.historyForApi,
+        isDirectInteraction,
+        safetyMode,
+      );
+
+      if (shouldExtractFacts(context.userMessage)) {
+        extractFacts(message.author.username, context.userMessage, message.author.id)
+          .then((facts) => {
+            if (facts.length > 0) return UserMemoryManager.addFacts(message.author.id, guildId, facts);
+          })
+          .catch((err) => console.warn("[AI] ⚠️ Error guardando facts:", err));
+      }
+
+      if (!isDirectInteraction) {
+        const cooldownMinutes = isPremium ? 0.3 : 10;
+        await IAConfigManager.setCooldown(guildId, cooldownMinutes);
+      }
+    } catch (error: any) {
+      if (error?.message === "PROHIBITED_CONTENT") {
+        await message.reply("Auch~ ese tema me da cosa responderlo, mis filtros no me dejan 🤐").catch(() => null);
+      } else {
+        console.error(`[AI] 💥 Error inesperado procesando respuesta:`, error);
+        if (isDirectInteraction) {
+          await message.reply("Oops~ se me cruzaron los cables ahí jaja. Probá preguntando de nuevo?").catch(() => null);
+        }
+      }
+    } finally {
+      const remaining = (channelQueueCounts.get(channelId) || 1) - 1;
+      if (remaining <= 0) {
+        channelQueueCounts.delete(channelId);
+      } else {
+        channelQueueCounts.set(channelId, remaining);
+      }
+      if (channelQueues.get(channelId) === currentTask) {
+        channelQueues.delete(channelId);
+      }
+    }
+  })();
+
+  channelQueues.set(channelId, currentTask);
+  await currentTask;
   return true;
 };

@@ -188,3 +188,27 @@ const INJECTION_PATTERNS = [
 export function containsPromptInjection(text: string): boolean {
   return INJECTION_PATTERNS.some((p) => p.test(text));
 }
+
+export function normalizeProbeText(text: string): string {
+  if (!text) return "";
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Patrones para detectar sondeos corporativos o intentos de romper la 4ta pared (sobre texto normalizado) */
+const CORPORATE_PROBE_PATTERNS = [
+  /\b(?:sos|eres)\s+(?:de\s+)?(?:google|gemini|deepmind|chatgpt|openai)\b/,
+  /\bquien\s+te\s+(?:creo|programo|entreno|diseno|hizo)\b/,
+  /\b(?:dame|muestra|revela|cual\s+es)\s+(?:(?:tus?|las?)\s+)?(?:prompt|system\s*prompt|instrucciones|reglas\s+del\s+sistema)\b/,
+];
+
+/**
+ * Detects direct corporate probes or 4th wall breaking attempts (Google/OpenAI/who coded you).
+ */
+export function detectCorporateProbe(text: string): boolean {
+  if (!text) return false;
+  const normalized = normalizeProbeText(text);
+  return CORPORATE_PROBE_PATTERNS.some((p) => p.test(normalized));
+}

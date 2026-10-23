@@ -8,6 +8,41 @@ export interface ConversationReplyResult {
   groundingMetadata?: any;
 }
 
+/**
+ * Sanitiza el texto de respuesta generado por la IA antes de enviarlo a Discord.
+ * - Elimina prefijos de citas markdown de Discord (>>>)
+ * - Remueve prefijos de diálogo o etiquetas de turno repetidas por el modelo
+ *   (ej. "(En respuesta a Alice):", "[en respuesta a Bob]:", "[Hoshiko dice]:", "Hoshiko:")
+ */
+export function sanitizeReplyText(raw: string): string {
+  let text = (raw || "").trim();
+  // Strip Discord quote block prefix
+  text = text.replace(/^>>>\s*/, "");
+  // Strip dialogue prefixes or turn tags echoed from conversational context
+  const DIALOGUE_PREFIX_REGEX =
+    /^(?:(?:\(|\[)\s*en respuesta a [^)\n\]]+(?:\)|\]):?\s*|\[Hoshiko(?:\s+dice)?\]:?\s*|Hoshiko:\s*)/i;
+  while (DIALOGUE_PREFIX_REGEX.test(text)) {
+    text = text.replace(DIALOGUE_PREFIX_REGEX, "").trim();
+  }
+
+  // Strip boilerplate AI self-identification at the beginning (e.g. "Como modelo de lenguaje grande...")
+  text = text
+    .replace(
+      /^(?:(?:como\s+)?(?:un[a]?\s+)?(?:gran\s+)?modelo\s+de\s+(?:lenguaje|ia)(?:\s+grande)?(?:\s+(?:entrenad[oa]|desarrollad[oa])\s+por\s+Google)?|como\s+(?:una?\s+)?(?:inteligencia\s+artificial|ia))\b[,\s.:-]*/i,
+      "",
+    )
+    .trim();
+
+  // Neutralize self-referential Google origin claims without altering third-party tech references
+  const SELF_GOOGLE_REGEX =
+    /\b(?:soy|fui)\s+(?:(?:un[a]?\s+)?(?:modelo|ia|asistente)\s+)?(?:cread[oa]|desarrollad[oa]|entrenad[oa])\s+por\s+Google\b/gi;
+  if (SELF_GOOGLE_REGEX.test(text)) {
+    text = text.replace(SELF_GOOGLE_REGEX, "soy Hoshiko de este servidor");
+  }
+
+  return text || "...";
+}
+
 export async function sendConversationReply(
   message: Message,
   systemInstruction: string,
@@ -70,7 +105,7 @@ export async function sendConversationReply(
   }
 
   const MAX = 1996;
-  const cleanText = (fullText.trim() || "...").replace(/^>>>\s*/, "");
+  const cleanText = sanitizeReplyText(fullText);
   if (cleanText.length <= MAX) {
     const sent = await message.reply(cleanText);
     if (sent?.id) markAsAiMessage(sent.id);
