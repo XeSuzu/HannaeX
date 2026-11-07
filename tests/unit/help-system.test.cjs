@@ -2,7 +2,6 @@ const test = require("node:test");
 const assert = require("node:assert");
 const { CATEGORIES, WELCOME_LINES } = require("../../dist/Commands/SlashCmds/Fun/helpUtils/config.js");
 const { buildModerationEmbed } = require("../../dist/Commands/SlashCmds/Fun/helpUtils/moderationHelp.js");
-const { buildAntiraidEmbed } = require("../../dist/Commands/SlashCmds/Fun/helpUtils/antiraidHelp.js");
 const { CURATED_COMMAND_DETAILS, getCommandDetail } = require("../../dist/Commands/SlashCmds/Fun/helpUtils/commandDetails.js");
 const { buildHelpComponents } = require("../../dist/Commands/SlashCmds/Fun/helpUtils/ui.js");
 
@@ -21,6 +20,8 @@ test("CATEGORIES - cubre todas las áreas principales con metadatos consistentes
     "Information",
     "Moderation",
     "Confessions",
+    "Levels",
+    "AI",
     "Utility",
     "Fun",
     "Profiles",
@@ -72,28 +73,14 @@ test("buildModerationEmbed - documenta flujo disciplinario, jerarquía y respeta
   assert.ok(totalChars < 6000, `Total chars (${totalChars}) no debe exceder 6000`);
 });
 
-test("buildAntiraidEmbed - documenta estado BETA, capacidades reales y limitaciones técnicas", () => {
-  const embed = buildAntiraidEmbed(mockClient);
-  const json = embed.toJSON();
-
-  assert.ok(json.title.includes("[BETA]"), "El título debe indicar explícitamente [BETA]");
-  assert.ok(json.description.includes("Aviso de Beta en Desarrollo"), "Debe tener aviso de beta");
-
-  // Verificación de los tres grupos solicitados
-  const dispoField = json.fields.find((f) => f.name.includes("1. Capacidades Disponibles"));
-  assert.ok(dispoField, "Debe listar capacidades disponibles");
-  assert.ok(dispoField.value.includes("Join-Flood"));
-  assert.ok(dispoField.value.includes("Anti-Nuke"));
-
-  const limitField = json.fields.find((f) => f.name.includes("2. Limitaciones"));
-  assert.ok(limitField, "Debe documentar limitaciones");
-  assert.ok(limitField.value.includes("Alerta vs Acción Autónoma"));
-
-  const evalField = json.fields.find((f) => f.name.includes("3. En Evaluación"));
-  assert.ok(evalField, "Debe listar futuras mejoras en evaluación");
-
-  const protoField = json.fields.find((f) => f.name.includes("4. Protocolo"));
-  assert.ok(protoField, "Debe incluir protocolo post-incidente para administradores");
+test("Hoshiko Help - botonera limpia sin residuales de Anti-Raid delegados a Security", () => {
+  const rows = buildHelpComponents(mockClient, { Information: [] }, "main");
+  const buttons = rows[rows.length - 1].toJSON().components;
+  assert.strictEqual(
+    buttons.some((b) => b.custom_id === "help_antiraid"),
+    false,
+    "Hoshiko no debe incluir botones ni referencias a Anti-Raid",
+  );
 });
 
 test("commandDetails - detalle curado contiene comandos clave de moderación y utilidades", () => {
@@ -113,10 +100,19 @@ test("commandDetails - detalle curado contiene comandos clave de moderación y u
     "massban",
     "setup-automod",
     "setup-logs",
+    "case",
+    "cases",
     "rank",
     "vcrank",
+    "top",
     "confess",
     "setup-confessions",
+    "ai",
+    "memory",
+    "invite",
+    "premium",
+    "infocreator",
+    "stats",
   ];
 
   for (const name of coreCommands) {
@@ -184,9 +180,9 @@ test("buildHelpComponents - estructura menús y botones sin violar límites de D
 
   // Fila 3: Botonera única (cuando totalPages <= 1)
   const buttons = rows[2].toJSON().components;
-  assert.ok(buttons.length >= 4 && buttons.length <= 5, "La botonera no debe exceder 5 componentes");
+  assert.ok(buttons.length >= 3 && buttons.length <= 5, "La botonera no debe exceder 5 componentes");
   assert.ok(buttons.some((b) => b.custom_id === "help_home"));
-  assert.ok(buttons.some((b) => b.custom_id === "help_antiraid"));
+  assert.strictEqual(buttons.some((b) => b.custom_id === "help_antiraid"), false, "Anti-Raid no debe estar presente en Hoshiko");
 
   // Verificación de paginación con totalPages > 1 (ej: 3 páginas)
   const paginatedRows = buildHelpComponents(mockClient, mockCategorized, "Moderation", mockCategorized.Moderation, 1, 3);

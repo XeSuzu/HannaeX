@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    actor User as Usuario en Voz
+    participant Discord as Discord Gateway / API
+    participant Hoshiko as Hoshiko Music (Bot)
+    participant Lavalink as Lavalink v4
+    participant DiscordVoice as Discord Voice Server
+    participant Provider as Proveedor de Audio
+
+    User->>Discord: Ejecuta /play (canción o enlace)
+    Discord->>Hoshiko: interactionCreate (ChatInputCommand)
+    Hoshiko->>Discord: deferReply() (Asegura ventana de 3s)
+
+    Hoshiko->>Hoshiko: Valida usuario en VC y permisos del bot (CONNECT, SPEAK)
+    Hoshiko->>Lavalink: GET /v4/loadtracks?identifier=...
+    Lavalink->>Provider: Resuelve metadatos / stream URL
+    Provider-->>Lavalink: Pistas resueltas (info + encoded)
+    Lavalink-->>Hoshiko: LoadResult (TRACK_LOADED / SEARCH_RESULT)
+
+    Hoshiko->>Hoshiko: Encola pista en QueueManager
+    alt Reproductor no conectado al VC
+        Hoshiko->>Discord: Gateway Op 4 (Voice State Update: join VC)
+        Discord-->>Hoshiko: VOICE_STATE_UPDATE (session_id)
+        Discord-->>Hoshiko: VOICE_SERVER_UPDATE (token, endpoint)
+        Hoshiko->>Lavalink: PATCH /v4/sessions/{sid}/players/{gid} (voice credentials)
+        Lavalink->>DiscordVoice: Handshake WebRTC / UDP (Opus Socket)
+        DiscordVoice-->>Lavalink: Conexión establecida
+    end
+
+    Hoshiko->>Lavalink: PATCH /v4/sessions/{sid}/players/{gid} (encodedTrack, volume)
+    Lavalink->>DiscordVoice: Transmisión continua de paquetes Opus (RTP/UDP)
+    DiscordVoice-->>User: Audio escuchado en canal de voz
+
+    Hoshiko->>Discord: editReply(Embed de reproducción / Now Playing)
+    Lavalink-->>Hoshiko: WS Event: TrackStartEvent
+    Hoshiko->>Hoshiko: Emite evento interno de inicio de pista

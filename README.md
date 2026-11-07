@@ -176,19 +176,23 @@ Cada ambiente debe tener sus propios secretos y configuraciones.
 
 ---
 
-## Arquitectura del proyecto
+## Arquitectura del Monorepo
 
-El codigo se organiza en modulos claros:
+El repositorio organiza dos aplicaciones independientes bajo npm workspaces:
 
-- `src/index.ts` -> arranque, carga de entorno, MongoDB, servidor Express y login de Discord.
-- `src/Handlers/` -> carga de comandos y eventos.
-- `src/Commands/` -> comandos slash y prefix.
-- `src/Services/` -> integraciones con Gemini, MongoDB, busqueda y APIs externas.
-- `src/Features/` -> moderacion, IA, memes, automod y mas.
-- `src/Security/` -> logger, monitorizacion y manejo de fallos.
-- `src/Utils/` -> helpers y utilidades generales.
+- **[`apps/hoshiko`](apps/hoshiko):** Bot principal de Discord que gestiona Community Management, AutoMod convencional, moderación disciplinaria, filtros, niveles y experiencia (texto y voz con tarjetas personalizables en Canvas), interacciones y asistente de IA conversacional.
+  - `src/index.ts`: Arranque y coordinación general.
+  - `src/Commands/`: Comandos slash (`SlashCmds/`) y de prefijo (`PrefixCmds/`).
+  - `src/Events/`: Listeners de eventos de Discord con control de concurrencia e idempotencia.
+  - `src/Database/`: Persistencia Mongoose modularizada por dominios (`ai/`, `community/`, `guild/`, `leveling/`, `moderation/`, `streaks/`, `system/`, `tracking/`).
+  - `src/Features/`: Lógica de negocio (asistente de IA, niveles, AutoMod, rachas).
+  - `src/Renderers/` y `src/Utils/levelBanners/`: Motor gráfico con `@napi-rs/canvas` y tipografías multi-script.
 
-Para mas detalle operativo, consulta `Hoshiko_Dev.md`.
+- **[`apps/hoshiko-security`](apps/hoshiko-security):** Aplicación especializada e independiente enfocada en la defensa activa del servidor:
+  - `src/index.ts`: Punto de entrada del bot de seguridad.
+  - `src/modules/`: Sentinel (red de amenazas global), Anti-Raid, Anti-Nuke, Lockdown y Honeypot.
+
+Para más detalle operativo y guías de arquitectura, consulta la carpeta [`docs/`](docs/) y especialmente [`docs/development/Hoshiko_Dev.md`](docs/development/Hoshiko_Dev.md).
 
 ---
 
@@ -199,15 +203,6 @@ Para mas detalle operativo, consulta `Hoshiko_Dev.md`.
 - Verifica `NODE_ENV` antes de ejecutar el bot.
 - Revisa los logs de PM2 con `npm run logs:staging` o `npm run logs:prod`.
 - Mantiene dependencias y permisos de Discord actualizados.
-
----
-
-## Docker
-
-```bash
-docker build -t hoshiko .
-docker run --env-file .env.development hoshiko
-```
 
 ---
 
@@ -228,81 +223,52 @@ docker run --env-file .env.development hoshiko
 
 ---
 
-## Nuevas Features a Implementar
+## Módulos Principales de Hoshiko
 
-Basado en el analisis del codebase actual, aqui se proponen nuevas funcionalidades para expandir las capacidades de Hoshiko. Estas sugerencias se derivan de los modulos existentes como moderacion, IA, niveles, confesiones, streaks y servicios de busqueda.
+Hoshiko ofrece un ecosistema integral y modular para comunidades de Discord:
 
-### 1. Sistema de Economia
+### 1. Moderación y AutoMod Heurístico
+- **AutoMod convencional**: Detección de spam, flood, menciones masivas y análisis de entropía de texto.
+- **Acciones disciplinarias**: Sistema de casos secuenciales (`/case`), advertencias, silenciamientos temporales con reintentos exponenciales y auditoría detallada.
+- **Herramienta Snipe**: Recuperación ética de mensajes eliminados recientes con control de privacidad y consentimiento.
 
-- **Moneda virtual**: Implementar un sistema de puntos/monedas que los usuarios puedan ganar mediante interacciones, niveles o eventos.
-- **Tienda**: Permitir comprar items virtuales, roles temporales o beneficios premium.
-- **Juegos de azar**: Comandos para apostar monedas en juegos simples (dados, ruleta).
-- **Transferencias**: Enviar monedas entre usuarios con confirmacion.
+### 2. Asistente Conversacional e IA
+- **Identidad nativa**: Respuestas cálidas, naturales, reflexivas y coherentes impulsadas por Google Gemini.
+- **Memoria de usuario**: Recordación de preferencias e historial sin romper el aislamiento por servidor.
+- **Sesiones privadas y control de cuotas**: Gestión de límites por servidor con compresión de temas y colas FIFO por canal.
 
-### 2. Integracion Completa de Musica
+### 3. Niveles y Experiencia (XP de Texto y Voz)
+- **Fórmulas matemáticas O(1)**: Cálculo instantáneo y atómico sin sobrecargar la base de datos.
+- **Tarjetas gráficas con Canvas**: Renderizado glassmorphic de `/rank` y `/vcrank` con anillos dinámicos según el podio.
+- **Personalización por servidor**: Ajuste de temas, imagen de fondo propia (`object-fit: cover`) y textos editables con Live Preview en `/setup-levels card`.
+- **Leaderboards unificados**: Alternancia interactiva entre Texto, Voz y Semanal con temporizador relativo de reset.
 
-- **Reproductor de audio**: Expandir el servicio de Lyrics para reproducir musica en canales de voz.
-- **Colas de reproduccion**: Gestionar listas de canciones con comandos para agregar, saltar, pausar.
-- **Busqueda de musica**: Integrar APIs como YouTube o Spotify para buscar y reproducir tracks.
-- **Controles avanzados**: Volumen, efectos de audio, playlists personalizadas.
-
-### 3. Comandos Personalizados por Usuario
-
-- **Creacion de comandos**: Permitir a usuarios premium crear comandos personalizados con respuestas fijas o scripts simples.
-- **Gestion de comandos**: Interfaz para editar, eliminar o compartir comandos personalizados.
-- **Libreria de comandos**: Compartir comandos populares entre servidores.
-
-### 4. Sistema de Encuestas y Votaciones
-
-- **Encuestas interactivas**: Crear encuestas con opciones multiples, temporizadores y resultados en tiempo real.
-- **Votaciones democraticas**: Para decisiones del servidor, como cambios de reglas o elecciones de moderadores.
-- **Resultados y estadisticas**: Mostrar graficos de votos usando Canvas (ya integrado).
-
-### 5. Gestion Avanzada de Roles
-
-- **Roles automaticos**: Asignar roles basados en niveles, actividad o eventos.
-- **Reacciones de roles**: Mensajes con reacciones para auto-asignar roles.
-- **Roles temporales**: Asignar roles con expiracion automatica.
-- **Permisos dinamicos**: Ajustar permisos segun el contexto (ej. en eventos).
-
-### 6. Eventos y Sorteos
-
-- **Sorteos automaticos**: Crear sorteos con entradas, ganadores aleatorios y premios.
-- **Eventos programados**: Anuncios de eventos futuros, recordatorios y gestion de participantes.
-- **Calendario de eventos**: Integrar con calendarios externos o mostrar eventos activos.
-
-### 7. Integraciones Adicionales con APIs
-
-- **Clima y noticias**: Comandos para obtener pronosticos del tiempo o noticias recientes.
-- **Traduccion**: Expandir el traductor existente para mas idiomas y deteccion automatica.
-- **Imagenes y memes**: Generar memes personalizados o buscar imagenes via APIs.
-- **Juegos externos**: Integrar con APIs de juegos como trivia, quiz o puzzles.
-
-### 8. Dashboard Web
-
-- **Panel de administracion**: Interfaz web para gestionar configuraciones del bot sin comandos.
-- **Estadisticas en tiempo real**: Ver logs, usuarios activos, comandos usados.
-- **Configuracion por servidor**: Ajustar settings via web para moderadores.
-
-### 9. Mejoras en IA y Conversacion
-
-- **Generacion de imagenes**: Usar APIs como DALL-E o Stable Diffusion para crear imagenes basadas en prompts.
-- **Reconocimiento de voz**: Integrar voz a texto para comandos o moderacion.
-- **Personalizacion de IA**: Permitir usuarios entrenar o personalizar respuestas de Gemini.
-- **Modo conversacional avanzado**: Mantener contexto en conversaciones largas.
-
-### 10. Soporte Multi-Idioma y Localizacion
-
-- **Traducciones dinamicas**: Cambiar idioma del bot por servidor o usuario.
-- **Comandos localizados**: Mensajes de error y ayuda en diferentes idiomas.
-- **Deteccion de idioma**: Automatica para respuestas de IA.
-
-Estas features pueden implementarse gradualmente, priorizando las que mas valor agreguen a la comunidad. Cada una deberia incluir pruebas unitarias y documentacion actualizada.
+### 4. Funciones Sociales y Comunidad
+- **Confesiones y Sugerencias**: Publicaciones anónimas o públicas con aprobación y tarjetas renderizadas.
+- **Rachas de actividad**: Seguimiento de compromiso continuo en canales designados.
+- **Interacciones expresivas**: Abrazos, besos y tarjetas sociales interactivas.
 
 ---
 
-## Licencia
+## Marco Legal, Privacidad y Términos de Servicio
 
-Proyecto privado. No distribuir sin autorizacion del autor.
+La documentación legal, de privacidad, tratamiento de datos y licenciamiento del proyecto se encuentra centralizada exclusivamente bajo [`licenses/`](licenses/):
+
+- **Documentos Públicos Oficiales:**
+  - [Términos de Servicio (`licenses/public/TERMS_OF_SERVICE.md`)](licenses/public/TERMS_OF_SERVICE.md)
+  - [Política de Privacidad (`licenses/public/PRIVACY_POLICY.md`)](licenses/public/PRIVACY_POLICY.md)
+- **Licenciamiento y Dependencias:**
+  - [Licencia Propietaria del Proyecto (`licenses/LICENSE`)](licenses/LICENSE)
+  - [Resumen de Licencias de Terceros (`licenses/THIRD_PARTY_LICENSES.md`)](licenses/THIRD_PARTY_LICENSES.md)
+  - [Manifiesto de Atribuciones (`licenses/ATTRIBUTIONS.md`)](licenses/ATTRIBUTIONS.md)
+- **Expedientes Internos de Auditoría Técnica:**
+  - Hoshiko Principal: [`licenses/hoshiko/`](licenses/hoshiko/)
+  - Hoshiko Security: [`licenses/hoshiko-security/`](licenses/hoshiko-security/)
+
+---
+
+## Licencia y Atribuciones
+
+Proyecto privado. Todos los derechos reservados. Consulte [`licenses/LICENSE`](licenses/LICENSE) y [`licenses/ATTRIBUTIONS.md`](licenses/ATTRIBUTIONS.md).
 
 **Creado por [v.sxn]**

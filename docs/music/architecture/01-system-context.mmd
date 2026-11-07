@@ -1,0 +1,63 @@
+flowchart TB
+    %% Contexto General de Hoshiko Music
+    subgraph Users ["Usuarios de Discord"]
+        U1["Usuario en Canal de Voz"]
+        U2["Comunidad / Oyentes"]
+    end
+
+    subgraph DiscordPlatform ["Plataforma Discord"]
+        DG["Discord Gateway (Eventos / Interactions)"]
+        DVC["Discord Voice Server (Canales de Voz / WebRTC Opus)"]
+    end
+
+    subgraph VPS ["CubePath VM (Ubuntu 24.04 - 4 vCPU / 8 GB RAM)"]
+        subgraph HannaeXApp ["HannaeX (Node.js 20+ / Discord.js v14)"]
+            H_Core["Hoshiko Core (Client & Event Router)"]
+            H_Music["Hoshiko Music Module (Player/Queue Manager)"]
+            H_Voice["Voice State Manager"]
+        end
+
+        subgraph AudioSubsystem ["Lavalink v4 (Java 21 OpenJDK)"]
+            LL_WS["WebSocket Gateway (Port 2333 - Loopback)"]
+            LL_REST["REST API v4 (/v4/sessions)"]
+            LL_Core["Audio Engine (Lavaplayer + Plugins)"]
+        end
+
+        subgraph LocalData ["Persistencia Local"]
+            MDB[("MongoDB 7.0 Local (Puerto 27017)")]
+            RDB[("Redis 7.0 Local (Puerto 6379, Opcional)")]
+        end
+    end
+
+    subgraph ExternalProviders ["Proveedores Externos (Búsqueda y Audio)"]
+        P_YT["YouTube (via YouTube Source Plugin / PO-Token)"]
+        P_SC["SoundCloud (Audio Nativo)"]
+        P_SP["Spotify Web API (Solo Metadatos / ISRC)"]
+        P_HTTP["HTTP / Radio Streams (Direct Stream)"]
+    end
+
+    %% Flujos de interacción y comandos
+    U1 -->|"Comando Slash /play, /pause, /skip"| DG
+    DG -->|"InteractionCreate"| H_Core
+    H_Core --> H_Music
+
+    %% Coordinación con Discord Voice
+    H_Music <-->|"VoiceServerUpdate / VoiceStateUpdate"| H_Voice
+    H_Voice <-->|"Send Payload (Voice State)"| DG
+    H_Voice -->|"Actualiza Credenciales de Voz"| LL_REST
+
+    %% Comunicación Hoshiko <-> Lavalink (Loopback 127.0.0.1)
+    H_Music <-->|"WebSocket (Eventos de Pistas / Estados)"| LL_WS
+    H_Music -->|"REST (Búsqueda / Play / Stop / Volume)"| LL_REST
+
+    %% Lavalink y fuentes externas
+    LL_Core -->|"Búsqueda / Resolución"| ExternalProviders
+    LL_Core -->|"Transmisión Opus en Tiempo Real (UDP)"| DVC
+
+    %% Discord Voice hacia oyentes
+    DVC -->|"Audio Opus Decodificado"| U1
+    DVC -->|"Audio Opus Decodificado"| U2
+
+    %% Persistencia
+    H_Music -.->|"Configuración de Guild / Favoritos"| MDB
+    H_Music -.->|"Caché L2 de Metadatos (Opcional)"| RDB

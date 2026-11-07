@@ -54,5 +54,22 @@ module.exports = {
         REDIS_ENABLED: "false",
       },
     },
+    {
+      name: "hoshiko-security",
+      script: "./apps/hoshiko-security/dist/index.js",
+      cwd: "/root/HannaeX",
+      exec_mode: "fork",
+      instances: 1,
+      watch: false,
+      autorestart: false,
+      kill_timeout: 10000,
+      out_file: "/root/.pm2/logs/hoshiko-security-out.log",
+      error_file: "/root/.pm2/logs/hoshiko-security-error.log",
+      // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production",
+      },
+    },
   ],
 };

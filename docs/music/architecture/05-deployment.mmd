@@ -1,0 +1,34 @@
+flowchart TB
+    %% Despliegue en VM CubePath
+    subgraph HostVM ["CubePath VPS (Ubuntu 24.04 LTS - 4 vCPU / 8 GB RAM / 100 GB SSD)"]
+        subgraph Firewall ["Seguridad de Red (UFW / Netfilter)"]
+            UFW_Rule["Puertos Abiertos Externos: Solo SSH (22)<br/>Todo el resto de puertos en Bind Local 127.0.0.1"]
+        end
+
+        subgraph ProcessManager ["PM2 Supervisor"]
+            PM2_Bot["hoshiko-bot (dist/index.js)<br/>Memoria: ~250MB | Max: 1GB"]
+            PM2_Worker["hoshiko-worker (dist/worker.js)<br/>Memoria: Idle | Deshabilitado"]
+        end
+
+        subgraph SystemdUnits ["Servicios del Sistema (Systemd)"]
+            Svc_Lavalink["lavalink.service (Lavalink v4.0.x)<br/>JVM: OpenJDK 21 (-Xms256m -Xmx1024m)<br/>Bind: 127.0.0.1:2333"]
+            Svc_Mongo["mongod.service (MongoDB 7.0 Community)<br/>Bind: 127.0.0.1:27017<br/>Cache WiredTiger: 1.5 GB max"]
+            Svc_Redis["redis-server.service (Opcional)<br/>Bind: 127.0.0.1:6379<br/>Memoria: 256 MB max"]
+        end
+
+        subgraph InternalNetwork ["Red Interna (Loopback lo / 127.0.0.1)"]
+            PM2_Bot <-->|"REST & WS (Puerto 2333)"| Svc_Lavalink
+            PM2_Bot <-->|"Mongoose TCP (Puerto 27017)"| Svc_Mongo
+            PM2_Bot -.->|"ioredis TCP (Puerto 6379)"| Svc_Redis
+        end
+    end
+
+    subgraph ExternalWorld ["Servicios Externos (Salida WAN)"]
+        D_API["Discord API & Gateway (HTTPS/WSS: 443)"]
+        D_Voice["Discord Voice Relays (UDP Opus 50000-65535)"]
+        Audio_APIs["YouTube / Spotify / SoundCloud (HTTPS: 443)"]
+    end
+
+    PM2_Bot -->|"Eventos y Comandos"| D_API
+    Svc_Lavalink -->|"Streams RTP/Opus"| D_Voice
+    Svc_Lavalink -->|"Búsqueda y Audio"| Audio_APIs

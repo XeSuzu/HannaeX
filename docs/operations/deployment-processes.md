@@ -1,6 +1,6 @@
-# Preparación operacional: procesos y contenedores
+# Preparación operacional: procesos PM2
 
-Esta configuración prepara dos procesos posibles, `hoshiko-bot` y `hoshiko-worker`. No se ejecutaron comandos PM2 ni Docker durante esta preparación.
+Esta configuración prepara los procesos gestionados por PM2 para el despliegue en la máquina virtual.
 
 ## PM2
 
@@ -27,28 +27,22 @@ pm2 start ecosystem.config.js --only hoshiko-worker --update-env
 pm2 logs hoshiko-worker
 ```
 
-No uses `pm2 start ecosystem.config.js` sin `--only`: iniciaría también las aplicaciones declaradas que no quieras activar. Para mantener el worker parado en una máquina donde ya se inició, el comando manual es `pm2 stop hoshiko-worker`.
+`hoshiko-security` permanece detenido y preparado (`autorestart: false`) con sus logs en `/root/.pm2/logs/hoshiko-security-*.log`:
+
+```sh
+pm2 start ecosystem.config.js --only hoshiko-security --update-env
+pm2 logs hoshiko-security
+pm2 stop hoshiko-security
+```
+
+O mediante los scripts de npm:
+
+```sh
+npm run start:security:prod
+npm run logs:security
+npm run stop:security
+```
+
+No uses `pm2 start ecosystem.config.js` sin `--only`: iniciaría también las aplicaciones declaradas que no quieras activar. Para mantener el worker o security parados en una máquina donde ya se iniciaron, el comando manual es `pm2 stop <nombre>`.
 
 Los scripts `start:prod` y `logs:prod` apuntan ahora a `hoshiko-bot`; `start:staging` conserva el nombre de staging existente.
-
-## Docker
-
-El Dockerfile existente conserva `CMD ["npm", "start"]`, que ejecuta el bot. `.dockerignore` excluye `.env` y `.env.*`; pasa la configuración en tiempo de ejecución con el mecanismo de secretos del entorno, nunca copiando credenciales a la imagen.
-
-El archivo de entorno debe establecer `NODE_ENV=production` y contener los valores requeridos por la aplicación. Ejemplos manuales, no ejecutados:
-
-```sh
-docker build -t hoshiko:release .
-docker run --name hoshiko-bot --env-file /ruta/protegida/production.env \
-  -e NODE_ENV=production hoshiko:release
-```
-
-La misma imagen compila `dist/worker.js`; un contenedor de worker sustituye el `CMD` de la imagen:
-
-```sh
-docker run --name hoshiko-worker --env-file /ruta/protegida/production.env \
-  -e NODE_ENV=production -e WORKER_ENABLED=false -e REDIS_ENABLED=false \
-  hoshiko:release node dist/worker.js
-```
-
-No crees ni inicies el contenedor worker en el primer despliegue. Si más adelante lo inicias en modo disabled/idle, recuerda que el entry point comprueba `WORKER_ENABLED` antes de conectar Mongo. No se añade Compose: en este despliegue no aporta valor operativo inmediato ni sustituye los servicios gestionados de producción.

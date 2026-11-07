@@ -1,0 +1,103 @@
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+} from "discord.js";
+import { SlashCommand } from "../../../Interfaces/Command";
+import {
+  buildInviteActionRow,
+  generateStandardInviteUrl,
+  generateAdminInviteUrl,
+} from "../../../Utils/inviteUtils";
+
+const command: SlashCommand = {
+  category: "Utility",
+  data: new SlashCommandBuilder()
+    .setName("invite")
+    .setDescription("🌸 Obtén los enlaces de invitación para llevar a Hoshiko a tu servidor."),
+
+  async execute(interaction: ChatInputCommandInteraction) {
+    const client = interaction.client;
+    const clientId =
+      interaction.applicationId ||
+      client.user?.id ||
+      client.application?.id ||
+      process.env.BOT_ID ||
+      "";
+
+    const standardUrl = generateStandardInviteUrl(clientId);
+    const adminUrl = generateAdminInviteUrl(clientId);
+
+    const totalServers = client.guilds.cache.size;
+    const totalUsers = client.guilds.cache.reduce(
+      (acc, g) => acc + (g.memberCount || 0),
+      0,
+    );
+    const botPing = client.ws.ping < 0 ? 0 : client.ws.ping;
+
+    const embed = new EmbedBuilder()
+      .setAuthor({
+        name: "Hoshiko 🐾",
+        iconURL: client.user?.displayAvatarURL(),
+      })
+      .setTitle("🌸 Lleva a Hoshiko a tu servidor")
+      .setDescription(
+        `¡Hola! Soy **Hoshiko**, tu compañera para acompañar y proteger a tu comunidad con calidez, elegancia y precisión.\n\n` +
+        `Actualmente acompaño a **${totalServers.toLocaleString()}** servidores y **${totalUsers.toLocaleString()}** usuarios.\n\n` +
+        `> Elige la opción de invitación que mejor se ajuste a tu comunidad:`
+      )
+      .addFields(
+        {
+          name: "🌸 Permisos Recomendados (Estándar y Seguro)",
+          value:
+            `Solicita las facultades necesarias para moderación, niveles, tarjetas gráficas y filtros automáticos.\n` +
+            `👉 [**Haz clic aquí para invitar con permisos recomendados**](${standardUrl})\n` +
+            `*(Opción recomendada para mantener tu servidor seguro y transparente)*`,
+          inline: false,
+        },
+        {
+          name: "⚙️ Permisos Completos (Modo Administrador)",
+          value:
+            `Otorga la casilla \`Administrador\` de Discord con acceso total a todos los canales y roles.\n` +
+            `👉 [**Haz clic aquí para invitar con Administrador**](${adminUrl})\n` +
+            `*(Concede este permiso solo si confías plenamente en el bot)*`,
+          inline: false,
+        },
+        {
+          name: "🛡️ AutoMod & Moderación",
+          value: "Filtros inteligentes, casos atómicos correlativos y modlogs en tiempo real.",
+          inline: true,
+        },
+        {
+          name: "📈 Niveles & Voz",
+          value: "Experiencia en texto y voz con tarjetas Canvas personalizadas y rankings.",
+          inline: true,
+        },
+        {
+          name: "🧠 IA & Privacidad",
+          value: "Conversación natural vía Gemini Relay con recuerdos soberanos y cuotas diarias.",
+          inline: true,
+        },
+        {
+          name: "💌 Confesiones & Comunidad",
+          value: "Buzón anónimo, cartas de bienvenida y herramientas sociales.",
+          inline: true,
+        },
+      )
+      .setColor(0xff9eb5)
+      .setThumbnail(client.user?.displayAvatarURL({ size: 512 }) || null)
+      .setFooter({
+        text: `Hoshiko v2.0.0 • Latencia: ${botPing}ms • Creada con cariño para tu comunidad ✨`,
+        iconURL: interaction.user.displayAvatarURL(),
+      });
+
+    const actionRow = buildInviteActionRow(
+      clientId,
+      process.env.SUPPORT_SERVER_INVITE,
+    );
+
+    await interaction.editReply({ embeds: [embed], components: [actionRow] });
+  },
+};
+
+export default command;

@@ -1,0 +1,28 @@
+flowchart TD
+    %% Escenarios de Fallo y Recuperación (Failover & Recovery)
+    Start([Detección de Anomalía]) --> Cond{¿Qué componente falló?}
+
+    %% Escenario 1: Caída de Lavalink
+    Cond -->|Lavalink desconectado| LL_Down["Cierre del WebSocket Hoshiko <-> Lavalink"]
+    LL_Down --> LL_Retry["LavalinkClient inicia reintentos con Backoff Exponencial (2s, 5s, 10s...)"]
+    LL_Retry --> LL_Recovered{¿Lavalink vuelve dentro del resumeTimeout?}
+    LL_Recovered -->|Sí| LL_Resume["Resuming Exitoso: Sesión rehidratada, reproducción continúa sin cortes"]
+    LL_Recovered -->|No| LL_Reset["Sesión expirada: Notificar a canales activos, vaciar estado y esperar nuevo comando"]
+
+    %% Escenario 2: Reinicio de Hoshiko (PM2)
+    Cond -->|Hoshiko reiniciado por PM2| Bot_Crash["El proceso Hoshiko termina inesperadamente"]
+    Bot_Crash --> LL_Buffer["Lavalink mantiene el audio sonando durante el periodo de gracia (resumeTimeout = 60s)"]
+    LL_Buffer --> Bot_Reboot["Hoshiko arranca de nuevo en < 5 segundos"]
+    Bot_Reboot --> Bot_Attach["Hoshiko reconecta al WS de Lavalink con el mismo sessionId"]
+    Bot_Attach --> Bot_Sync["Jugadores sincronizados sin interrupción audible para el usuario"]
+
+    %% Escenario 3: Desconexión de Voz de Discord
+    Cond -->|Desconexión del canal de voz| DC_Voice["Discord emite VoiceStateUpdate (bot desconectado)"]
+    DC_Voice --> DC_Check{¿Fue expulsión manual o caída de red?}
+    DC_Check -->|Expulsión o canal borrado| DC_Destroy["Destruir Player en Lavalink, vaciar cola en memoria y liberar recursos"]
+    DC_Check -->|Glitches transitorios de red| DC_Rejoin["Discord.js Voice Bridge reintenta handshake de conexión"]
+
+    %% Escenario 4: Error en Pista de Audio
+    Cond -->|Fallo al resolver o reproducir pista| Track_Err["Lavalink emite TrackExceptionEvent / TrackStuckEvent"]
+    Track_Err --> Track_Notify["Notificar al canal de texto: 'Error al reproducir pista. Saltando a la siguiente...'"]
+    Track_Notify --> Track_Advance["PlayerManager avanza automáticamente al siguiente elemento de la cola"]

@@ -1,0 +1,47 @@
+flowchart TB
+    %% Límites de Datos, Zonas de Confianza y Seguridad
+    subgraph Zone_Untrusted ["Zona No Confiable (Internet / Discord Público)"]
+        User_Req["Comandos de Usuario (/play, URLs, Búsquedas)"]
+        Discord_GW["Eventos de Discord Gateway"]
+    end
+
+    subgraph Security_Perimeter ["Perímetro de Seguridad e Ingress"]
+        Val_Input["Validación de Entrada (Sanitizer NFKD, Bloqueo de URLs Maliciosas)"]
+        Rate_Limiter["Rate Limiting por Usuario / Guild (Evitar Spam de Búsquedas)"]
+        Perm_Check["Verificación de Permisos (DJ Role, Membresía en Canal de Voz)"]
+    end
+
+    subgraph Zone_App ["Zona de Aplicación (Proceso Hoshiko en VPS)"]
+        Music_Logic["Lógica de Reproducción & Colas en Memoria"]
+        Sec_Store["Almacén de Credenciales (Tokens en Variables de Entorno Seguras)"]
+        DB_Access["Acceso a MongoDB (Configuraciones y Favoritos)"]
+    end
+
+    subgraph Zone_Loopback ["Zona de Red Local (Loopback 127.0.0.1)"]
+        Auth_Header["Handshake Autenticado (Password de Lavalink Pre-compartida)"]
+        Lavalink_Svc["Lavalink v4 (Aislamiento de Decodificación y Buffers)"]
+    end
+
+    subgraph Zone_Egress ["Zona de Salida (Proveedores Externos & Voz)"]
+        Ext_Streams["APIs Externas (YouTube, Spotify, SoundCloud - Solo HTTPS)"]
+        UDP_Voice["Cifrado de Voz Discord (WebRTC / AES-256-GCM / XSalsa20)"]
+    end
+
+    subgraph Privacy_Boundary ["Invariante de Privacidad y Cumplimiento"]
+        Privacy_Rule["POLÍTICA ESTRICTA:<br/>1. CERO GRABACIÓN DE VOZ DE USUARIOS.<br/>2. Solo se transmite audio saliente unidireccional.<br/>3. En base de datos solo se guardan URLs y metadatos públicos.<br/>4. Ningún dato biométrico ni paquetes de voz entrantes son procesados."]
+    end
+
+    User_Req --> Val_Input
+    Discord_GW --> Perm_Check
+    Val_Input --> Rate_Limiter
+    Rate_Limiter --> Perm_Check
+    Perm_Check --> Music_Logic
+
+    Music_Logic --> Sec_Store
+    Music_Logic --> DB_Access
+    Music_Logic -->|"Loopback Seguro (127.0.0.1:2333)"| Auth_Header
+    Auth_Header --> Lavalink_Svc
+
+    Lavalink_Svc --> Ext_Streams
+    Lavalink_Svc --> UDP_Voice
+    Lavalink_Svc --- Privacy_Rule

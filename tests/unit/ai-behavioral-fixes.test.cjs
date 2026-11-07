@@ -702,7 +702,7 @@ test("Fase 2 (ESC-19): Exclusión de prefijos en activaciones espontáneas", () 
 // FASE 3: HISTORIAL MULTIJUGADOR (ESC-12, ESC-13)
 // ============================================================================
 
-test("Fase 3 (ESC-12): buildConversationContext preserva contexto multijugador y separa /say", async () => {
+test("Fase 1 (Privacidad): buildConversationContext elimina el scraping de canales y aísla la sesión privada", async () => {
   const originalGetFacts = UserMemoryManager.getFacts;
   UserMemoryManager.getFacts = async () => [];
 
@@ -715,6 +715,7 @@ test("Fase 3 (ESC-12): buildConversationContext preserva contexto multijugador y
       id: "m4",
       guild: { id: "guild_1", name: "Servidor Test" },
       channel: {
+        id: "channel_gen_01",
         name: "general",
         messages: {
           fetch: async () => messageMap,
@@ -727,7 +728,6 @@ test("Fase 3 (ESC-12): buildConversationContext preserva contexto multijugador y
     };
 
     const messageMap = new Map();
-    // En Discord.js, messages.fetch devuelve los mensajes en orden descendente (el más nuevo primero)
     messageMap.set("m4", currentMsg);
     messageMap.set("m3", {
       id: "m3",
@@ -762,26 +762,14 @@ test("Fase 3 (ESC-12): buildConversationContext preserva contexto multijugador y
 
   assert.ok(context.historyForApi.length > 0);
 
-  // Verificar que el anuncio NO es role model
-  const modelTurns = context.historyForApi.filter((t) => t.role === "model");
-  for (const t of modelTurns) {
-    const txt = t.parts[0].text;
-    assert.equal(txt.includes("Recordatorio: limpieza de canales"), false, "Los anuncios de /say no deben ser turnos model");
-  }
-
-  // Verificar que la respuesta de Hoshiko indica a quién respondió
-  const hoshikoTurn = modelTurns.find((t) => t.parts[0].text.includes("Alice"));
-  assert.ok(hoshikoTurn, "Hoshiko debe conservar la referencia de que le respondió a Alice");
-  assert.ok(hoshikoTurn.parts[0].text.startsWith("(En respuesta a Alice):"));
-
-  // Verificar que el turno de usuario contiene el contexto de Alice y el anuncio
+  // PRIVACIDAD: Las conversaciones públicas de Alice y anuncios de terceros NO deben ser extraídos ni inyectados
   const userTurns = context.historyForApi.filter((t) => t.role === "user");
   const fullUserText = userTurns.map((t) => t.parts[0].text).join("\n");
-  assert.ok(fullUserText.includes("[Alice dice]:"));
-  assert.ok(fullUserText.includes("[Anuncio en el canal]: Recordatorio: limpieza de canales mañana"));
-  assert.ok(fullUserText.includes("[Bob dice]: ¿y qué parte te gustó más?"));
+  assert.equal(fullUserText.includes("[Alice dice]:"), false, "NO debe haber scraping de mensajes de Alice");
+  assert.equal(fullUserText.includes("Recordatorio: limpieza de canales"), false, "NO debe haber anuncios del canal en el contexto");
+  assert.ok(fullUserText.includes("¿y qué parte te gustó más?"), "El mensaje del usuario invocador Bob sí debe estar presente");
 
-  // Verificar alternancia estricta del SDK (no puede comenzar en 'model')
+  // Alternancia estricta del SDK (no puede comenzar en 'model')
   assert.notEqual(context.historyForApi[0].role, "model");
   } finally {
     UserMemoryManager.getFacts = originalGetFacts;

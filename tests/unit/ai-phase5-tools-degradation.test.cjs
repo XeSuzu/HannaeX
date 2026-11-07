@@ -157,14 +157,14 @@ test("Google Search: degradación limpia a texto puro ante error HTTP 400 sin bu
   };
 
   try {
-    let replyText = "";
+    let sentPayload = null;
     let replyId = "";
     const fakeMessage = {
       id: "msg-400-err",
-      reply: async (text) => {
-        replyText = text;
+      reply: async (payload) => {
+        sentPayload = payload;
         replyId = "bot-reply-400";
-        return { id: replyId, content: text };
+        return { id: replyId, content: typeof payload === "string" ? payload : payload.content };
       },
     };
 
@@ -176,7 +176,11 @@ test("Google Search: degradación limpia a texto puro ante error HTTP 400 sin bu
     assert.deepEqual(calls[1].tools, []);
 
     // El contenido corresponde a la respuesta de fallback
-    assert.match(replyText, /Respuesta recuperada tras fallback de texto puro/);
+    const sentText =
+      typeof sentPayload === "string"
+        ? sentPayload
+        : (sentPayload?.embeds?.[0]?.data?.description || sentPayload?.content || "");
+    assert.match(sentText, /Respuesta recuperada tras fallback de texto puro/);
     assert.equal(result.fullText, "Respuesta recuperada tras fallback de texto puro.");
 
     // Se registró en el tracker como mensaje legítimo de IA
@@ -308,18 +312,22 @@ test("Google Search: preservación de fuentes y metadatos de grounding cuando el
   };
 
   try {
-    let sentText = "";
+    let sentPayload = null;
     const fakeMessage = {
       id: "msg-grounding",
-      reply: async (text) => {
-        sentText = text;
-        return { id: "reply-grounding", content: text };
+      reply: async (payload) => {
+        sentPayload = payload;
+        return { id: "reply-grounding", content: typeof payload === "string" ? payload : payload.content };
       },
     };
 
     const result = await sendConversationReply(fakeMessage, "sys_inst", [], true, "standard");
 
-    assert.equal(sentText, "Según fuentes recientes de exploración espacial...");
+    const sentContent =
+      typeof sentPayload === "string"
+        ? sentPayload
+        : (sentPayload?.embeds?.[0]?.data?.description || sentPayload?.content || "");
+    assert.equal(sentContent, "Según fuentes recientes de exploración espacial...");
     assert.ok(result.groundingMetadata, "Debe preservar el objeto groundingMetadata");
     assert.deepEqual(
       result.groundingMetadata.webSearchQueries,
@@ -380,7 +388,7 @@ test("Sanitización y Seguridad: sanitizeContextField neutraliza inyecciones mul
   assert.equal(sanitizeContextField(longName).length, 80);
 });
 
-test("Aislamiento Temporal: buildConversationContext utiliza before: message.id y descarta duplicados", async () => {
+test("Aislamiento y Privacidad: buildConversationContext elimina scraping de canales y preserva sesión y timezone", async () => {
   const originalGetFacts = UserMemoryManager.getFacts;
   UserMemoryManager.getFacts = async () => [];
   let capturedFetchOpts = null;
@@ -388,6 +396,7 @@ test("Aislamiento Temporal: buildConversationContext utiliza before: message.id 
     id: "msg_current_target",
     guild: { id: "g1", name: "Servidor Test" },
     channel: {
+      id: "channel_gen_02",
       name: "general",
       messages: {
         fetch: async (opts) => {
@@ -399,7 +408,6 @@ test("Aislamiento Temporal: buildConversationContext utiliza before: message.id 
             content: "Hola Hoshiko",
             attachments: new Map(),
           });
-          // Simular que el fetch devolvió por error o mock el mensaje actual
           map.set("msg_current_target", {
             id: "msg_current_target",
             author: { id: "u2", username: "Bob" },
@@ -440,14 +448,13 @@ test("Aislamiento Temporal: buildConversationContext utiliza before: message.id 
       },
     );
 
-    // Verificar que pasó before: message.id a messages.fetch
-    assert.ok(capturedFetchOpts);
-    assert.equal(capturedFetchOpts.before, "msg_current_target");
-    assert.equal(capturedFetchOpts.limit, 10);
+    // Privacidad Fase 1: CERO scraping de mensajes públicos del canal
+    assert.equal(capturedFetchOpts, null, "No debe realizar fetch de mensajes públicos del canal");
 
-    // Verificar que el mensaje actual NO se duplicó en los turnos previos
+    // Verificar que el mensaje actual del usuario está presente
     const userTurns = context.historyForApi.filter((t) => t.role === "user");
     assert.ok(userTurns.length >= 1);
+    assert.ok(userTurns[userTurns.length - 1].parts[0].text.includes("Mi pregunta"));
 
     // Verificar soporte de timezone en el prompt generado
     assert.ok(context.systemInstruction.includes("Zona horaria del servidor: America/Bogota"));

@@ -3,15 +3,15 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const fs = require("node:fs");
 
-test("DB-01: guildConfig.model.ts huérfano fue eliminado de src/Database/guild/", () => {
-  const guildConfigPath = path.join(__dirname, "../../src/Database/guild/guildConfig.model.ts");
+test("DB-01: guildConfig.model.ts huérfano fue eliminado de apps/hoshiko/src/Database/guild/", () => {
+  const guildConfigPath = path.join(__dirname, "../../apps/hoshiko/src/Database/guild/guildConfig.model.ts");
   assert.equal(
     fs.existsSync(guildConfigPath),
     false,
     "El archivo guildConfig.model.ts no debe existir en el proyecto",
   );
 
-  const serverConfigPath = path.join(__dirname, "../../src/Database/guild/serverConfig.model.ts");
+  const serverConfigPath = path.join(__dirname, "../../apps/hoshiko/src/Database/guild/serverConfig.model.ts");
   assert.equal(
     fs.existsSync(serverConfigPath),
     true,

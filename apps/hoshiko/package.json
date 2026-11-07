@@ -1,0 +1,14 @@
+{
+  "name": "@hannaex/hoshiko",
+  "version": "2.0.0",
+  "description": "Bot principal Hoshiko",
+  "main": "dist/index.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "copy:assets": "copyfiles -u 1 \"src/**/*.{json,sql,env,txt,md,png,jpg,jpeg,webp,svg,ico,ttf}\" dist",
+    "postbuild": "npm run copy:assets",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec \"ts-node --transpile-only\" src/index.ts"
+  }
+}

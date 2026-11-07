@@ -1,6 +1,6 @@
 {
-  "watch": ["src"],
+  "watch": ["apps/hoshiko/src"],
   "ext": "ts,json",
-  "ignore": ["src/**/*.spec.ts"],
-  "exec": "ts-node ./src/index.ts"
+  "ignore": ["apps/hoshiko/src/**/*.spec.ts"],
+  "exec": "ts-node ./apps/hoshiko/src/index.ts"
 }

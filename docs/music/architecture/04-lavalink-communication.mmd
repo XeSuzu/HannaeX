@@ -1,0 +1,29 @@
+flowchart LR
+    %% Protocolo de Comunicación Hoshiko <-> Lavalink v4
+    subgraph HoshikoNode ["Hoshiko Client (Node.js)"]
+        Shoukaku["Shoukaku / Lavalink Client"]
+        EventHandler["Lavalink Event Router"]
+        RestClient["Lavalink REST Dispatcher"]
+    end
+
+    subgraph LavalinkNode ["Lavalink v4 Server (Java 21)"]
+        WS_Endpoint["WS /v4/websocket"]
+        REST_Endpoint["REST /v4/..."]
+        SessionMgr["Session & Player State Manager"]
+    end
+
+    %% WebSocket Flow
+    Shoukaku -->|"1. Handshake inicial (Headers: Auth, User-Id, Client-Name)"| WS_Endpoint
+    WS_Endpoint -->|"2. Op 'ready' (sessionId, resumed)"| EventHandler
+    WS_Endpoint -->|"3. Op 'stats' (CPU, RAM, Frames, Players activos)"| EventHandler
+    WS_Endpoint -->|"4. Op 'playerUpdate' (Posición ms, ping, conectado)"| EventHandler
+    WS_Endpoint -->|"5. Op 'event' (TrackStart, TrackEnd, TrackException, TrackStuck)"| EventHandler
+
+    %% REST Flow
+    RestClient -->|"GET /v4/loadtracks?identifier=..."| REST_Endpoint
+    RestClient -->|"PATCH /v4/sessions/{sid}/players/{gid} (Play / Pause / Volume / Filters / Voice)"| REST_Endpoint
+    RestClient -->|"DELETE /v4/sessions/{sid}/players/{gid} (Destroy player)"| REST_Endpoint
+    RestClient -->|"PATCH /v4/sessions/{sid} (Configurar Resuming & Timeout)"| REST_Endpoint
+
+    WS_Endpoint <--> SessionMgr
+    REST_Endpoint <--> SessionMgr

@@ -52,8 +52,8 @@ test("PERF-01: renderRobloxCard genera un buffer PNG válido utilizando encode a
 });
 
 test("PERF-01: Todos los renderizadores de Canvas fueron migrados de .toBuffer() síncrono a .encode('png')", () => {
-  // Inspección estática sobre dist/ o src/ para confirmar que no quede ningún toBuffer en Renderers ni Commands
-  const srcDir = path.join(__dirname, "../../src");
+  // Inspección estática sobre apps/hoshiko/src/ para confirmar que no quede ningún toBuffer en Renderers ni Commands
+  const srcDir = path.join(__dirname, "../../apps/hoshiko/src");
 
   function scanDir(dir) {
     const files = fs.readdirSync(dir);

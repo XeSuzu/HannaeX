@@ -13,8 +13,10 @@ SettingsManager.getSettings = async () => ({
   securityModules: { securityLevel: 2, antiRaid: true },
 });
 
+const securityBuildRoot = path.join(__dirname, "../../apps/hoshiko-security/dist");
+
 const { RaidEpisodeModel } = require(
-  path.join(buildRoot, "Database/moderation/raidEpisode.model.js")
+  path.join(securityBuildRoot, "modules/antiraid/raidEpisode.model.js")
 );
 RaidEpisodeModel.create = async (d) => d;
 RaidEpisodeModel.updateOne = async () => ({ modifiedCount: 1 });
@@ -22,23 +24,10 @@ RaidEpisodeModel.findOne = () => ({
   lean: async () => null,
 });
 
-const { CaseModel } = require(
-  path.join(buildRoot, "Database/moderation/case.model.js")
-);
-CaseModel.findOne = () => ({
-  sort: () => ({ select: () => ({ lean: async () => null }) }),
-});
-CaseModel.create = async (d) => d;
-
-const { HoshikoLogger } = require(
-  path.join(buildRoot, "Security/Logger/HoshikoLogger.js")
-);
 let lastSentAlert = null;
-HoshikoLogger.sendToChannel = async (guild, channelName, embed, components) => {
-  lastSentAlert = { guild, channelName, embed, components };
-};
 
 const {
+  setAlertSender,
   triggerRaidAlert,
   executeRaidAction,
   canModerateTarget,
@@ -46,7 +35,11 @@ const {
   markUserSafe,
   isFingerprintSafe,
   markFingerprintSafe,
-} = require(path.join(buildRoot, "Features/automod/raidAlertManager.js"));
+} = require(path.join(securityBuildRoot, "modules/antiraid/raidAlertManager.js"));
+
+setAlertSender(async (guild, channelName, embed, components) => {
+  lastSentAlert = { guild, channelName, embed, components };
+});
 
 // ─── 1. Un solo mensaje por episodio con cooldown y agregación ──────────────
 test("triggerRaidAlert - genera un solo mensaje por episodio y acumula sospechosos bajo cooldown", async () => {

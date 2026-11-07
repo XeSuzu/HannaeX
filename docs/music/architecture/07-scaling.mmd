@@ -1,0 +1,32 @@
+flowchart TB
+    %% Hoja de Ruta de Escalabilidad Progresiva
+    subgraph Phase1 ["Fase 1: Monolito Co-ubicado (MVP Actual)"]
+        VM1["CubePath VM Única (4 vCPU / 8 GB RAM)<br/>• Hoshiko Bot (PM2)<br/>• Lavalink v4 Local (Systemd)<br/>• MongoDB 7 Local<br/>• Redis Local (Opcional)"]
+        Cap1["Capacidad Objetivo: ~10 Reproducciones Simultáneas<br/>Latencia de Control: ~0.1 ms (Loopback)"]
+        VM1 --- Cap1
+    end
+
+    subgraph Phase2 ["Fase 2: Desacoplamiento de Nodo de Audio (Crecimiento Medio)"]
+        VM2_App["VPS Aplicación (CubePath)<br/>• Hoshiko Bot (PM2)<br/>• MongoDB Local / Gestionado<br/>• Redis Local"]
+        VM2_Audio["VPS Dedicado a Audio (2-4 vCPU / 4 GB RAM)<br/>• Lavalink v4 Optimizado (JVM G1GC)<br/>• Red UDP de Alta Prioridad"]
+        Cap2["Capacidad Objetivo: 25 - 40 Reproducciones Simultáneas<br/>Túnel Seguro: WireGuard / TLS Interno"]
+        VM2_App <==>|"Túnel Privado (mTLS / WireGuard)"| VM2_Audio
+        VM2_Audio --- Cap2
+    end
+
+    subgraph Phase3 ["Fase 3: Pool Multi-Nodo con Balanceo de Carga (Alta Concurrencia)"]
+        VM3_App["Cluster de Bots HannaeX (Sharding Discord.js)"]
+        subgraph NodePool ["Lavalink Node Pool (Balanceo por Menor Carga / Geo-latencia)"]
+            Node_A["Lavalink Nodo 1 (Región US-East)"]
+            Node_B["Lavalink Nodo 2 (Región US-Central)"]
+            Node_C["Lavalink Nodo 3 (Respaldo / Failover)"]
+        end
+        Cap3["Capacidad Objetivo: 100+ Reproducciones Simultáneas<br/>Selección Dinámica de Nodo vía Shoukaku"]
+        VM3_App --> Node_A
+        VM3_App --> Node_B
+        VM3_App --> Node_C
+        NodePool --- Cap3
+    end
+
+    Phase1 ==>|"Superación de 15 streams concurrentes o saturación de CPU"| Phase2
+    Phase2 ==>|"Crecimiento a múltiples servidores Discord con sharding"| Phase3

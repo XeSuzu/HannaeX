@@ -1,0 +1,47 @@
+flowchart TD
+    %% Componentes Internos de Hoshiko Music
+    subgraph UI_Layer ["Capa de Interacción y Comandos"]
+        Cmd_Play["/play (Query / URL / Playlist)"]
+        Cmd_Ctrl["/pause, /resume, /skip, /stop, /seek"]
+        Cmd_Queue["/queue, /shuffle, /loop, /remove"]
+        Cmd_Info["/nowplaying, /volume, /lyrics"]
+    end
+
+    subgraph MusicCore ["Módulo Hoshiko Music (src/Features/music/)"]
+        MusicMgr["MusicManager (Coordinador de Dominio)"]
+        PlayerMgr["PlayerManager (Lifecycle de Guild Players)"]
+        QueueMgr["QueueManager (Cola FIFO / Repeat / Shuffle)"]
+        VoiceBridge["VoiceConnectionBridge (Handshake Discord Voice)"]
+        TrackRes["TrackResolver (Resolución & Fallbacks)"]
+    end
+
+    subgraph ClientAdapter ["Capa de Abstracción de Lavalink"]
+        NodeMgr["NodeManager (Pool de Nodos, Heartbeats & Reconexión)"]
+        LavalinkAdapter["LavalinkClient (Wrapper Shoukaku / WS & REST)"]
+    end
+
+    subgraph DataAccess ["Capa de Datos y Almacenamiento"]
+        GuildMusicCfg["ServerConfig (Volumen por defecto, Canales autorizados)"]
+        PlaylistRepo["PlaylistModel (Playlists guardadas, Favoritos)"]
+        LocalCache["LocalCacheService (L1 Memoria para Metadatos)"]
+    end
+
+    %% Relaciones
+    Cmd_Play --> MusicMgr
+    Cmd_Ctrl --> MusicMgr
+    Cmd_Queue --> MusicMgr
+    Cmd_Info --> MusicMgr
+
+    MusicMgr --> PlayerMgr
+    MusicMgr --> TrackRes
+    PlayerMgr --> QueueMgr
+    PlayerMgr --> VoiceBridge
+    PlayerMgr --> LavalinkAdapter
+
+    TrackRes --> LavalinkAdapter
+    TrackRes --> LocalCache
+
+    LavalinkAdapter --> NodeMgr
+
+    MusicMgr --> GuildMusicCfg
+    MusicMgr --> PlaylistRepo

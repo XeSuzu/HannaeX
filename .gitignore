@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.example
+!.env.*.example
 *.pem
 *.key
 *.cert
@@ -16,8 +17,9 @@ id_rsa*
 node_modules/
 
 # --- Compilación y Salidas ---
-/dist
-tsconfig.tsbuildinfo
+dist
+dist/
+*.tsbuildinfo
 coverage/
 .nyc_output/
 
@@ -47,7 +49,7 @@ tools/
 
 # --- Documentación Interna y Caches de Notas ---
 # (docs/ y guías públicas se conservan versionadas)
-Hoshiko Or Later/.obsidian/
+.obsidian/
 
 # --- Agentes y Herramientas de IA (Temporales / Scratch) ---
 .claude/

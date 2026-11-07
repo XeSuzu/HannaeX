@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 npm run build
-HANDLER_TEST_BUILD_DIR="$PWD/dist" node --test tests/unit/*.test.cjs
+HANDLER_TEST_BUILD_DIR="${HANDLER_TEST_BUILD_DIR:-$PWD/apps/hoshiko/dist}" node --test tests/unit/*.test.cjs

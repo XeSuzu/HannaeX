@@ -16,9 +16,12 @@ SettingsManager.getSettings = async () => ({
 const state = require(path.join(buildRoot, "Features/automod/automodState.js"));
 const {
   evaluateWithLocalRegex,
+} = require(path.join(buildRoot, "Features/automod/aiModeration.js"));
+const securityBuildRoot = path.join(__dirname, "../../apps/hoshiko-security/dist");
+const {
   selectRaidSuspects,
   banInChunks,
-} = require(path.join(buildRoot, "Features/automod/aiModeration.js"));
+} = require(path.join(securityBuildRoot, "modules/antiraid/raidAlertManager.js"));
 const { QueueService } = require(
   path.join(buildRoot, "App/infrastructure/queue/QueueService.js"),
 );
