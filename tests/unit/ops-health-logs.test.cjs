@@ -7,7 +7,7 @@ const http = require("node:http");
 
 test("OPS-03: createHealthServer se enlaza a 127.0.0.1 por defecto y responde a /healthz", async () => {
   const { createHealthServer } = require("../../dist/http/healthServer.js");
-  const health = createHealthServer(() => true);
+  const health = createHealthServer(() => true, { port: 0 });
   const server = health.start();
 
   try {

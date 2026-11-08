@@ -13,7 +13,15 @@ export default (client: HoshikoClient): void => {
   });
 
   for (const command of prefixCommands) {
-    client.commands.set(command.name, command);
+    const key = command.name.toLowerCase();
+    client.commands.set(key, command);
+    if (Array.isArray(command.aliases)) {
+      for (const alias of command.aliases) {
+        if (alias && typeof alias === "string") {
+          client.commands.set(alias.toLowerCase(), command);
+        }
+      }
+    }
   }
   console.log("Prefix commands validated and loaded: " + client.commands.size);
 
@@ -29,12 +37,28 @@ export default (client: HoshikoClient): void => {
     if (name) {
       client.slashCommands.set(name, command);
 
-      if (typeof (command as any).prefixRun === "function") {
-        client.commands.set(name, {
-          name,
-          execute: (message: any, args: any[], client: any) =>
-            (command as any).prefixRun(client, message, args),
-        } as any);
+      if (typeof command.prefixRun === "function") {
+        const key = name.toLowerCase();
+        const wrappedCommand: PrefixCommand = {
+          name: key,
+          description: command.data.description || "",
+          aliases: command.aliases,
+          execute: (message: any, args: any[], c: any) =>
+            command.prefixRun!(c, message, args),
+          prefixRun: (c: any, message: any, args: any[]) =>
+            command.prefixRun!(c, message, args),
+        };
+        if (!client.commands.has(key)) {
+          client.commands.set(key, wrappedCommand);
+        }
+        if (Array.isArray(command.aliases)) {
+          for (const alias of command.aliases) {
+            const aliasKey = alias?.toLowerCase();
+            if (aliasKey && !client.commands.has(aliasKey)) {
+              client.commands.set(aliasKey, wrappedCommand);
+            }
+          }
+        }
       }
     }
   }

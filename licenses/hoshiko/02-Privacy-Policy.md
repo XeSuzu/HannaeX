@@ -1,9 +1,9 @@
 # 02 — Privacy Policy (Internal Reference Dossier)
 
 **Título:** Expediente Interno de Privacidad e Ingeniería de Datos — Hoshiko Principal  
-**Identificador de Versión:** `HOSHIKO-INT-PRIV-3.0.0`  
+**Identificador de Versión:** `HOSHIKO-INT-PRIV-3.1.0`  
 **Fecha de Elaboración:** 2026-11-06  
-**Fecha de Última Revisión:** 2026-11-06  
+**Fecha de Última Revisión:** 2026-11-08  
 **Estado:** `INTERNALLY-APPROVED`  
 **Alcance:** `apps/hoshiko` (Bot Principal)  
 **Referencias:** `DATA-INVENTORY.md`, `LEGAL-REVIEW.md`, `04-Data-Retention-and-Deletion.md`, `Public/Privacy-Policy.md`  
@@ -42,5 +42,6 @@ Según `apps/hoshiko/src/client/HoshikoClient.ts:42-51`, el bot se suscribe exac
 ## 3. Bases Legitimadoras del Tratamiento (Art. 7 LOPDP / Art. 6.1 RGPD)
 No se presume consentimiento general e indiscriminado por el solo hecho de compartir un servidor con el bot. Las bases aplicables por categoría son:
 1. **Ejecución de funciones solicitadas por el usuario o la comunidad:** Comandos interactivos (`/rank`, `/confess`, `/suggest`, `/racha`, `/ship`, `/afk`, consultas directas a la IA).
-2. **Interés legítimo de seguridad y moderación comunitaria:** Filtros de palabras prohibidas, bloqueo de enlaces de phishing (`linkProtector`), casos disciplinarios (`CaseModel`, `Warning`), auditoría de moderación y retención del `authorId` en confesiones para impedir abusos impunes.
-3. **Ajustes comunitarios e información pública de perfil en Discord:** Progresión de niveles e historial de perfil/presencia dentro de los servidores compartidos, sujeto siempre al derecho de oposición y eliminación del titular.
+2. **Aprendizaje Propio y Adaptación Contextual del Asistente:** Tratamiento de fragmentos de chats y consultas del usuario a través de los servidores donde interactúa con el Bot, **única y exclusivamente para el entrenamiento y memoria personal de su propio sistema de IA hacia dicho usuario**, manteniéndose siempre cifrados en reposo (AES-256-GCM) sin cesión ni venta comercial.
+3. **Interés legítimo de seguridad y moderación comunitaria:** Filtros de palabras prohibidas, bloqueo de enlaces de phishing (`linkProtector`), casos disciplinarios (`CaseModel`, `Warning`), auditoría de moderación y retención del `authorId` en confesiones para impedir abusos impunes.
+4. **Ajustes comunitarios e información pública de perfil en Discord:** Progresión de niveles e historial de perfil/presencia dentro de los servidores compartidos, sujeto siempre al derecho de oposición y eliminación del titular.

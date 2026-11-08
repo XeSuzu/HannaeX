@@ -14,7 +14,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getAnimeGif } from "../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../Utils/animeGif";
 
 async function startBite(
   targetUser: User,
@@ -142,13 +146,13 @@ const command: SlashCommand = {
     await startBite(
       target,
       interaction.user,
-      member?.displayHexColor || "#ef5350",
+      resolveInteractionColor(member, "#ef5350"),
       async (p) => (await interaction.editReply(p)) as Message,
     );
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     if (!target)
       return message.reply(
         "🌸 Menciona a alguien. Ejemplo: `hoshi bite @usuario`",
@@ -156,7 +160,7 @@ const command: SlashCommand = {
     await startBite(
       target,
       message.author,
-      message.member?.displayHexColor || "#ef5350",
+      resolveInteractionColor(message.member, "#ef5350"),
       async (p) => message.reply(p),
     );
   },

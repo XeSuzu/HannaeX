@@ -8,7 +8,7 @@ module.exports = {
     {
       name: "Hoshiko-Staging",
       script: "./dist/index.js",
-      cwd: "/root/HannaeX",
+      cwd: "/home/hanna/apps/HannaeX",
       exec_mode: "fork",
       instances: 1,
       watch: false,
@@ -21,14 +21,14 @@ module.exports = {
     {
       name: "hoshiko-bot",
       script: "./dist/index.js",
-      cwd: "/root/HannaeX",
+      cwd: "/home/hanna/apps/HannaeX",
       exec_mode: "fork",
       instances: 1,
       watch: false,
       autorestart: true,
       kill_timeout: 10000,
-      out_file: "/root/.pm2/logs/hoshiko-bot-out.log",
-      error_file: "/root/.pm2/logs/hoshiko-bot-error.log",
+      out_file: "/home/hanna/.pm2/logs/hoshiko-bot-out.log",
+      error_file: "/home/hanna/.pm2/logs/hoshiko-bot-error.log",
       // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
       max_memory_restart: "1G",
       env: {
@@ -38,37 +38,20 @@ module.exports = {
     {
       name: "hoshiko-worker",
       script: "./dist/worker.js",
-      cwd: "/root/HannaeX",
+      cwd: "/home/hanna/apps/HannaeX",
       exec_mode: "fork",
       instances: 1,
       watch: false,
       autorestart: false,
       kill_timeout: 10000,
-      out_file: "/root/.pm2/logs/hoshiko-worker-out.log",
-      error_file: "/root/.pm2/logs/hoshiko-worker-error.log",
+      out_file: "/home/hanna/.pm2/logs/hoshiko-worker-out.log",
+      error_file: "/home/hanna/.pm2/logs/hoshiko-worker-error.log",
       // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
       max_memory_restart: "512M",
       env: {
         NODE_ENV: "production",
         WORKER_ENABLED: "false",
         REDIS_ENABLED: "false",
-      },
-    },
-    {
-      name: "hoshiko-security",
-      script: "./apps/hoshiko-security/dist/index.js",
-      cwd: "/root/HannaeX",
-      exec_mode: "fork",
-      instances: 1,
-      watch: false,
-      autorestart: false,
-      kill_timeout: 10000,
-      out_file: "/root/.pm2/logs/hoshiko-security-out.log",
-      error_file: "/root/.pm2/logs/hoshiko-security-error.log",
-      // Safety net only; investigate memory growth instead of treating restarts as a leak fix.
-      max_memory_restart: "512M",
-      env: {
-        NODE_ENV: "production",
       },
     },
   ],

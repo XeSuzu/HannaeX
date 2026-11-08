@@ -1,6 +1,8 @@
 {
   "name": "hannaex",
-  "version": "2.0.0",
+  "version": "2.1.0",
+  "private": true,
+  "license": "UNLICENSED",
   "description": "Bot de Discord",
   "main": "dist/index.js",
   "workspaces": [
@@ -25,9 +27,9 @@
     "full-deploy:prod": "npm run build && npm run deploy:global && npm run start:prod && npm run logs:prod",
     "start:staging": "pm2 startOrRestart ecosystem.config.js --only Hoshiko-Staging",
     "start:prod": "pm2 startOrRestart ecosystem.config.js --only hoshiko-bot --update-env",
-    "start:security:prod": "pm2 startOrRestart ecosystem.config.js --only hoshiko-security --update-env",
-    "stop:security": "pm2 stop hoshiko-security",
-    "logs:security": "pm2 logs hoshiko-security",
+    "start:security:prod": "pm2 startOrRestart ecosystem.security.config.js --only Hoshiko-Security --update-env",
+    "stop:security": "pm2 stop Hoshiko-Security",
+    "logs:security": "pm2 logs Hoshiko-Security",
     "stop:all": "pm2 delete all",
     "logs": "pm2 logs",
     "logs:staging": "pm2 logs Hoshiko-Staging",

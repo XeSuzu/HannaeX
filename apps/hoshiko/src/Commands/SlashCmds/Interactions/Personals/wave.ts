@@ -8,7 +8,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
 import { SlashCommand } from "../../../../Interfaces/Command";
-import { getAnimeGif } from "../../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../../Utils/animeGif";
 
 const command: SlashCommand = {
   category: "Interactions",
@@ -28,8 +32,10 @@ const command: SlashCommand = {
   ) {
     const target = interaction.options.getUser("usuario");
     const gif = await getAnimeGif("wave");
-    const color =
-      (interaction.member as GuildMember)?.displayHexColor || "#80cbc4";
+    const color = resolveInteractionColor(
+      interaction.member as GuildMember,
+      "#80cbc4",
+    );
     const desc =
       target && target.id !== interaction.user.id
         ? `👋 **${interaction.user.username}** le saluda a **${target.username}**~ ¡Hola!`
@@ -46,9 +52,9 @@ const command: SlashCommand = {
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     const gif = await getAnimeGif("wave");
-    const color = message.member?.displayHexColor || "#80cbc4";
+    const color = resolveInteractionColor(message.member, "#80cbc4");
     const desc =
       target && target.id !== message.author.id
         ? `👋 **${message.author.username}** le saluda a **${target.username}**~ ¡Hola!`

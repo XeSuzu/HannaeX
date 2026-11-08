@@ -52,7 +52,7 @@ export function buildModerationEmbed(client: HoshikoClient): EmbedBuilder {
         value: [
           `\`</setup:0>\` — Panel interactivo de seguridad y personalización.`,
           `\`</setup-logs:0>\` — Configuración de canales de moderación y auditoría.`,
-          `\`</setup-automod:0>\` — Control de módulos automáticos y lista de excepciones.`,
+          `\`</setup-automod:0>\` — AutoMod nativo (0ms), módulos de seguridad, canales/roles exentos (alianzas) y modo IA.`,
           `\`</whitelist:0>\` — Gestión de dominios web permitidos en el chat.`,
         ].join("\n"),
         inline: false,

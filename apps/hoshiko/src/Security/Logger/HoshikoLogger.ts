@@ -114,6 +114,7 @@ export function sanitizeUrlForLog(rawUrl: string): string {
 export function resolveLogChannel(
   settings: IServerConfig,
   channelType: keyof ILogChannels,
+  guild?: Guild,
 ): string | null {
   const channels = settings.logChannels;
 
@@ -138,6 +139,17 @@ export function resolveLogChannel(
   // Confesslog es privado: no cae al canal público "all" a menos que se configure explícitamente
   if (channelType !== "confesslog" && channels?.all) {
     return channels.all;
+  }
+
+  // Fallback inteligente: si no hay canal de logs configurado, buscar canal de moderación existente
+  if (guild && (channelType === "messagereview" || channelType === "modlog")) {
+    const candidate = guild.channels.cache.find(
+      (c) =>
+        c.isTextBased() &&
+        guild.members.me?.permissionsIn(c as TextChannel).has(PermissionFlagsBits.SendMessages) &&
+        /mod|review|staff|admin|audit/i.test(c.name),
+    );
+    if (candidate) return candidate.id;
   }
 
   return null;
@@ -835,7 +847,7 @@ export class HoshikoLogger {
       const settings = await SettingsManager.getSettings(guild.id);
       if (!settings) return;
 
-      const channelId = resolveLogChannel(settings, key);
+      const channelId = resolveLogChannel(settings, key, guild);
       if (!channelId) return;
 
       const channel = guild.channels.cache.get(channelId);

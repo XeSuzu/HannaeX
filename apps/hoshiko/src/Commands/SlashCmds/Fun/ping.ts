@@ -9,6 +9,7 @@ import { SlashCommand } from "../../../Interfaces/Command";
 const command: SlashCommand = {
   category: "Fun",
   cooldown: 3,
+  defer: false,
   data: new SlashCommandBuilder()
     .setName("ping")
     .setDescription("🏓 muestra la latencia del bot."),
@@ -17,11 +18,9 @@ const command: SlashCommand = {
     interaction: ChatInputCommandInteraction,
     client: HoshikoClient,
   ) {
-    // calculamos la latencia desde que discord recibió la interacción
-    const latency = Date.now() - interaction.createdTimestamp;
-    const apiPing = Math.round(client.ws.ping);
+    const apiPing = Math.max(0, Math.round(client.ws.ping));
+    const latency = Math.max(1, Date.now() - interaction.createdTimestamp);
 
-    // armamos el embed minimalista
     const embed = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setDescription(
@@ -30,8 +29,7 @@ const command: SlashCommand = {
           `🌐 api: **${apiPing}ms**`,
       );
 
-    // editamos la respuesta diferida borrando cualquier texto previo
-    await interaction.editReply({ content: null, embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   },
 };
 

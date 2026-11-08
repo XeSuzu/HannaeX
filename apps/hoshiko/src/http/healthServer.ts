@@ -7,10 +7,11 @@ import { getMongoStatus } from "../Services/mongo";
 
 export function createHealthServer(
   discordReadyChecker: () => boolean = () => true,
+  options?: { port?: number; host?: string },
 ) {
   const app = express();
-  const port = AppConfig.get().PORT;
-  const host = AppConfig.get().HEALTH_HOST || "127.0.0.1";
+  const port = options?.port !== undefined ? options.port : AppConfig.get().PORT;
+  const host = options?.host !== undefined ? options.host : (AppConfig.get().HEALTH_HOST || "127.0.0.1");
   let server: Server | null = null;
   let closePromise: Promise<void> | null = null;
 

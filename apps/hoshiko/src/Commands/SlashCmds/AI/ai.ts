@@ -149,68 +149,7 @@ const command: SlashCommand = {
     // ─── /ai usage (Retrocompatibilidad directa) ─────────────────────────────
     if (subcommand === "usage") {
       const status = await QuotaManager.getStatus(userId, guildId);
-
-      const renewalDate = new Date(status.conversation.nextRenewalTime);
-      const renewalEcuadorStr = renewalDate.toLocaleTimeString("es-EC", {
-        timeZone: "America/Guayaquil",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      const renewalDayStr = renewalDate.toLocaleDateString("es-EC", {
-        timeZone: "America/Guayaquil",
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      });
-
-      const hoursRem = Math.floor(status.conversation.timeUntilRenewalMs / (1000 * 60 * 60));
-      const minsRem = Math.floor((status.conversation.timeUntilRenewalMs % (1000 * 60 * 60)) / (1000 * 60));
-
-      const isExempt = status.conversation.maxCapacity === Infinity;
-
-      const timeText = isExempt
-        ? "Exención activa (Sin límite individual de cuota)"
-        : status.conversation.timeUntilRenewalMs > 0
-          ? `${hoursRem}h ${minsRem}m (${renewalDayStr} a las ${renewalEcuadorStr} hora Ecuador)`
-          : "Ciclo listo para reposición en tu próxima interacción";
-
-      const convVal = isExempt
-        ? "• **Saldo disponible:** `∞ Ilimitado` *(Exención individual activa)*\n• **Consumido en el ciclo:** `0`"
-        : `• **Saldo disponible:** \`${status.conversation.balance} / ${status.conversation.maxCapacity}\`\n• **Consumido en el ciclo:** \`${status.conversation.consumedInCycle}\``;
-
-      const resVal = isExempt
-        ? "• **Saldo disponible:** `∞ Ilimitado` *(Exención individual activa)*\n• **Consumido en el ciclo:** `0`"
-        : `• **Saldo disponible:** \`${status.research.balance} / ${status.research.maxCapacity}\`\n• **Consumido en el ciclo:** \`${status.research.consumedInCycle}\``;
-
-      const embed = new EmbedBuilder()
-        .setColor(0xffb7c5)
-        .setTitle("📊 Consumo y Cuotas de Hoshiko AI")
-        .setDescription(`Hola ${username}, aquí tienes el estado de tus depósitos para el ciclo actual de 24 horas:`)
-        .addFields(
-          {
-            name: "💬 Conversación Diaria",
-            value: convVal,
-            inline: true,
-          },
-          {
-            name: "🔍 Búsqueda e Investigación",
-            value: resVal,
-            inline: true,
-          },
-          {
-            name: "⏳ Próxima Renovación Parcial",
-            value: `• **Tiempo estimado:** ${timeText}\n*(Al cumplirse las 24 horas se repondrá exactamente lo consumido)*`,
-            inline: false,
-          },
-          {
-            name: "⭐ Beneficios Premium",
-            value: isExempt
-              ? "• **Estado:** `Exención Autorizada` *(Developer / Tester en este servidor)*"
-              : "• **Estado:** `Próximamente` *(planes y cuotas ampliadas en desarrollo)*",
-            inline: false,
-          },
-        )
-        .setFooter({ text: "Hoshiko AI • Zona Horaria: Ecuador (UTC-5) ♡" });
+      const embed = QuotaManager.createUsageEmbed(userId, username, status, guildId);
 
       await interaction.reply({
         embeds: [embed],

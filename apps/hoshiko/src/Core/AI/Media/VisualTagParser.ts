@@ -4,7 +4,8 @@ export interface ParsedVisualResponse {
 }
 
 export class VisualTagParser {
-  private static readonly TAG_REGEX = /\[VISUAL_SEARCH:\s*["“']?([^"”'\]\r\n]{3,120})["”']?\s*\]\s*$/i;
+  private static readonly TAG_REGEX = /\[VISUAL_SEARCH:\s*["“']?([^"”'\]\r\n]{3,120})["”']?\s*\]/i;
+  private static readonly GLOBAL_TAG_STRIP_REGEX = /\[VISUAL_SEARCH:\s*[^\]]*\]/gi;
 
   static parse(rawResponse: string): ParsedVisualResponse {
     if (!rawResponse || typeof rawResponse !== "string") {
@@ -20,7 +21,7 @@ export class VisualTagParser {
     }
 
     const query = match[1].trim();
-    const cleanText = rawResponse.replace(match[0], "").trim();
+    const cleanText = rawResponse.replace(this.GLOBAL_TAG_STRIP_REGEX, "").trim();
 
     return {
       cleanText,

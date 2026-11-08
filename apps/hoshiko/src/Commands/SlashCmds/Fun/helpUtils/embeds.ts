@@ -51,12 +51,13 @@ export function buildMainEmbed(
         inline: true,
       },
       {
-        name: `${EMOJI.prefix} Activadores`,
+        name: `${EMOJI.prefix} Activadores y Prefijos`,
         value: [
           `\`/\` — Comandos de barra (Slash)`,
-          `\`${prefix}\` — Prefijo clásico de texto`,
-          `\`@Hoshiko\` — Mención para charlar con IA`,
-          `\`/ai panel\` — Cuotas y memoria soberana`,
+          `\`hoshi <cmd>\` — Prefijo oficial de texto (ej. \`hoshi pat\`, \`hoshi activity\`)`,
+          `\`${prefix}\` / \`h!\` — Prefijo clásico y configurable (ej. \`${prefix}ping\`, \`${prefix}server\`)`,
+          `\`@Hoshiko\` o \`hoshi ask\` — Consulta y conversación con IA`,
+          `\`/ai panel\` — Cuotas diarias de 24h y memoria soberana`,
         ].join("\n"),
         inline: true,
       },
@@ -147,6 +148,8 @@ export function buildCommandDetailEmbed(
   if (detail.status === "mantenimiento")
     statusBadge = "🚧 En mantenimiento / Desactivado";
 
+  const isPrefixReady = Boolean(detail.prefixSyntax);
+
   const embed = new EmbedBuilder()
     .setColor(catInfo.color)
     .setAuthor({
@@ -156,9 +159,16 @@ export function buildCommandDetailEmbed(
     .setTitle(`🌸 Comando: \`/${detail.name}\``)
     .setDescription(
       `**Propósito:**\n${detail.purpose}\n\n` +
-      `**Sintaxis de uso:**\n\`${detail.syntax}\`\n\n` +
+      `**Sintaxis Slash:**\n\`${detail.syntax}\`\n\n` +
+      (isPrefixReady
+        ? `**Sintaxis por Prefijo (Texto):**\n\`${detail.prefixSyntax}\`\n\n`
+        : "") +
+      (detail.aliases && detail.aliases.length > 0
+        ? `**Alias disponibles:** ${detail.aliases.map((a) => `\`${a}\``).join(", ")}\n\n`
+        : "") +
       `**Estado:** ${statusBadge}` +
       (detail.statusNote ? ` — *${detail.statusNote}*` : "") +
+      (isPrefixReady ? `  ·  ✨ *Compatible con prefijo \`hoshi\` y \`x\`*` : "") +
       `\n\n${SEPARATOR}`
     );
 

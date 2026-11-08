@@ -14,7 +14,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getAnimeGif } from "../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../Utils/animeGif";
 
 async function startPoke(
   targetUser: User,
@@ -140,13 +144,13 @@ const command: SlashCommand = {
     await startPoke(
       target,
       interaction.user,
-      member?.displayHexColor || "#7986cb",
+      resolveInteractionColor(member, "#7986cb"),
       async (p) => (await interaction.editReply(p)) as Message,
     );
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     if (!target)
       return message.reply(
         "🌸 Menciona a alguien. Ejemplo: `hoshi poke @usuario`",
@@ -154,7 +158,7 @@ const command: SlashCommand = {
     await startPoke(
       target,
       message.author,
-      message.member?.displayHexColor || "#7986cb",
+      resolveInteractionColor(message.member, "#7986cb"),
       async (p) => message.reply(p),
     );
   },

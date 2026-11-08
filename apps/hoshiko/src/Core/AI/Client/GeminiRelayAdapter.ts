@@ -35,18 +35,39 @@ export class GeminiRelayAdapter implements IAiClient {
     }
   }
 
+  private getHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
+    const token = process.env.GEMINI_RELAY_TOKEN?.trim();
+    return {
+      "Content-Type": "application/json",
+      ...(this.apiKey && { "x-goog-api-key": this.apiKey }),
+      ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
+      ...(token && { "x-relay-token": token }),
+      ...extraHeaders,
+    };
+  }
+
+  private getEndpoint(model: string, operation: "generateContent" | "streamGenerateContent"): string {
+    const isRelay = Boolean(process.env.GEMINI_RELAY_TOKEN || this.baseUrl.includes("relay"));
+    if (isRelay && !this.baseUrl.includes("/v1beta") && !this.baseUrl.includes("/models/")) {
+      const mappedModel =
+        model === "gemini-flash" || model === "gemini-3.8-flash"
+          ? "gemini-2.5-flash"
+          : model === "gemini-flash-lite" || model === "gemini-3.5-flash-lite"
+            ? "gemini-2.5-flash-lite"
+            : model;
+      return `${this.baseUrl}/main/v1beta/models/${encodeURIComponent(mappedModel)}:${operation}`;
+    }
+    return `${this.baseUrl}/models/${encodeURIComponent(model)}:${operation}`;
+  }
+
   async generateText(options: AiGenerationOptions): Promise<string> {
     const payload = this.buildPayload(options);
     const model = options.model || "gemini-flash";
-    const endpoint = `${this.baseUrl}/models/${encodeURIComponent(model)}:generateContent`;
+    const endpoint = this.getEndpoint(model, "generateContent");
 
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.apiKey && { "x-goog-api-key": this.apiKey }),
-        ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(payload),
       signal: options.signal,
     });
@@ -73,16 +94,13 @@ export class GeminiRelayAdapter implements IAiClient {
   ): Promise<AsyncIterable<AiStreamChunk>> {
     const payload = this.buildPayload(options);
     const model = options.model || "gemini-flash";
-    const endpoint = `${this.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
+    const endpoint = `${this.getEndpoint(model, "streamGenerateContent")}?alt=sse`;
 
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+      headers: this.getHeaders({
         Accept: "text/event-stream, application/json",
-        ...(this.apiKey && { "x-goog-api-key": this.apiKey }),
-        ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
-      },
+      }),
       body: JSON.stringify(payload),
       signal: options.signal,
     });

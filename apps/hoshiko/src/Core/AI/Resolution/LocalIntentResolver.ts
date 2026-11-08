@@ -97,6 +97,20 @@ export class LocalIntentResolver {
       };
     }
 
+    // 4.b Consulta sobre conversaciones de sesiones pasadas
+    if (
+      /^(te acuerdas de lo que hablamos (ayer|la semana pasada|antes|el otro dia)|que hablamos (ayer|la semana pasada|el otro dia)|que te dije (ayer|la semana pasada|el otro dia)|que hablabamos (ayer|la semana pasada)|recuerdas nuestra charla de (ayer|la semana pasada))$/.test(
+        clean,
+      )
+    ) {
+      return {
+        handled: true,
+        intent: "memory_query",
+        replyText:
+          "Solo mantengo en mente los mensajes recientes de nuestra charla actual y los datos de tu memoria personal guardada. Si deseas que guarde un recuerdo específico para siempre, pídemelo con 'recuerda que...' ✨",
+      };
+    }
+
     // 5. Consulta de preferencias personales
     if (
       /^(cuales son mis preferencias|como esta mi estilo|ver mis preferencias|cuales son mis ajustes|mis preferencias)$/.test(

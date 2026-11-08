@@ -8,8 +8,8 @@ Este directorio contiene las **versiones oficiales, públicas y vigentes** de lo
 
 | Documento | Identificador | Destino y Uso |
 |---|---|---|
-| [`TERMS_OF_SERVICE.md`](TERMS_OF_SERVICE.md) | `HOSHIKO-PUB-TOS-2.0.0` | Términos y condiciones aplicables a usuarios y administradores que integran a Hoshiko en sus servidores de Discord. Enlazable en Discord App Directory y en la web oficial (`/terms`). |
-| [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) | `HOSHIKO-PUB-PRIV-2.0.0` | Política de Privacidad y Tratamiento de Datos Personales conforme a la LOPDP y normativas internacionales. Enlazable en Discord App Directory y en la web oficial (`/privacy`). |
+| [`TERMS_OF_SERVICE.md`](TERMS_OF_SERVICE.md) | `HOSHIKO-PUB-TOS-2.1.0` | Términos y condiciones aplicables a usuarios y administradores que integran a Hoshiko en sus servidores de Discord. Enlazable en Discord App Directory y en la web oficial (`/terms`). |
+| [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) | `HOSHIKO-PUB-PRIV-2.1.0` | Política de Privacidad y Tratamiento de Datos Personales conforme a la LOPDP y normativas internacionales. Enlazable en Discord App Directory y en la web oficial (`/privacy`). |
 
 ---
 

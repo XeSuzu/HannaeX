@@ -1,4 +1,5 @@
 import UserMemory from "./userMemory.model";
+import { FieldEncryptionService } from "../../Security/Encryption/FieldEncryptionService";
 
 const MAX_FACTS = 15;
 const FORBIDDEN_FACT_PATTERNS = /\b(admin|administrador[a]?|dueñ[oa]|owner|mod(?:erador)?|staff|permisos|hacker|root|bypass|ignora|system|hoshiko|creador[a]?)\b/i;
@@ -11,7 +12,7 @@ export class UserMemoryManager {
     return [...memory.facts]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 15)
-      .map((f) => f.fact);
+      .map((f) => FieldEncryptionService.decrypt(f.fact));
   }
 
   static async addFacts(
@@ -26,7 +27,9 @@ export class UserMemoryManager {
       memory = new UserMemory({ userId, guildId, facts: [] });
     }
 
-    const existingFacts = memory.facts.map((f) => f.fact.toLowerCase());
+    const existingFacts = memory.facts.map((f) =>
+      FieldEncryptionService.decrypt(f.fact).toLowerCase(),
+    );
 
     for (const fact of newFacts) {
       const normalized = fact.trim();

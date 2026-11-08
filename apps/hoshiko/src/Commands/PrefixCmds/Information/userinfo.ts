@@ -11,6 +11,7 @@ import { PrefixCommand } from "../../../Interfaces/Command";
 
 const command: PrefixCommand = {
   name: "userinfo",
+  aliases: ["whois", "ui", "perfil"],
   description: "Obtén información detallada de un usuario",
   usage: "!userinfo [@usuario]",
 

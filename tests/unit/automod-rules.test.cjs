@@ -111,6 +111,38 @@ test("isTextWall - detecta exceso de saltos de línea y repetición masiva de ca
   // Repetición exagerada de un carácter (60%+ de un solo carácter en > 200 chars)
   const repeatedChar = "a".repeat(150) + "b".repeat(60);
   assert.equal(isTextWall(repeatedChar), true);
+
+  // Plantilla creativa de alianzas con separadores estéticos, viñetas y más de 12 saltos
+  const allianceTemplate = `
+════════════════════════════════
+    🌸 SERVIDOR KAWAII 🌸
+════════════════════════════════
+¿Qué ofrecemos a nuestros miembros?
+✦ Canales activos 24/7 y comunidad acogedora
+✦ Economía interactiva, bots de entretenimiento y música
+✦ Roles personalizables y niveles por actividad
+✦ Zona de alianzas diarias y arte
+✦ Sorteos de Nitro y juegos cada fin de semana
+
+Requisitos de Alianzas:
+✦ Servidor con más de 50 miembros reales
+✦ No contenido NSFW ni enlaces maliciosos
+✦ Respetar términos de Discord
+
+¡Únete a nuestra maravillosa familia!
+https://discord.gg/comunidad-amiga
+════════════════════════════════
+`.trim();
+
+  assert.equal(
+    isTextWall(allianceTemplate),
+    false,
+    "Una plantilla creativa de alianzas NO debe ser detectada como muro de texto"
+  );
+
+  // Flood malicioso de estiramiento vertical (5 saltos de línea consecutivos vacíos)
+  const verticalStretcher = "hola\n\n\n\n\n\nadios";
+  assert.equal(isTextWall(verticalStretcher), true, "Debe detectar estiramiento vertical malicioso");
 });
 
 // ─── 4. Tests de Menciones Masivas (evaluateMassMentions) ──────────────────

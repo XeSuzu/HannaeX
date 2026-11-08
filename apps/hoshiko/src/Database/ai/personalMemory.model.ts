@@ -1,10 +1,11 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
+import { FieldEncryptionService } from "../../Security/Encryption/FieldEncryptionService";
 
 export interface IPersonalFact {
   id: string;
-  category: "preference" | "biography" | "project" | "boundary" | "custom";
+  category: "preference" | "biography" | "project" | "boundary" | "dynamic" | "custom";
   fact: string;
-  source: "explicit" | "legacy_migrated_confirmed";
+  source: "explicit" | "auto_extracted" | "legacy_migrated_confirmed";
   confidence: number;
   createdAt: Date;
   updatedAt: Date;
@@ -32,20 +33,28 @@ const PersonalFactSchema = new Schema<IPersonalFact>(
     id: { type: String, required: true },
     category: {
       type: String,
-      enum: ["preference", "biography", "project", "boundary", "custom"],
+      enum: ["preference", "biography", "project", "boundary", "dynamic", "custom"],
       default: "custom",
     },
-    fact: { type: String, required: true, trim: true, minlength: 5, maxlength: 140 },
+    fact: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 5,
+      maxlength: 1500,
+      set: (v: string) => FieldEncryptionService.encrypt(v),
+      get: (v: string) => FieldEncryptionService.decrypt(v),
+    },
     source: {
       type: String,
-      enum: ["explicit", "legacy_migrated_confirmed"],
+      enum: ["explicit", "auto_extracted", "legacy_migrated_confirmed"],
       required: true,
     },
     confidence: { type: Number, default: 1.0, min: 0.0, max: 1.0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
-  { _id: false },
+  { _id: false, toJSON: { getters: true }, toObject: { getters: true } },
 );
 
 const UserPreferencesSchema = new Schema<IUserPreferences>(
@@ -84,7 +93,7 @@ const PersonalMemorySchema = new Schema<IPersonalMemory>(
     retentionDays: { type: Number, default: 0 },
     lastInteraction: { type: Date, default: Date.now },
   },
-  { timestamps: true, bufferCommands: false },
+  { timestamps: true, bufferCommands: false, toJSON: { getters: true }, toObject: { getters: true } },
 );
 
 // Índice TTL parcial opcional para usuarios que elijan retención de 90 días

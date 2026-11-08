@@ -9,7 +9,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
 import { SlashCommand } from "../../../../Interfaces/Command";
-import { getAnimeGif } from "../../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../../Utils/animeGif";
 
 const LINES = [
   "¡El suelo es tuyo esta noche! 🕺",
@@ -36,8 +40,10 @@ const command: SlashCommand = {
   ) {
     const target = interaction.options.getUser("usuario");
     const gif = await getAnimeGif("dance");
-    const color =
-      (interaction.member as GuildMember)?.displayHexColor || "#ce93d8";
+    const color = resolveInteractionColor(
+      interaction.member as GuildMember,
+      "#ce93d8",
+    );
     const line = LINES[Math.floor(Math.random() * LINES.length)];
     const desc =
       target && target.id !== interaction.user.id
@@ -55,9 +61,9 @@ const command: SlashCommand = {
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     const gif = await getAnimeGif("dance");
-    const color = message.member?.displayHexColor || "#ce93d8";
+    const color = resolveInteractionColor(message.member, "#ce93d8");
     const line = LINES[Math.floor(Math.random() * LINES.length)];
     const desc =
       target && target.id !== message.author.id

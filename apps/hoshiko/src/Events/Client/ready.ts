@@ -8,13 +8,17 @@ import { ActiveRole } from "../../Database/community/reactionRoles.models";
 import { HoshikoLogger, LogLevel } from "../../Security";
 import { Logger } from "../../Utils/SystemLogger";
 import { hydrateSnipes } from "../../Services/SnipeService";
+import { AutoModSyncService } from "../../Features/automod/AutoModSyncService";
 
 const STATUS_LIST: { text: string; type: ActivityType }[] = [
-  { text: "en {servers} servidores 🏠", type: ActivityType.Watching },
-  { text: "/help | 🐱 Neko Mode", type: ActivityType.Playing },
-  { text: "a {users} usuarios 👥", type: ActivityType.Listening },
-  { text: "que todo brille 🌟", type: ActivityType.Competing },
+  { text: "¿Miau?!... No, eh... quise decir... ¡¿Nani?!... ¡¡Haiii!! ✨", type: ActivityType.Playing },
   { text: "música lo-fi ☕", type: ActivityType.Listening },
+  { text: "charlas tranquilas 🎧", type: ActivityType.Listening },
+  { text: "la lluvia caer 🌧️", type: ActivityType.Listening },
+  { text: "{servers} servidores en calma 🍃", type: ActivityType.Watching },
+  { text: "las estrellas pasar ✨", type: ActivityType.Watching },
+  { text: "tomar un descanso 💤", type: ActivityType.Playing },
+  { text: "🌸 hoshi help • /help", type: ActivityType.Playing },
 ];
 
 function startActivityRotator(client: HoshikoClient) {
@@ -35,14 +39,18 @@ function startActivityRotator(client: HoshikoClient) {
       const fmtServers = new Intl.NumberFormat("es-ES").format(totalServers);
 
       const config = STATUS_LIST[currentIndex];
+      const formattedText = config.text
+        .replace("{users}", fmtUsers)
+        .replace("{servers}", fmtServers);
+
+      const isCustom = config.type === ActivityType.Custom;
 
       client.user.setPresence({
         activities: [
           {
-            name: config.text
-              .replace("{users}", fmtUsers)
-              .replace("{servers}", fmtServers),
+            name: formattedText,
             type: config.type,
+            ...(isCustom ? { state: formattedText } : {}),
           },
         ],
         status: "online",
@@ -60,7 +68,7 @@ function startActivityRotator(client: HoshikoClient) {
   };
 
   updateStatus();
-  setInterval(updateStatus, 15000);
+  setInterval(updateStatus, 35000);
 }
 
 export default {
@@ -91,6 +99,12 @@ export default {
     // ─────────────────────────────────────
     startActivityRotator(client);
     console.log("   ✨ Presencia dinámica activada");
+
+    // ─────────────────────────────────────
+    // 🛡️ Sincronización de AutoMod Nativo (Insignia Uses AutoMod)
+    // ─────────────────────────────────────
+    void AutoModSyncService.syncAllGuildsAutoMod(client);
+    console.log("   🛡️ Sincronización de AutoMod nativo iniciada");
 
     // ─────────────────────────────────────
     // ⏰ Limpieza de roles temporales

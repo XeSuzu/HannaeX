@@ -379,25 +379,31 @@ export async function executeAiModerationDecision(params: {
   aiMode: AiModerationMode;
   isRaid: boolean;
 }): Promise<{ executed: boolean; shadowMode: boolean; action: ResolvedPolicyAction }> {
-  const { guild, message, decision, action, aiMode, isRaid } = params;
+  const { guild, message, decision, aiMode, isRaid } = params;
+  let { action } = params;
 
   if (action === "none") {
     return { executed: false, shadowMode: false, action: "none" };
   }
 
-  // MODO SOMBRA: La IA corre pero no ejecuta mutaciones en Discord
-  if (aiMode === "shadow") {
+  const isShadow = aiMode === "shadow";
+
+  // MODO SOMBRA: Si la acción era "delete", no borra el mensaje, pero lo enruta a revisión para auditoría
+  if (isShadow) {
     await HoshikoLogger.log({
       level: LogLevel.INFO,
       context: "Automod/AIJudge/Shadow",
       message: `[MODO SOMBRA] Habría ejecutado '${action}' (Veredicto: ${decision.verdict}, Conf: ${decision.confidence}, Regla: ${decision.rule_id ?? "N/A"}) por: ${decision.reason}`,
       guildId: guild.id,
     });
-    return { executed: false, shadowMode: true, action };
+
+    if (action === "delete") {
+      action = "review";
+    }
   }
 
-  // MODO ENFORCE: Aplicación en código
-  if (action === "delete") {
+  // MODO ENFORCE: Aplicación en código para borrado
+  if (action === "delete" && !isShadow) {
     rememberDeletedMessage(
       guild.id,
       message.author.id,
@@ -440,7 +446,7 @@ export async function executeAiModerationDecision(params: {
 
     const embed = new EmbedBuilder()
       .setTitle("🔎 Mensaje en revisión")
-      .setColor(0xfee75c)
+      .setColor(isShadow ? 0x9b59b6 : 0xfee75c)
       .addFields(
         {
           name: "Autor",
@@ -469,7 +475,9 @@ export async function executeAiModerationDecision(params: {
         },
         {
           name: "Resultado de la evaluación",
-          value: "Detección automática (sin sanción aplicada)",
+          value: isShadow
+            ? "Detección en Modo Sombra (sin sanción automática)"
+            : "Detección automática (sin sanción aplicada)",
           inline: true,
         },
         {
@@ -488,7 +496,7 @@ export async function executeAiModerationDecision(params: {
           inline: false,
         },
       )
-      .setFooter({ text: "Hoshiko Logs • #message-review" })
+      .setFooter({ text: `Hoshiko Logs • #message-review${isShadow ? " (Modo Sombra)" : ""}` })
       .setTimestamp();
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -510,7 +518,7 @@ export async function executeAiModerationDecision(params: {
     );
 
     await HoshikoLogger.sendToChannel(guild, "messagereview", embed, [row]);
-    return { executed: true, shadowMode: false, action: "review" };
+    return { executed: true, shadowMode: isShadow, action: "review" };
   }
 
   return { executed: false, shadowMode: false, action: "none" };

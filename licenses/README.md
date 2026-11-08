@@ -1,6 +1,6 @@
 # Marco Legal y Licencias — HannaeX (Hoshiko & Hoshiko Security)
 
-Esta carpeta constituye la **única fuente de verdad oficial y centralizada** para toda la documentación legal, licenciamiento de software, políticas de privacidad, términos de servicio y expedientes internos de auditoría jurídica del proyecto HannaeX (Hoshiko v2.0.0).
+Esta carpeta constituye la **única fuente de verdad oficial y centralizada** para toda la documentación legal, licenciamiento de software, políticas de privacidad, términos de servicio y expedientes internos de auditoría jurídica del proyecto HannaeX (Hoshiko v2.1.0).
 
 ---
 

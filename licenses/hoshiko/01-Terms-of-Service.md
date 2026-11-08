@@ -1,9 +1,9 @@
 # 01 — Terms of Service (Internal Reference Dossier)
 
 **Título:** Expediente Interno de Términos de Servicio — Hoshiko Principal  
-**Identificador de Versión:** `HOSHIKO-INT-TOS-3.0.0`  
+**Identificador de Versión:** `HOSHIKO-INT-TOS-3.1.0`  
 **Fecha de Elaboración:** 2026-11-06  
-**Fecha de Última Revisión:** 2026-11-06  
+**Fecha de Última Revisión:** 2026-11-08  
 **Estado:** `INTERNALLY-APPROVED`  
 **Alcance:** `apps/hoshiko` (Bot Principal de Gestión Comunitaria, Interacción Social, Niveles, AutoMod e IA)  
 **Referencias:** `DATA-INVENTORY.md`, `LEGAL-REVIEW.md`, `Public/Terms-of-Service.md`  
@@ -18,11 +18,14 @@
 
 ## 2. Alcance Funcional Verificado en Código (`apps/hoshiko`)
 A diferencia de documentos antiguos que incluían funciones eliminadas o no implementadas, el alcance real vigente de `apps/hoshiko` comprende exclusivamente:
-1. **Inteligencia Artificial Conversacional y Utilidades (`Features/aiHandler.ts`, `Services/gemini.ts`, `Services/translationService.ts`):**
+1. **Inteligencia Artificial Conversacional, Memoria Adaptativa y Cifrado (`Features/aiHandler.ts`, `Services/gemini.ts`, `PersonalMemoryService.ts`, `conversation.model.ts`):**
    - Respuestas en canal por mención (`@Hoshiko`), respuesta directa, prefijo (`hoshi ask`, `x ask`) o intervención espontánea configurable.
-   - Búsqueda web asistida por herramienta `googleSearch` de Gemini y búsqueda de imágenes (`Services/search.ts` vía Google Custom Search / Serper).
+   - Búsqueda web asistida por herramienta `googleSearch` de Gemini con ilusión de trabajo de 10s en 5 etapas progresivas (charlas casuales y locales con 0ms de espera).
    - Traducción de texto (`/translate`).
-   - Memoria de hasta 15 hechos biográficos por usuario y servidor (`UserMemoryManager.ts`), consultable y borrable con `/memory` y `/clearmemory`.
+   - **Memoria Personal Soberana Cifrada (AES-256-GCM):** Hasta 20 hechos y dinámicas de trato (`dynamic`, `biography`, `preference`) por usuario (`PersonalMemory`), aislados estrictamente por `userId`.
+   - **Historial de Conversación Cifrado (`Conversation`):** Historial activo de hasta 40 turnos aislado por `{ userId, guildId }`, cifrado con AES-256-GCM y TTL de 30 días.
+   - **Memoria Comunitaria con Gatekeeper Anti-Drama (`ServerEntityMemory`):** Filtro estricto que descarta chismes, insultos y funas, con regla de cero espontaneidad en charlas casuales.
+   - **Cuotas Diarias:** 20 investigaciones y 40 conversaciones por usuario, con reinicio a las 00:00 hora de Ecuador (`America/Guayaquil`), auditables y gestionables en `/ai panel` y `/ai usage`.
 2. **Sistema de Niveles, Experiencia (Texto y Voz) y Perfil Global (`Features/levelHandler.ts`, `Database/leveling/`):**
    - XP local por mensajes (`LocalLevel`) y XP global de texto (`GlobalLevel`).
    - XP local por permanencia en canales de voz activos (`voiceManager.ts`, `ActiveVoiceSession`), midiendo únicamente tiempo de conexión y estado de micrófono/auriculares (**sin grabar ni recibir paquetes de audio de voz**).

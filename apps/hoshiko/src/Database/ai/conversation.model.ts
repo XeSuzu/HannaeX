@@ -1,4 +1,5 @@
 import { Schema, model, models, Document, Model } from "mongoose";
+import { FieldEncryptionService } from "../../Security/Encryption/FieldEncryptionService";
 
 // ========================
 // INTERFACES 🌸
@@ -42,7 +43,12 @@ const conversationSchema = new Schema<IConversation>({
   history: [
     {
       role: { type: String, required: true, enum: ["user", "assistant"] },
-      content: { type: String, required: true },
+      content: {
+        type: String,
+        required: true,
+        set: (v: string) => FieldEncryptionService.encrypt(v),
+        get: (v: string) => FieldEncryptionService.decrypt(v),
+      },
       timestamp: { type: Date, default: Date.now },
     },
   ],
@@ -50,7 +56,7 @@ const conversationSchema = new Schema<IConversation>({
     type: Date,
     default: Date.now,
   },
-});
+}, { toJSON: { getters: true }, toObject: { getters: true } });
 
 // Aislamiento por usuario y servidor (o 'dm' para mensajes directos)
 conversationSchema.index({ userId: 1, guildId: 1 }, { unique: true });
@@ -85,7 +91,13 @@ export async function getHistory(
       { new: true },
     );
 
-    return data ? data.history : [];
+    return data
+      ? data.history.map((entry) => ({
+          role: entry.role,
+          content: FieldEncryptionService.decrypt(entry.content),
+          timestamp: entry.timestamp,
+        }))
+      : [];
   } catch (error) {
     console.error(`❌ Error al obtener historial de ${userId} (guild: ${guildId}):`, error);
     return [];
@@ -113,7 +125,7 @@ export async function addToHistory(
             $each: [
               {
                 role,
-                content: content.trim(),
+                content: FieldEncryptionService.encrypt(content.trim()),
                 timestamp: new Date(),
               },
             ],

@@ -83,6 +83,11 @@ export async function generateResponseStream(
   history: Content[],
   safetyLevel: "relaxed" | "standard" | "strict" = "standard",
   tools?: GeminiTool[],
+  options?: {
+    temperature?: number;
+    topP?: number;
+    maxOutputTokens?: number;
+  },
 ): Promise<GenerateContentStreamResult["stream"]> {
   const safetySettings: SafetySetting[] = [
     {
@@ -135,9 +140,9 @@ export async function generateResponseStream(
       systemInstruction: systemInstruction,
       ...(sanitizedTools && sanitizedTools.length > 0 && { tools: sanitizedTools }),
       generationConfig: {
-        temperature: 0.7,
-        topP: 0.95,
-        maxOutputTokens: 4096,
+        temperature: options?.temperature !== undefined ? options.temperature : 0.7,
+        topP: options?.topP !== undefined ? options.topP : 0.95,
+        maxOutputTokens: options?.maxOutputTokens !== undefined ? options.maxOutputTokens : 4096,
       },
     });
 

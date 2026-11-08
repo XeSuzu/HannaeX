@@ -27,6 +27,7 @@ export interface CommandOptions {
 
 export interface SlashCommand {
   category?: string;
+  aliases?: string[];
   data: SlashData;
   options?: CommandOptions;
   selfManaged?: boolean;

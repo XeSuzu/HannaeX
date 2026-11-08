@@ -70,6 +70,7 @@ function getMemberStats(guild: any) {
 
 const command: SlashCommand = {
   category: "Information",
+  aliases: ["server", "guildinfo", "svinfo"],
   data: new SlashCommandBuilder()
     .setName("serverinfo")
     .setDescription("🌸 Muestra un perfil y estadísticas detalladas de este servidor"),
@@ -369,6 +370,92 @@ const command: SlashCommand = {
       } else {
         await interaction.reply(errorMessage).catch(console.error);
       }
+    }
+  },
+
+  async prefixRun(client, message: Message) {
+    if (!message.guild) {
+      await message.reply("❌ Este comando solo puede usarse en un servidor.");
+      return;
+    }
+    const guild = message.guild;
+    try {
+      const owner = await guild.fetchOwner().catch(() => null);
+      const iconURL = guild.iconURL({ size: 512 });
+      const bannerURL = guild.bannerURL({ size: 1024 });
+      const channelStats = getChannelStats(guild);
+      const memberStats = getMemberStats(guild);
+      const boostCount = guild.premiumSubscriptionCount ?? 0;
+      const boostTier = formatPremiumTier(guild.premiumTier);
+      const rawHex = guild.members.me?.displayHexColor;
+      const mainColor =
+        rawHex && rawHex !== "#000000" ? (rawHex as any) : 0x5865f2;
+
+      const embed = new EmbedBuilder()
+        .setColor(mainColor)
+        .setAuthor({
+          name: `Perfil del servidor`,
+          iconURL: iconURL ?? undefined,
+        })
+        .setTitle(`━━━━━━ ✦ ${guild.name} ✦ ━━━━━━`)
+        .setThumbnail(iconURL || null)
+        .setTimestamp()
+        .setFooter({
+          text: `Consultado por ${message.author.tag}`,
+          iconURL: message.author.displayAvatarURL(),
+        });
+
+      if (bannerURL) embed.setImage(bannerURL);
+
+      embed.addFields(
+        {
+          name: "┌─ 🏰 INFORMACIÓN BÁSICA",
+          value: [
+            `│ **Nombre:** ${guild.name}`,
+            `│ **ID:** \`${guild.id}\``,
+            `│ **Dueño/a:** ${owner ? `${owner.user.tag} (${owner.user.id})` : "Desconocido"}`,
+            `│ **Creado:** ${formatDate(guild.createdTimestamp)}`,
+            `└─ **Nivel de verificación:** ${guild.verificationLevel}`,
+          ].join("\n"),
+          inline: false,
+        },
+        {
+          name: "┌─ 👥 MIEMBROS",
+          value: [
+            `│ **Total:** ${memberStats.total}`,
+            `│ **Humanos:** ${memberStats.humans}`,
+            `│ **Bots:** ${memberStats.bots}`,
+            `└─ **Con presencia visible:** ${memberStats.online}`,
+          ].join("\n"),
+          inline: false,
+        },
+        {
+          name: "┌─ 📚 CANALES",
+          value: [
+            `│ **Total:** ${channelStats.total}`,
+            `│ **Texto:** ${channelStats.text}`,
+            `│ **Voz:** ${channelStats.voice}`,
+            `│ **Categorías:** ${channelStats.categories}`,
+            `│ **Anuncios:** ${channelStats.news}`,
+            `│ **Escenario:** ${channelStats.stage}`,
+            `└─ **Foros:** ${channelStats.forums}`,
+          ].join("\n"),
+          inline: false,
+        },
+        {
+          name: "┌─ 💎 BOOSTS",
+          value: [
+            `│ **Boosts actuales:** ${boostCount}`,
+            `└─ **Nivel de servidor:** ${boostTier}`,
+          ].join("\n"),
+          inline: false,
+        },
+      );
+
+      await message.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error("❌ Error en prefix serverinfo:", error);
+      await message.reply("❌ Ocurrió un error al obtener la información del servidor.");
     }
   },
 };

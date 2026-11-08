@@ -93,7 +93,7 @@ export class AiPanelView {
           },
           {
             name: "⏳ Próxima Reposición de Cuotas",
-            value: `• **Tiempo estimado:** ${timeText}\n*(Al cumplirse las 24 horas se repondrá exactamente lo consumido)*`,
+            value: `• **Tiempo estimado:** ${timeText}\n*(Reinicio diario a las 00:00 hora de Ecuador)*`,
             inline: false,
           },
           {
@@ -223,7 +223,16 @@ export class AiPanelView {
         facts.length > 0
           ? facts
               .map((f, i) => {
-                const tag = f.source === "legacy_migrated_confirmed" ? " *(legado migrado)*" : "";
+                const tag =
+                  f.category === "dynamic"
+                    ? " *(dinámica de trato)*"
+                    : f.source === "auto_extracted"
+                      ? " *(aprendido en chat)*"
+                      : f.source === "explicit"
+                        ? " *(añadido manual)*"
+                        : f.source === "legacy_migrated_confirmed"
+                          ? " *(legado migrado)*"
+                          : "";
                 return `**${i + 1}.** ${f.fact}${tag}`;
               })
               .join("\n")

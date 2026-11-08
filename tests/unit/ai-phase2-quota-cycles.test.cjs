@@ -7,7 +7,7 @@ process.env.REDIS_ENABLED = "false";
 const buildDir = process.env.HANDLER_TEST_BUILD_DIR || path.resolve(__dirname, "../../dist");
 
 const { QuotaManager } = require(path.join(buildDir, "Core/AI/Quota/QuotaManager.js"));
-const { CYCLE_DURATION_MS } = require(path.join(buildDir, "Core/AI/Quota/QuotaTypes.js"));
+const { CYCLE_DURATION_MS, getEcuadorCycleInfo } = require(path.join(buildDir, "Core/AI/Quota/QuotaTypes.js"));
 
 test("Phase 2 - Quota: Capacidades iniciales independientes por usuario", async () => {
   QuotaManager.clearMemoryStore();
@@ -79,7 +79,7 @@ test("Phase 2 - Quota: Reposición parcial exacta al cumplirse el ciclo de 24 ho
     st = await QuotaManager.getSingleStatus("user_cycle_test", "research");
     assert.equal(st.balance, 20, "Debe restaurar el saldo a 20 (13 + 7)");
     assert.equal(st.consumedInCycle, 0, "Debe resetear el acumulado consumido del nuevo ciclo");
-    assert.equal(st.cycleStartTime, fakeTime, "Debe actualizar el inicio del nuevo ciclo");
+    assert.equal(st.cycleStartTime, getEcuadorCycleInfo(fakeTime).cycleStart, "Debe actualizar el inicio del nuevo ciclo");
   } finally {
     QuotaManager.setTimeOverride(null);
   }

@@ -76,14 +76,23 @@ export default {
 
       markTextActivity(message.guild.id, message.author.id);
 
+      const channelId = message.channel.id;
+      const parentChannelId = (message.channel as any)?.parentId;
+      const isChannelExempt =
+        (settings?.exemptChannels || []).includes(channelId) ||
+        (Boolean(parentChannelId) && (settings?.exemptChannels || []).includes(parentChannelId));
+
+      const memberRoles = message.member?.roles?.cache;
+      const hasExemptRole = memberRoles
+        ? (settings?.exemptRoles || []).some((rId) => memberRoles.has(rId))
+        : false;
+
       const isStaffOrExempt =
         message.member?.permissions.has(PermissionFlagsBits.ManageMessages) ||
         message.member?.permissions.has(PermissionFlagsBits.ManageGuild) ||
         message.member?.permissions.has(PermissionFlagsBits.Administrator) ||
-        (settings?.exemptChannels || []).includes(message.channel.id) ||
-        message.member?.roles.cache.some((r) =>
-          (settings?.exemptRoles || []).includes(r.id),
-        );
+        isChannelExempt ||
+        hasExemptRole;
 
       // ─── 0. Piso de Reglas: Menciones, Muro de Texto y Mensajes Repetidos ───
       if (!isStaffOrExempt && settings?.securityModules?.antiSpam && message.member) {
@@ -305,7 +314,9 @@ export default {
 
       // ─── Fase 3: Detección de prefix y comandos ───────────────────────────
       const currentPrefix = settings?.prefix || "x";
-      const validPrefixes = [currentPrefix, "x", "hoshi ", "h! "];
+      const validPrefixes = Array.from(
+        new Set(["hoshi ", "h! ", "h!", currentPrefix, "x"]),
+      ).sort((a, b) => b.length - a.length);
       const lowerMessage = message.content.toLowerCase();
       const matchedPrefix = validPrefixes.find((p) =>
         lowerMessage.startsWith(p.toLowerCase()),
@@ -334,6 +345,23 @@ export default {
         if (commandName === "afk") {
           await handleTextMessageAfk(message, args);
           return;
+        }
+
+        // Ejecutar comandos registrados en client.commands (PrefixCmds + SlashCmds con prefixRun)
+        if (
+          commandName !== "ximg" &&
+          !isCommandPassthrough(commandName) &&
+          client.commands?.has(commandName)
+        ) {
+          const registeredCmd = client.commands.get(commandName);
+          if (registeredCmd) {
+            if (typeof registeredCmd.execute === "function") {
+              await registeredCmd.execute(message, args, client);
+            } else if (typeof registeredCmd.prefixRun === "function") {
+              await registeredCmd.prefixRun(client, message, args);
+            }
+            return;
+          }
         }
 
         // Permitir que xask / x ask / ximg / x img / hoshi ask / hoshi img pasen a aiHandler

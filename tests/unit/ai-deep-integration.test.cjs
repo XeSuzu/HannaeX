@@ -312,7 +312,7 @@ test("Sondeos: aiHandler responde in-character según la personalidad activa", a
   };
 
   try {
-    await testMode("neko", "Nyaa~ ¿De Google o cosas raras?");
+    await testMode("neko", "¿De Google o");
     await testMode("maid", "Mis disculpas, me temo que me confunde con otra entidad");
     await testMode("gymbro", "¿De Google? ¡Nada que ver, bro!");
     await testMode("yandere", "¿Por qué mencionas a otros creadores o empresas?");

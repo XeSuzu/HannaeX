@@ -14,6 +14,12 @@ const DEFAULT_ALLOWED = [
   "pinterest.com",
   "giphy.com",
   "google.com",
+  "discord.com",
+  "discordapp.com",
+  "discordapp.net",
+  "discord.media",
+  "klipy.com",
+  "klipy.co",
 ];
 
 // Conjunto en memoria O(1) de dominios de phishing e IP grabbers conocidos
@@ -155,10 +161,10 @@ export async function handleLinkProtection(
       "securityModules allowedLinks exemptChannels exemptRoles",
     );
 
-  // Respetar canales y roles exentos configurados en el servidor
+  // Respetar canales y roles exentos configurados en el servidor (salvo enlaces confirmados de phishing)
   const channelId = message.channelId || message.channel?.id || "";
   if (channelId && (settings?.exemptChannels || []).includes(channelId)) {
-    return false;
+    if (!phishingHit) return false;
   }
 
   const memberRoles: any = message.member?.roles?.cache;
@@ -169,7 +175,7 @@ export async function handleLinkProtection(
           (r: any) => (settings?.exemptRoles || []).includes(r.id),
         )
     : false;
-  if (hasExemptRole) return false;
+  if (hasExemptRole && !phishingHit) return false;
 
   if (!phishingHit && !settings?.securityModules?.antiLinks) return false;
 

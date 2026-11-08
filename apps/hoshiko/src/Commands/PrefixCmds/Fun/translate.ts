@@ -2,6 +2,7 @@ import { Message, TextChannel, DMChannel, NewsChannel } from "discord.js";
 import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { PrefixCommand } from "../../../Interfaces/Command";
+import { QuotaManager } from "../../../Core/AI/Quota/QuotaManager";
 import {
   ADMIN_MARKER,
   markAsAdminMessage,
@@ -53,6 +54,42 @@ const command: PrefixCommand = {
 
     if (!target) target = "es";
 
+    const guildId = message.guild?.id;
+    const status = await QuotaManager.getStatus(message.author.id, guildId);
+    if (status.bothExhausted) {
+      const alreadyNotified = await QuotaManager.hasExhaustionNoticeBeenSent(
+        message.author.id,
+        guildId,
+      );
+      if (!alreadyNotified) {
+        await QuotaManager.markExhaustionNoticeSent(message.author.id, guildId);
+        const exhaustEmbed = QuotaManager.createUsageEmbed(
+          message.author.id,
+          message.author.username,
+          status,
+          guildId,
+          true,
+        );
+        const sent = await channel.send({ embeds: [exhaustEmbed] });
+        if (sent?.id) markAsAdminMessage(sent.id);
+        return;
+      }
+      return;
+    }
+
+    const quotaRes = await QuotaManager.reserveQuota(
+      message.author.id,
+      "conversation",
+      guildId,
+    );
+    if (!quotaRes.allowed) {
+      const sent = await channel.send(
+        `❌ Has alcanzado tu límite diario de mensajes conversacionales (40/40) para este ciclo ✨`,
+      );
+      if (sent?.id) markAsAdminMessage(sent.id);
+      return;
+    }
+
     try {
       const targetLang =
         target === "auto" ? "Spanish" : langMap[target] || target;
@@ -62,6 +99,11 @@ const command: PrefixCommand = {
       );
 
       if (!translated) {
+        await QuotaManager.rollbackQuota(
+          message.author.id,
+          "conversation",
+          guildId,
+        ).catch(() => null);
         await channel.send("❌ No se pudo obtener la traducción.");
         return;
       }
@@ -71,6 +113,11 @@ const command: PrefixCommand = {
       );
       if (sent?.id) markAsAdminMessage(sent.id);
     } catch (err) {
+      await QuotaManager.rollbackQuota(
+        message.author.id,
+        "conversation",
+        guildId,
+      ).catch(() => null);
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(
         "Error en comando translate (prefix):",

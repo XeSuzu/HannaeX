@@ -5,16 +5,43 @@ import type { HoshikoClient } from "../client/HoshikoClient";
 import ServerConfig from "../Database/guild/serverConfig.model";
 import { parseLyricsCommand } from "../Services/Lyrics";
 import { containsPromptInjection, detectCorporateProbe, isMentionTrigger } from "../Utils/triggerConditions";
-import { buildConversationContext, extractCleanUserMessage } from "./ai/conversationContext";
+import { buildConversationContext, extractCleanUserMessage, shouldExtractFacts } from "./ai/conversationContext";
 import { sendConversationReply } from "./ai/conversationReply";
 import { handleImageSearch } from "./ai/imageSearch";
 import { handleLyricsResponse } from "./ai/lyricsResponse";
 import { shouldBlockMessage } from "./ai/contentPolicy";
 import { LocalCacheService } from "../App/infrastructure/cache/LocalCacheService";
-import { isAdminMessage } from "./ai/adminMessageTracker";
+import { isAdminMessage, markAsAiMessage } from "./ai/adminMessageTracker";
 import { PrivateConversationSessionManager } from "./ai/PrivateConversationSessionManager";
 import { LocalIntentResolver } from "../Core/AI/Resolution/LocalIntentResolver";
 import { QuotaManager } from "../Core/AI/Quota/QuotaManager";
+import { QuotaType } from "../Core/AI/Quota/QuotaTypes";
+import { ConversationStatusManager, type StatusPhraseType } from "../Core/AI/Status/ConversationStatusManager";
+import { ServerEntityMemoryService } from "../Core/AI/Memory/ServerEntityMemoryService";
+import { PersonalMemoryService } from "../Core/AI/Memory/PersonalMemoryService";
+import { extractFacts } from "../Services/gemini";
+import { KeywordIntentClassifier } from "../Core/AI/Keywords/KeywordIntentClassifier";
+
+export function isResearchQuery(text: string): boolean {
+  return KeywordIntentClassifier.isResearchQuery(text);
+}
+
+export function isFactualOrTechnicalQuery(text: string): boolean {
+  if (!text) return false;
+  const clean = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  const factualPatterns = [
+    /\b(cuando nacio|en que an[oó]|en que fecha|fecha de fundacion|quien escribio|quien descubrio|quien invento)\b/i,
+    /\b(cual es la capital|cual es la poblacion|cuantos habitantes|cual es el pais|cual es la velocidad)\b/i,
+    /\b(codigo|funcion|algoritmo|regex|typescript|javascript|python|sql|html|css|docker|git)\b/i,
+    /\b(explica la diferencia entre|que significa el concepto|definicion de|como se calcula)\b/i,
+  ];
+  return factualPatterns.some((regex) => regex.test(clean));
+}
 
 const MAX_PENDING_PER_CHANNEL = 3;
 const channelQueueCounts = new Map<string, number>();
@@ -46,6 +73,26 @@ export default async (
   // --- ✨ BÚSQUEDA DE IMÁGENES ---
   const prefix = config.prefix || "x";
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // Guard: Si el mensaje invoca un comando de prefijo registrado (ej. hoshi pat, hoshi activity, xpat),
+  // nunca debe ser interceptado por el handler de IA.
+  const rawTrimmed = message.content.trim();
+  const cmdPrefixMatch = rawTrimmed.match(
+    new RegExp(`^(?:hoshi\\s+|h!\\s*|${escapedPrefix}\\s*|x\\s*)([a-z0-9_-]+)`, "i"),
+  );
+  if (cmdPrefixMatch) {
+    const candidateCmd = cmdPrefixMatch[1].toLowerCase();
+    const isAiPassthrough =
+      candidateCmd === "ask" || candidateCmd === "img" || candidateCmd === "ximg";
+    if (
+      !isAiPassthrough &&
+      (candidateCmd === "snipe" ||
+        candidateCmd === "afk" ||
+        Boolean(client.commands?.has(candidateCmd)))
+    ) {
+      return false;
+    }
+  }
   const imgAskMatch = message.content.match(
     /^(?:hoshi(?:\s+ask)?\s+img|neko\s+ask\s+img)\s+(.+)/i,
   );
@@ -215,19 +262,101 @@ export default async (
       await (message.channel as any).sendTyping().catch(() => null);
     }
 
+    let reservedQuotaType: QuotaType | null = null;
+    let enableSearch = false;
+    let statusMessage: Message | null = null;
+
     try {
       if (isDirectInteraction) {
-        const quotaRes = await QuotaManager.reserveQuota(
-          message.author.id,
-          "conversation",
-          message.guild?.id,
-        );
-        if (!quotaRes.allowed) {
-          const hoursRem = Math.max(1, Math.round(quotaRes.status.timeUntilRenewalMs / (1000 * 60 * 60)));
-          await message.reply(
-            `¡Has alcanzado tu límite de conversación diaria (40/40) para este ciclo! Se renovará en aproximadamente ${hoursRem} hora(s) ♡\n*(Puedes consultar tu saldo en cualquier momento con \`/ai usage\`)* ✨`,
-          ).catch(() => null);
+        const userCleanText = extractCleanUserMessage(message.content, client.user?.id, config.prefix);
+        const status = await QuotaManager.getStatus(message.author.id, message.guild?.id);
+
+        // Si ambas cuotas están agotadas para usuario normal
+        if (status.bothExhausted) {
+          const alreadyNotified = await QuotaManager.hasExhaustionNoticeBeenSent(
+            message.author.id,
+            message.guild?.id,
+          );
+          if (!alreadyNotified) {
+            await QuotaManager.markExhaustionNoticeSent(
+              message.author.id,
+              message.guild?.id,
+            );
+            const exhaustEmbed = QuotaManager.createUsageEmbed(
+              message.author.id,
+              message.author.username,
+              status,
+              message.guild?.id,
+              true, // isExhaustionNotice
+            );
+            await message.reply({ embeds: [exhaustEmbed] }).catch(() => null);
+          }
           return;
+        }
+
+        const classification = KeywordIntentClassifier.classify(userCleanText);
+        const isResearch = classification.isResearch;
+
+        if (isResearch) {
+          if (status.research.balance > 0 || status.isExempt) {
+            const res = await QuotaManager.reserveQuota(
+              message.author.id,
+              "research",
+              message.guild?.id,
+            );
+            if (res.allowed) {
+              reservedQuotaType = "research";
+              enableSearch = true;
+            } else if (status.conversation.balance > 0) {
+              // Si en carrera concurrente se agotó investigación, fallback a texto conversacional
+              const convRes = await QuotaManager.reserveQuota(
+                message.author.id,
+                "conversation",
+                message.guild?.id,
+              );
+              if (convRes.allowed) {
+                reservedQuotaType = "conversation";
+                enableSearch = false;
+              } else {
+                return;
+              }
+            } else {
+              return;
+            }
+          } else if (status.conversation.balance > 0) {
+            // Investigación agotada, pero conversación disponible -> fallback a texto puro
+            const convRes = await QuotaManager.reserveQuota(
+              message.author.id,
+              "conversation",
+              message.guild?.id,
+            );
+            if (convRes.allowed) {
+              reservedQuotaType = "conversation";
+              enableSearch = false;
+            } else {
+              return;
+            }
+          } else {
+            return;
+          }
+        } else {
+          // Conversación normal
+          if (status.conversation.balance > 0 || status.isExempt) {
+            const res = await QuotaManager.reserveQuota(
+              message.author.id,
+              "conversation",
+              message.guild?.id,
+            );
+            if (!res.allowed) return;
+            reservedQuotaType = "conversation";
+            enableSearch = false;
+          } else {
+            // Conversación agotada pero investigación disponible
+            await message.reply(
+              `¡Has alcanzado tu límite diario de mensajes conversacionales (40/40)! Sin embargo, tu cuota de investigación (20 consultas) sigue activa si deseas realizar búsquedas o consultas informativas en tiempo real ✨`,
+            ).catch(() => null);
+            return;
+          }
         }
       }
 
@@ -243,14 +372,75 @@ export default async (
       });
 
       const safetyMode = (config.aiSafety as "relaxed" | "standard" | "strict") || "standard";
+      const isFactual = isFactualOrTechnicalQuery(context.userMessage);
+      const classification = KeywordIntentClassifier.classify(context.userMessage);
+      const isResearchMode = classification.isResearch;
+      const adaptiveTemperature =
+        aiSystem.mode === "assistant" || isResearchMode || isFactual ? 0.2 : 0.7;
+
+      let effectiveSystemInstruction = context.systemInstruction;
+      if (classification.deductionHint) {
+        effectiveSystemInstruction = `${context.systemInstruction}\n\n${classification.deductionHint}`;
+      }
+
+      // El embed de espera progresivo (ilusión del trabajo) y el retardo de 10s
+      // SOLO se activan cuando la consulta requiere búsqueda web en vivo.
+      // En charlas casuales o consultas resueltas con datos locales, responde de forma inmediata y ágil.
+      const isSearchRequired = Boolean(enableSearch || isResearchMode);
+
+      if (isDirectInteraction && isSearchRequired && "reply" in message && typeof message.reply === "function") {
+        const statusEmbed = ConversationStatusManager.createProgressiveStatusEmbed(client.user, 0);
+        statusMessage = (await message.reply({ embeds: [statusEmbed] }).catch(() => null)) as Message | null;
+        if (statusMessage?.id) markAsAiMessage(statusMessage.id);
+      }
+
       const replyResult = await sendConversationReply(
         message,
-        context.systemInstruction,
+        effectiveSystemInstruction,
         context.historyForApi,
         isDirectInteraction,
         safetyMode,
         aiSystem.mode || "neko",
+        enableSearch,
+        adaptiveTemperature,
+        statusMessage,
+        isSearchRequired ? 10000 : 0,
+        "research",
       );
+
+      // Guardado automático en segundo plano de entidades del servidor
+      if (message.guild) {
+        const extracted = ServerEntityMemoryService.extractEntityFact(context.userMessage);
+        if (extracted) {
+          ServerEntityMemoryService.saveEntityFact(
+            message.guild.id,
+            extracted.entity,
+            extracted.fact,
+            message.author.id,
+            message.author.username,
+          ).catch(() => null);
+        }
+      }
+
+      // Guardado automático en segundo plano de hechos y dinámicas personales del usuario
+      if (shouldExtractFacts(context.userMessage)) {
+        // Detección heurística directa de dinámicas de trato, bromas o humor
+        if (/\b(h[aá]blame con|tr[aá]tame de|me gusta el sarcasmo|es joda|es una broma|sos re|bobo|tonta)\b/i.test(context.userMessage)) {
+          const dynamicSummary = /sarcasmo/i.test(context.userMessage)
+            ? "Tiene sentido del humor sarcástico y disfruta el trato con chicanas"
+            : "Tiene dinámica de bromas informales y chicanas amigables";
+          PersonalMemoryService.addAutoExtractedFact(message.author.id, dynamicSummary, "dynamic").catch(() => null);
+        }
+
+        extractFacts(message.author.username, context.userMessage, message.author.id)
+          .then(async (facts) => {
+            for (const f of facts) {
+              const cat = /sarcasmo|humor|bromas|chicana|bobo|tonta/i.test(f) ? "dynamic" : "biography";
+              await PersonalMemoryService.addAutoExtractedFact(message.author.id, f, cat).catch(() => null);
+            }
+          })
+          .catch(() => null);
+      }
 
       // Registrar turno del modelo en la sesión privada
       if (replyResult?.fullText) {
@@ -266,19 +456,27 @@ export default async (
         await IAConfigManager.setCooldown(guildId, cooldownMinutes);
       }
     } catch (error: any) {
-      if (isDirectInteraction) {
+      if (reservedQuotaType) {
         await QuotaManager.rollbackQuota(
           message.author.id,
-          "conversation",
+          reservedQuotaType,
           message.guild?.id,
         ).catch(() => null);
       }
       if (error?.message === "PROHIBITED_CONTENT") {
-        await message.reply("Auch~ ese tema me da cosa responderlo, mis filtros no me dejan 🤐").catch(() => null);
+        if (statusMessage && typeof (statusMessage as any).edit === "function") {
+          await (statusMessage as any).edit({ content: "Auch~ ese tema me da cosa responderlo, mis filtros no me dejan 🤐", embeds: [] }).catch(() => null);
+        } else {
+          await message.reply("Auch~ ese tema me da cosa responderlo, mis filtros no me dejan 🤐").catch(() => null);
+        }
       } else {
         console.error(`[AI] 💥 Error inesperado procesando respuesta:`, error);
         if (isDirectInteraction) {
-          await message.reply("Oops~ se me cruzaron los cables ahí jaja. Probá preguntando de nuevo?").catch(() => null);
+          if (statusMessage && typeof (statusMessage as any).edit === "function") {
+            await (statusMessage as any).edit({ content: "Oops~ se me cruzaron los cables ahí jaja. Probá preguntando de nuevo?", embeds: [] }).catch(() => null);
+          } else {
+            await message.reply("Oops~ se me cruzaron los cables ahí jaja. Probá preguntando de nuevo?").catch(() => null);
+          }
         }
       }
     } finally {

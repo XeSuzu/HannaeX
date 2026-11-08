@@ -29,13 +29,14 @@ const booleanString = z.preprocess((value) => {
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "staging", "production", "test"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(8080),
+  PORT: z.coerce.number().int().nonnegative().default(8080),
   HEALTH_HOST: z.string().default("127.0.0.1"),
   TOKEN: blankToUndefined,
   BOT_ID: blankToUndefined,
   PREFIX: z.string().default("!"),
   GUILD_ID: blankToUndefined,
   MONGO_URI: blankToUndefined,
+  DATABASE_ENCRYPTION_KEY: blankToUndefined,
   REDIS_URL: blankToUndefined,
   REDIS_ENABLED: booleanString.default(false),
   WORKER_ENABLED: booleanString.default(false),
@@ -43,6 +44,9 @@ export const envSchema = z.object({
   GEMINI_MODERATION_API_KEY: blankToUndefined,
   GOOGLE_SAFE_BROWSING_KEY: blankToUndefined,
   SUPPORT_SERVER_INVITE: blankToUndefined,
+  BOT_OWNER_ID: blankToUndefined,
+  TEST_GUILD_ID: blankToUndefined,
+  DEV_GUILD_ID: blankToUndefined,
 });
 
 export type AppEnvironment = z.infer<typeof envSchema>;

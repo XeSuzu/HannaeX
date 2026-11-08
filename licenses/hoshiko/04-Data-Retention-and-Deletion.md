@@ -1,9 +1,9 @@
 # 04 — Data Retention and Deletion (Internal Technical Policy)
 
 **Título:** Política Técnica de Retención, Expiración TTL y Eliminación de Datos  
-**Identificador de Versión:** `HOSHIKO-INT-RET-3.0.0`  
+**Identificador de Versión:** `HOSHIKO-INT-RET-3.1.0`  
 **Fecha de Elaboración:** 2026-11-06  
-**Fecha de Última Revisión:** 2026-11-06  
+**Fecha de Última Revisión:** 2026-11-08  
 **Estado:** `INTERNALLY-APPROVED`  
 **Alcance:** `apps/hoshiko` (Bot Principal)  
 **Referencias:** `DATA-INVENTORY.md`, `SnipeService.ts`, `cronJobs.ts`, `LocalCacheService.ts`, `CacheManager.ts`  
@@ -34,7 +34,11 @@
 3. **`ActiveVoiceSession` (`Database/leveling/activeVoiceSession.model.ts:25-28`):**
    - Índice sobre `{ start: 1 }` con `expireAfterSeconds: 86400` (**24 horas**). Además, se elimina inmediatamente al salir del canal de voz (`removePersistedSession`).
 4. **`Conversation` (`Database/ai/conversation.model.ts:59-62`):**
-   - Índice sobre `{ lastInteraction: 1 }` con `expireAfterSeconds: 2592000` (**30 días**). *Nota: Modelo huérfano no conectado al flujo activo de `aiHandler.ts`.*
+   - Conectado y activo en producción para el flujo de `aiHandler.ts`. Almacena hasta 40 turnos de mensajes por usuario y contexto (`{ userId, guildId }`) cifrados en reposo mediante **AES-256-GCM**.
+   - Cuenta con índice TTL sobre `{ lastInteraction: 1 }` con `expireAfterSeconds: 2592000` (**30 días**). Se purga automáticamente tras 30 días de inactividad.
+5. **`PersonalMemory` (`Database/ai/personalMemory.model.ts:90-94`):**
+   - Almacena hasta 20 recuerdos, preferencias y dinámicas individuales cifrados con **AES-256-GCM** en `facts[].fact`. Rotación FIFO/LRU automática al superar los 20 recuerdos.
+   - Cuenta con índice TTL condicional de **90 días (`7776000s`)** para usuarios que seleccionen dicha retención (`retentionDays: 90`).
 
 ### 1.4. Rotación de Logs Operativos en Disco (`scripts/cronJobs.ts:29-79`)
 - Los archivos `logs/hoshiko-YYYY-MM-DD.jsonl` se eliminan automáticamente mediante el cron job diario `cleanOldLogs` (03:00 AM) cuando superan los **14 días** de antigüedad (`maxAgeDays = 14`).
@@ -47,6 +51,7 @@ Las colecciones `ServerConfig`, `StatusConfig`, `LocalLevel`, `GlobalLevel`, `Gl
 
 ### 2.1. Comandos de Eliminación Disponibles en Discord
 - **Por el propio usuario:**
+  - `/ai panel` (Pestaña "Recuerdos"): Permite visualizar cada hecho con su etiqueta de procedencia (`aprendido en chat`, `dinámica de trato`, `añadido manual`), borrar recuerdos individuales puntuales o pulsar "Eliminar todos" para purgar la memoria personal completa al instante.
   - `/clearmemory` y `/memory borrar`: Ejecutan `UserMemory.deleteOne({ userId, guildId })` o eliminan un hecho individual en el servidor actual.
 - **Por administradores/moderadores del servidor:**
   - `/clearmemoryall`: Ejecuta `UserMemory.deleteMany({ guildId })`, borrando toda la memoria de IA del servidor.

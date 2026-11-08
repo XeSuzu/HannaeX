@@ -92,7 +92,7 @@ const command: SlashCommand = {
       embed
         .setTitle("📜 Whitelist de Enlaces")
         .setDescription(
-          `**Dominios permitidos en este servidor:**\n\n${list}\n\n*Nota: YouTube, Spotify y Tenor son permitidos por defecto.*`,
+          `**Dominios permitidos en este servidor:**\n\n${list}\n\n*Nota: YouTube, Spotify, Tenor, Giphy, KLIPY, Pinterest, Google y los recursos de Discord (CDN, multimedia y mensajes) son permitidos por defecto.*`,
         );
     }
 

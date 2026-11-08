@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import mongoose from "mongoose";
+import { FieldEncryptionService } from "../../../Security/Encryption/FieldEncryptionService";
 import PersonalMemory, {
   IPersonalFact,
   IPersonalMemory,
@@ -38,6 +39,7 @@ export interface PrivacyAuditEvent {
 
 export class PersonalMemoryService {
   private static fallbackPreferences = new Map<string, IUserPreferences>();
+  private static fallbackMemories = new Map<string, any>();
 
   static readonly DEFAULT_PREFERENCES: IUserPreferences = {
     style: "balanced",
@@ -140,26 +142,30 @@ export class PersonalMemoryService {
   }
 
   static async getMemory(userId: string): Promise<IPersonalMemory | null> {
-    if (!userId || !this.isDbAvailable()) return null;
+    if (!userId) return null;
+    if (!this.isDbAvailable()) {
+      return this.fallbackMemories.get(userId) || null;
+    }
     try {
-      return await PersonalMemory.findOne({ userId });
+      const doc = await PersonalMemory.findOne({ userId });
+      return doc || this.fallbackMemories.get(userId) || null;
     } catch {
-      return null;
+      return this.fallbackMemories.get(userId) || null;
     }
   }
 
   static async getFacts(userId: string): Promise<string[]> {
-    if (!userId || !this.isDbAvailable()) return [];
+    if (!userId) return [];
     try {
-      const memory = await PersonalMemory.findOne({ userId });
-      if (!memory || !memory.enabled || memory.facts.length === 0) {
+      const memory = await this.getMemory(userId);
+      if (!memory || !memory.enabled || !memory.facts || memory.facts.length === 0) {
         return [];
       }
 
       return [...memory.facts]
-        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, MAX_FACTS)
-        .map((f) => f.fact);
+        .map((f) => FieldEncryptionService.decrypt(f.fact));
     } catch {
       return [];
     }
@@ -198,24 +204,23 @@ export class PersonalMemoryService {
       }
     }
 
-    if (!this.isDbAvailable()) {
-      return {
-        success: false,
-        message: "Base de datos no disponible temporalmente.",
-      };
-    }
-
     let memory: any;
-    try {
-      memory = await PersonalMemory.findOne({ userId });
+    if (!this.isDbAvailable()) {
+      memory = this.fallbackMemories.get(userId);
       if (!memory) {
-        memory = new PersonalMemory({ userId, enabled: true, facts: [] });
+        memory = { userId, enabled: true, facts: [], save: async () => {} };
+        this.fallbackMemories.set(userId, memory);
       }
-    } catch {
-      return {
-        success: false,
-        message: "Error al acceder a la base de datos.",
-      };
+    } else {
+      try {
+        memory = await PersonalMemory.findOne({ userId });
+        if (!memory) {
+          memory = new PersonalMemory({ userId, enabled: true, facts: [] });
+        }
+      } catch {
+        memory = this.fallbackMemories.get(userId) || { userId, enabled: true, facts: [], save: async () => {} };
+        this.fallbackMemories.set(userId, memory);
+      }
     }
 
     if (!memory.enabled) {
@@ -228,7 +233,9 @@ export class PersonalMemoryService {
 
     // Deduplicación estricta
     const exists = memory.facts.some(
-      (f: IPersonalFact) => f.fact.toLowerCase() === normalized.toLowerCase(),
+      (f: IPersonalFact) =>
+        FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
+        normalized.toLowerCase(),
     );
     if (exists) {
       return {
@@ -274,14 +281,113 @@ export class PersonalMemoryService {
     };
   }
 
+  static async addAutoExtractedFact(
+    userId: string,
+    factText: string,
+    category: IPersonalFact["category"] = "biography",
+  ): Promise<{ success: boolean; fact?: IPersonalFact }> {
+    if (!userId) return { success: false };
+
+    const normalized = factText?.trim();
+    if (!normalized || normalized.length < 5 || normalized.length > 140) {
+      return { success: false };
+    }
+
+    if (FORBIDDEN_PRIVILEGE_PATTERNS.test(normalized)) {
+      return { success: false };
+    }
+
+    for (const pattern of SENSITIVE_DATA_PATTERNS) {
+      if (pattern.test(normalized)) {
+        return { success: false };
+      }
+    }
+
+    let memory: any;
+    if (!this.isDbAvailable()) {
+      memory = this.fallbackMemories.get(userId);
+      if (!memory) {
+        memory = { userId, enabled: true, facts: [], save: async () => {} };
+        this.fallbackMemories.set(userId, memory);
+      }
+    } else {
+      try {
+        memory = await PersonalMemory.findOne({ userId });
+        if (!memory) {
+          memory = new PersonalMemory({ userId, enabled: true, facts: [] });
+        }
+      } catch {
+        memory = this.fallbackMemories.get(userId) || { userId, enabled: true, facts: [], save: async () => {} };
+        this.fallbackMemories.set(userId, memory);
+      }
+    }
+
+    if (!memory.enabled) {
+      return { success: false };
+    }
+
+    // Deduplicación estricta
+    const exists = memory.facts.some(
+      (f: IPersonalFact) =>
+        FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
+        normalized.toLowerCase(),
+    );
+    if (exists) {
+      return { success: false };
+    }
+
+    // Si alcanza el límite máximo de recuerdos (20), retirar el recuerdo auto-extraído más antiguo (FIFO)
+    if (memory.facts.length >= MAX_FACTS) {
+      const oldestAutoIdx = memory.facts.findIndex((f: IPersonalFact) => f.source === "auto_extracted");
+      if (oldestAutoIdx !== -1) {
+        memory.facts.splice(oldestAutoIdx, 1);
+      } else {
+        memory.facts.shift();
+      }
+    }
+
+    const factId = `fact_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+    const newFact: IPersonalFact = {
+      id: factId,
+      category,
+      fact: normalized,
+      source: "auto_extracted",
+      confidence: 0.9,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    memory.facts.push(newFact);
+    memory.lastInteraction = new Date();
+    await memory.save();
+
+    this.auditLog({
+      timestamp: new Date(),
+      eventType: "FACT_CREATED",
+      userId,
+      factId,
+      category,
+    });
+
+    return { success: true, fact: newFact };
+  }
+
   static async deleteFact(
     userId: string,
     factIdOrIndex: string | number,
   ): Promise<boolean> {
-    if (!userId || !this.isDbAvailable()) return false;
+    if (!userId) return false;
     try {
-      const memory = await PersonalMemory.findOne({ userId });
-      if (!memory || memory.facts.length === 0) return false;
+      let memory: any = null;
+      if (this.isDbAvailable()) {
+        try {
+          memory = await PersonalMemory.findOne({ userId });
+        } catch {}
+      }
+      if (!memory) {
+        memory = this.fallbackMemories.get(userId);
+      }
+      if (!memory || !memory.facts || memory.facts.length === 0) return false;
 
       let targetFactId: string | null = null;
 
@@ -291,14 +397,16 @@ export class PersonalMemoryService {
         targetFactId = memory.facts[idx].id;
         memory.facts.splice(idx, 1);
       } else {
-        const idx = memory.facts.findIndex((f) => f.id === factIdOrIndex);
+        const idx = memory.facts.findIndex((f: any) => f.id === factIdOrIndex);
         if (idx === -1) return false;
         targetFactId = memory.facts[idx].id;
         memory.facts.splice(idx, 1);
       }
 
       memory.lastInteraction = new Date();
-      await memory.save();
+      if (typeof memory.save === "function") {
+        await memory.save();
+      }
 
       if (targetFactId) {
         this.auditLog({
@@ -316,14 +424,24 @@ export class PersonalMemoryService {
   }
 
   static async clearAllFacts(userId: string): Promise<boolean> {
-    if (!userId || !this.isDbAvailable()) return false;
+    if (!userId) return false;
     try {
-      const memory = await PersonalMemory.findOne({ userId });
+      let memory: any = null;
+      if (this.isDbAvailable()) {
+        try {
+          memory = await PersonalMemory.findOne({ userId });
+        } catch {}
+      }
+      if (!memory) {
+        memory = this.fallbackMemories.get(userId);
+      }
       if (!memory) return false;
 
       memory.facts = [];
       memory.lastInteraction = new Date();
-      await memory.save();
+      if (typeof memory.save === "function") {
+        await memory.save();
+      }
 
       this.auditLog({
         timestamp: new Date(),
@@ -419,7 +537,9 @@ export class PersonalMemoryService {
       }
 
       const exists = memory.facts.some(
-        (f) => f.fact.toLowerCase() === normalized.toLowerCase(),
+        (f) =>
+          FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
+          normalized.toLowerCase(),
       );
       if (exists) {
         return {

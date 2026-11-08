@@ -8,7 +8,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
 import { SlashCommand } from "../../../../Interfaces/Command";
-import { getAnimeGif } from "../../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../../Utils/animeGif";
 
 const SOLO_LINES = [
   "A veces llorar está bien. Aquí estoy contigo~ 🤍",
@@ -41,11 +45,11 @@ const command: SlashCommand = {
     client: HoshikoClient,
   ) {
     const target = interaction.options.getUser("usuario");
-    const gif = await getAnimeGif("cry");
     const member = interaction.member as GuildMember;
-    const color = member?.displayHexColor || "#90caf9";
+    const color = resolveInteractionColor(member, "#90caf9");
 
     if (!target || target.id === interaction.user.id) {
+      const gif = await getAnimeGif("cry");
       const line = SOLO_LINES[Math.floor(Math.random() * SOLO_LINES.length)];
       await interaction.editReply({
         embeds: [
@@ -59,6 +63,7 @@ const command: SlashCommand = {
         ],
       });
     } else {
+      const gif = await getAnimeGif("cuddle");
       const line =
         TARGET_LINES[Math.floor(Math.random() * TARGET_LINES.length)];
       await interaction.editReply({
@@ -76,11 +81,11 @@ const command: SlashCommand = {
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
-    const gif = await getAnimeGif("cry");
-    const color = message.member?.displayHexColor || "#90caf9";
+    const target = await resolveInteractionTarget(message, args);
+    const color = resolveInteractionColor(message.member, "#90caf9");
 
     if (!target || target.id === message.author.id) {
+      const gif = await getAnimeGif("cry");
       const line = SOLO_LINES[Math.floor(Math.random() * SOLO_LINES.length)];
       await message.reply({
         embeds: [
@@ -94,6 +99,7 @@ const command: SlashCommand = {
         ],
       });
     } else {
+      const gif = await getAnimeGif("cuddle");
       const line =
         TARGET_LINES[Math.floor(Math.random() * TARGET_LINES.length)];
       await message.reply({

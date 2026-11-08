@@ -281,7 +281,7 @@ test("Restricciones: interacciones fuera de servidor son rechazadas con respuest
   const calls = ix._inspect();
   assert.equal(executed, false, "No debe ejecutar comandos en DM");
   assert.equal(calls.replyCalls.length, 1);
-  assert.match(calls.replyCalls[0].content, /solo funcionan dentro de un servidor/);
+  assert.match(calls.replyCalls[0].content, /solo (?:funcionan|están disponibles) dentro de un servidor/);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -14,7 +14,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getAnimeGif } from "../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../Utils/animeGif";
 
 // ⚙️ LÓGICA CENTRAL (Compartida por Slash y Texto)
 async function startHug(
@@ -157,7 +161,7 @@ const command: SlashCommand = {
     await startHug(
       target,
       interaction.user,
-      member?.displayHexColor || "#f48fb1",
+      resolveInteractionColor(member, "#f48fb1"),
       // Adaptador: Interaction -> Message
       async (payload) => {
         return await interaction.editReply(payload) as Message;
@@ -167,7 +171,7 @@ const command: SlashCommand = {
 
   // 🔵 EJECUCIÓN TEXTO (hoshi hug @usuario)
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     if (!target) {
       return message.reply(
         "Menciona a la persona que deseas abrazar. Ejemplo: `hoshi hug @usuario` ✨",
@@ -179,7 +183,7 @@ const command: SlashCommand = {
     await startHug(
       target,
       message.author,
-      member?.displayHexColor || "#f48fb1",
+      resolveInteractionColor(member, "#f48fb1"),
       // Adaptador: Message -> Message (Este no necesitaba cambios)
       async (payload) => message.reply(payload),
     );

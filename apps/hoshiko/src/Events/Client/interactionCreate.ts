@@ -1,4 +1,4 @@
-import { Events } from "discord.js";
+import { Events, MessageFlags } from "discord.js";
 import { EventFile } from "../../Handlers/eventHandler";
 import { handleAutocomplete } from "./handlers/autocomplete";
 import { acquireInteractionLock, handleCommands } from "./handlers/command";
@@ -56,7 +56,7 @@ const event: EventFile<Events.InteractionCreate> = {
       if (!interaction.isAutocomplete()) {
         await safeRespond(interaction as any, {
           content: "😿 Ocurrió un error al procesar esta interacción.",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }

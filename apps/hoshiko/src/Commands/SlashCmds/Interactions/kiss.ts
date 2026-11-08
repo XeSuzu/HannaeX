@@ -14,7 +14,11 @@ import {
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import Couple from "../../../Database/community/couple.model";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getAnimeGif } from "../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../Utils/animeGif";
 
 async function startKiss(
   targetUser: User,
@@ -124,7 +128,7 @@ async function startKiss(
         .setImage(returnGif);
       await i.followUp({ embeds: [embedOk] });
     } else {
-      const sadGif = await getAnimeGif("slap");
+      const sadGif = await getAnimeGif("cry");
       const embedNo = new EmbedBuilder()
         .setColor("#f44336")
         .setDescription(
@@ -163,7 +167,7 @@ const command: SlashCommand = {
     await startKiss(
       target,
       interaction.user,
-      member?.displayHexColor || "#ff9eb5",
+      resolveInteractionColor(member, "#ff9eb5"),
       async (payload) => {
         return await interaction.editReply(payload) as Message;
       },
@@ -171,14 +175,14 @@ const command: SlashCommand = {
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     if (!target)
       return message.reply("Menciona a la persona a la que deseas darle un beso ✨");
 
     await startKiss(
       target,
       message.author,
-      message.member?.displayHexColor || "#ff9eb5",
+      resolveInteractionColor(message.member, "#ff9eb5"),
       async (payload) => message.reply(payload),
     );
   },

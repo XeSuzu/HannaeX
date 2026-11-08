@@ -4,6 +4,7 @@ import {
   ButtonStyle,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  Message,
   PermissionFlagsBits,
   PermissionsBitField,
   SlashCommandBuilder,
@@ -25,11 +26,18 @@ const PAGE_SIZE = 8;
 
 const command: SlashCommand = {
   category: "Information",
+  aliases: ["ayuda", "comandos", "commands", "manual"],
   cooldown: 3,
   ephemeral: true,
   data: new SlashCommandBuilder()
     .setName("help")
-    .setDescription("🌸 Muestra el centro de documentación y manual de comandos de Hoshiko."),
+    .setDescription("🌸 Muestra el centro de documentación y manual de comandos de Hoshiko.")
+    .addStringOption((opt) =>
+      opt
+        .setName("comando")
+        .setDescription("Nombre del comando que deseas consultar directamente.")
+        .setRequired(false)
+    ),
 
   async execute(
     interaction: ChatInputCommandInteraction,
@@ -62,6 +70,21 @@ const command: SlashCommand = {
       categorized[cat].push({ name, desc });
       commandMap.set(name, cmd);
     });
+
+    const query = interaction.options.getString("comando")?.toLowerCase().replace(/^\//, "");
+    if (query) {
+      let targetCmd = commandMap.get(query);
+      if (!targetCmd && client.commands?.has(query)) {
+        const reg = client.commands.get(query);
+        targetCmd = commandMap.get(reg?.name || query);
+      }
+      if (targetCmd || getCommandDetail(query, targetCmd)) {
+        const detail = getCommandDetail(targetCmd?.data?.name || query, targetCmd);
+        const embed = buildCommandDetailEmbed(client, detail);
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+    }
 
     const welcomeLine =
       WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)];
@@ -196,6 +219,181 @@ const command: SlashCommand = {
       interaction
         .editReply({ components: disabledRows as any })
         .catch(() => {});
+    });
+  },
+
+  async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
+    const memberPerms = message.member
+      ?.permissions as Readonly<PermissionsBitField>;
+    const isOwner = message.author.id === process.env.BOT_OWNER_ID;
+    const isAdmin =
+      memberPerms?.has(PermissionFlagsBits.Administrator) || isOwner;
+    const isMod =
+      memberPerms?.has(PermissionFlagsBits.ManageMessages) ||
+      memberPerms?.has(PermissionFlagsBits.ModerateMembers) ||
+      isAdmin;
+
+    const categorized: Record<string, { name: string; desc: string }[]> = {};
+    const commandMap = new Map<string, any>();
+
+    client.slashCommands.forEach((cmd: any) => {
+      const cat = cmd.category || "Utility";
+      const catConfig = CATEGORIES[cat];
+      if (catConfig?.visibleTo === "Owner" && !isOwner) return;
+      if (catConfig?.visibleTo === "Admin" && !isAdmin) return;
+      if (catConfig?.visibleTo === "Mod" && !isMod) return;
+
+      const name = cmd.data?.name || cmd.name;
+      const desc = cmd.data?.description || cmd.description || "Sin descripción.";
+
+      if (!categorized[cat]) categorized[cat] = [];
+      categorized[cat].push({ name, desc });
+      commandMap.set(name, cmd);
+    });
+
+    // Si el usuario ejecutó "hoshi help <comando>" (ej. hoshi help pat o hoshi help avatar)
+    const query = args[0]?.toLowerCase().replace(/^\//, "");
+    if (query) {
+      let targetCmd = commandMap.get(query);
+      if (!targetCmd && client.commands?.has(query)) {
+        const reg = client.commands.get(query);
+        targetCmd = commandMap.get(reg?.name || query);
+      }
+      if (targetCmd || getCommandDetail(query, targetCmd)) {
+        const detail = getCommandDetail(targetCmd?.data?.name || query, targetCmd);
+        const embed = buildCommandDetailEmbed(client, detail);
+        await message.reply({ embeds: [embed] });
+        return;
+      }
+    }
+
+    const welcomeLine =
+      WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)];
+
+    let currentCategory: string = "main";
+    let currentPage: number = 1;
+
+    const initialComponents = buildHelpComponents(client, categorized, "main");
+    const mainEmbed = buildMainEmbed(
+      client,
+      categorized,
+      message.author,
+      welcomeLine,
+    );
+
+    let lastComponents = initialComponents;
+
+    const replyMsg = await message.reply({
+      embeds: [mainEmbed],
+      components: initialComponents as any,
+    });
+
+    const collector = replyMsg.createMessageComponentCollector({
+      filter: (i) => i.user.id === message.author.id,
+      time: 60000 * 3,
+    });
+
+    collector.on(
+      "collect",
+      async (i: StringSelectMenuInteraction | ButtonInteraction) => {
+        try {
+          collector.resetTimer();
+          let embed: EmbedBuilder;
+
+          if (i.isButton()) {
+            if (i.customId === "help_home") {
+              currentCategory = "main";
+              currentPage = 1;
+              embed = buildMainEmbed(client, categorized, message.author, welcomeLine);
+              lastComponents = buildHelpComponents(client, categorized, "main");
+              await i.update({ embeds: [embed], components: lastComponents as any });
+              return;
+            }
+
+            if (i.customId.startsWith("help_page_")) {
+              const [action, pageStr] = i.customId.replace("help_page_", "").split(":");
+              const prevPage = parseInt(pageStr, 10) || 1;
+              const cmds = categorized[currentCategory] || [];
+              const totalPages = Math.max(1, Math.ceil(cmds.length / PAGE_SIZE));
+              const targetPage = action === "next" ? prevPage + 1 : prevPage - 1;
+              currentPage = Math.min(Math.max(1, targetPage), totalPages);
+
+              embed = buildCategoryEmbed(client, currentCategory, cmds, currentPage, PAGE_SIZE);
+              lastComponents = buildHelpComponents(client, categorized, currentCategory, cmds, currentPage, totalPages);
+              await i.update({ embeds: [embed], components: lastComponents as any });
+              return;
+            }
+          }
+
+          if (i.isStringSelectMenu() && i.customId === "help_cmd_select") {
+            const rawVal = i.values[0];
+            const cmdName = rawVal.replace("cmd:", "");
+            const slashCmd = commandMap.get(cmdName);
+            const detail = getCommandDetail(cmdName, slashCmd);
+
+            embed = buildCommandDetailEmbed(client, detail);
+            const cmds = categorized[currentCategory] || [];
+            const totalPages = Math.max(1, Math.ceil(cmds.length / PAGE_SIZE));
+            lastComponents = buildHelpComponents(client, categorized, currentCategory, cmds, currentPage, totalPages);
+            await i.update({ embeds: [embed], components: lastComponents as any });
+            return;
+          }
+
+          if (i.isStringSelectMenu() && i.customId === "help_menu") {
+            const selected = i.values[0];
+
+            if (selected === "main") {
+              currentCategory = "main";
+              currentPage = 1;
+              embed = buildMainEmbed(client, categorized, message.author, welcomeLine);
+              lastComponents = buildHelpComponents(client, categorized, "main");
+              await i.update({ embeds: [embed], components: lastComponents as any });
+              return;
+            }
+
+            if (selected === "MODERATION_SPECIAL") {
+              currentCategory = "MODERATION_SPECIAL";
+              currentPage = 1;
+              embed = buildModerationEmbed(client);
+              lastComponents = buildHelpComponents(client, categorized, "MODERATION_SPECIAL");
+              await i.update({ embeds: [embed], components: lastComponents as any });
+              return;
+            }
+
+            currentCategory = selected;
+            currentPage = 1;
+            const cmds = categorized[selected] || [];
+            const totalPages = Math.max(1, Math.ceil(cmds.length / PAGE_SIZE));
+
+            embed = buildCategoryEmbed(client, selected, cmds, currentPage, PAGE_SIZE);
+            lastComponents = buildHelpComponents(client, categorized, selected, cmds, currentPage, totalPages);
+            await i.update({ embeds: [embed], components: lastComponents as any });
+            return;
+          }
+        } catch (err) {
+          console.error("[Help Interaction Error]", err);
+          const fallbackPayload = {
+            content: "🌸 No pude cargar esa sección en este momento.",
+            ephemeral: true,
+          };
+          if (i.deferred || i.replied) {
+            await i.followUp(fallbackPayload).catch(() => {});
+          } else {
+            await i.reply(fallbackPayload).catch(() => {});
+          }
+        }
+      },
+    );
+
+    collector.on("end", () => {
+      const disabledRows = lastComponents.map((row) => {
+        const newRow = ActionRowBuilder.from(row as any);
+        newRow.components.forEach((c: any) => {
+          if (c.data?.style !== ButtonStyle.Link) c.setDisabled(true);
+        });
+        return newRow;
+      });
+      replyMsg.edit({ components: disabledRows as any }).catch(() => {});
     });
   },
 };

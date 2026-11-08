@@ -8,7 +8,10 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../../client/HoshikoClient";
 import { SlashCommand } from "../../../../Interfaces/Command";
-import { getAnimeGif } from "../../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+} from "../../../../Utils/animeGif";
 
 const LINES = [
   "¡Esa energía es contagiosa! 🎉",
@@ -28,8 +31,10 @@ const command: SlashCommand = {
     client: HoshikoClient,
   ) {
     const gif = await getAnimeGif("happy");
-    const color =
-      (interaction.member as GuildMember)?.displayHexColor || "#ffd54f";
+    const color = resolveInteractionColor(
+      interaction.member as GuildMember,
+      "#ffd54f",
+    );
     const line = LINES[Math.floor(Math.random() * LINES.length)];
     await interaction.editReply({
       embeds: [
@@ -46,7 +51,7 @@ const command: SlashCommand = {
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
     const gif = await getAnimeGif("happy");
-    const color = message.member?.displayHexColor || "#ffd54f";
+    const color = resolveInteractionColor(message.member, "#ffd54f");
     const line = LINES[Math.floor(Math.random() * LINES.length)];
     await message.reply({
       embeds: [

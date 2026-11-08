@@ -59,7 +59,7 @@ function isIgnoredDirectory(name: string): boolean {
 function isAuxiliaryFile(name: string): boolean {
   return (
     name.startsWith("_") ||
-    /^(?:.*(?:Renderer|Primitives|Views|Flow))\.[jt]s$/i.test(name)
+    /^(?:.*(?:Renderer|Primitives|View|Views|Flow))\.[jt]s$/i.test(name)
   );
 }
 

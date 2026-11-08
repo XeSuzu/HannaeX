@@ -14,7 +14,11 @@ import {
 } from "discord.js";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { getAnimeGif } from "../../../Utils/animeGif";
+import {
+  getAnimeGif,
+  resolveInteractionColor,
+  resolveInteractionTarget,
+} from "../../../Utils/animeGif";
 
 async function startCuddle(
   targetUser: User,
@@ -143,13 +147,13 @@ const command: SlashCommand = {
     await startCuddle(
       target,
       interaction.user,
-      member?.displayHexColor || "#f48fb1",
+      resolveInteractionColor(member, "#f48fb1"),
       async (p) => (await interaction.editReply(p)) as Message,
     );
   },
 
   async prefixRun(client: HoshikoClient, message: Message, args: string[]) {
-    const target = message.mentions.users.first();
+    const target = await resolveInteractionTarget(message, args);
     if (!target)
       return message.reply(
         "🌸 Menciona a alguien. Ejemplo: `hoshi cuddle @usuario`",
@@ -157,7 +161,7 @@ const command: SlashCommand = {
     await startCuddle(
       target,
       message.author,
-      message.member?.displayHexColor || "#f48fb1",
+      resolveInteractionColor(message.member, "#f48fb1"),
       async (p) => message.reply(p),
     );
   },

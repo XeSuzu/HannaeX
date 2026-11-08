@@ -1,6 +1,7 @@
 import type { Content } from "@google/generative-ai";
 import type { Message } from "discord.js";
 import { PersonalMemoryService } from "../../Core/AI/Memory/PersonalMemoryService";
+import { ServerEntityMemoryService } from "../../Core/AI/Memory/ServerEntityMemoryService";
 import { UserMemoryManager } from "../../Database/ai/UserMemoryManager";
 import { SystemPrompts } from "../../Utils/AI/SystemPrompts";
 import type { SystemPromptContext } from "../../Utils/AI/SystemPrompts";
@@ -84,6 +85,8 @@ export function shouldExtractFacts(userMessage: string): boolean {
     /\b(mi (?:color|comida|juego|anime|música|banda|película|canción|deporte) favorit[oa])\b/i,
     /\b(juego (?:al?|mucho a|siempre a|todos los días a)|suelo jugar|practico)\b/i,
     /\b(prefiero que (?:me llames|me hables|me trates|me respondas)|mi apodo es)\b/i,
+    /\b(toco (?:la guitarra|el bajo|el piano|la batería)|canto|dibujo|pinto|programo|escribo|entreno|voy al gym)\b/i,
+    /\b(h[aá]blame con|tr[aá]tame de|me gusta el sarcasmo|es joda|es una broma|no te lo tomes en serio|sos re|qu[eé] dec[ií]s bot|bobo|tonta)\b/i,
   ];
 
   return BIOGRAPHICAL_PATTERNS.some((pattern) => pattern.test(trimmed));
@@ -134,6 +137,14 @@ export async function buildConversationContext(
     message.channel.id,
   );
 
+  let serverEntities: any[] = [];
+  if (message.guild?.id) {
+    serverEntities = await ServerEntityMemoryService.getRelevantEntities(
+      message.guild.id,
+      message.content,
+    ).catch(() => []);
+  }
+
   const promptContext: SystemPromptContext = {
     guildName: message.guild?.name || "Discord",
     channelName,
@@ -142,6 +153,7 @@ export async function buildConversationContext(
     currentUsername: message.author.username,
     userPreferences,
     topicSummary: sessionContext.topicSummary,
+    serverEntities,
   };
   const systemInstruction = SystemPrompts.getInstruction(config, promptContext);
 

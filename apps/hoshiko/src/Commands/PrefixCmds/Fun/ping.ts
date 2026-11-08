@@ -7,11 +7,9 @@ const command: PrefixCommand = {
   description: "muestra la latencia del bot 🏓",
 
   async execute(message: Message, args: string[], client: HoshikoClient) {
-    // calculamos la latencia de un solo golpe
-    const messagePing = Date.now() - message.createdTimestamp;
-    const apiPing = Math.round(client.ws.ping);
+    const apiPing = Math.max(0, Math.round(client.ws.ping));
+    const messagePing = Math.max(1, Date.now() - message.createdTimestamp);
 
-    // armamos el embed
     const embed = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setDescription(
@@ -20,7 +18,6 @@ const command: PrefixCommand = {
           `🌐 api: **${apiPing}ms**`,
       );
 
-    // respondemos directo sin viajes extra
     await message.reply({ embeds: [embed] });
   },
 };

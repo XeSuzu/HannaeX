@@ -1,10 +1,10 @@
 # Política de Privacidad de Hoshiko
 
 **Título:** Política de Privacidad de Hoshiko  
-**Identificador de Versión:** `HOSHIKO-PUB-PRIV-2.0.0`  
+**Identificador de Versión:** `HOSHIKO-PUB-PRIV-2.1.0`  
 **Fecha de Elaboración:** 6 de noviembre de 2026  
-**Fecha de Última Revisión:** 7 de noviembre de 2026  
-**Estado:** `PUBLICATION-READY` *(Auditada técnicamente y verificada contra el código fuente de Hoshiko v2.0.0)*  
+**Fecha de Última Revisión:** 8 de noviembre de 2026  
+**Estado:** `PUBLICATION-READY` *(Auditada técnicamente y verificada contra el código fuente de Hoshiko v2.1.0)*  
 **Alcance:** Aplicación principal de Discord **Hoshiko** (`apps/hoshiko`). Las funciones de defensa perimetral (`apps/hoshiko-security`) operan como software desacoplado e independiente.  
 **Referencias:** [Términos de Servicio](./TERMS_OF_SERVICE.md), [Licencia del Proyecto](../LICENSE)  
 
@@ -41,18 +41,25 @@ Según los módulos habilitados en cada servidor y los comandos utilizados, Hosh
 - **Datos (`Confession`):** `guildId`, número de confesión (`confessionId`), contenido del texto, URL de imagen opcional, estado (`isAnonymous`, `isDeleted`), IDs de mensaje en Discord y **datos internos de autoría (`authorId` y `authorTag`)**.
 - **Aviso importante:** Aunque el usuario elija publicar una confesión en modo anónimo para el canal público, el Bot registra internamente su `authorId` y `authorTag` para evitar el uso impune de la herramienta en actividades ilícitas, permitir al personal del servidor bloquear abusos (`/confession-ban`) o auditar infracciones.
 
-### 2.4. Inteligencia Artificial, Cuotas y Memoria Soberana del Usuario
-- **Resolución Local sin Transmisión Externa (`LocalIntentService`):**
+### 2.4. Inteligencia Artificial, Cifrado en Reposo, Cuotas y Memoria Adaptativa
+- **Cifrado de Grado Militar en Reposo (AES-256-GCM):**
+  - Toda información persistida referente a recuerdos personales (`PersonalMemory.facts`) y los historiales de conversación (`Conversation.history`) se almacena en reposo en la base de datos bajo **cifrado a nivel de campo (Field-Level Encryption) mediante el algoritmo AES-256-GCM**, con vectores de inicialización (`IV`) y etiquetas de autenticación (`AuthTag`) individuales por cada registro. Incluso ante accesos no autorizados directos al almacenamiento físico, los datos resultan ilegibles.
+- **Resolución Local sin Transmisión Externa (`LocalIntentResolver`):**
   - Saludos habituales, despedidas, preguntas frecuentes sobre la bot y consultas básicas de identidad se resuelven directamente en el motor local de Hoshiko. **Estos mensajes nunca se transmiten a Google Gemini ni a ningún proveedor externo.**
 - **Enrutamiento Seguro y Gateway (`Gemini Relay`):**
   - Toda consulta conversacional compleja o solicitud explícita se enruta de forma exclusiva a través de un gateway seguro centralizado (`Gemini Relay`). No existe bypass directo ni conexión desprotegida a APIs externas.
-- **Contexto Conversacional Transitorio:**
-  - Cuando se requiere invocar al modelo de IA, el Bot remite únicamente el mensaje actual, una ventana deslizante de diálogo reciente (10 a 15 mensajes del canal, filtrados para omitir menciones masivas y tokens) y, cuando corresponda, el bloque de perfil soberano autorizado.
-- **Memoria Personal Soberana (`PersonalMemory`):**
-  - El usuario posee control absoluto sobre lo que Hoshiko recuerda mediante el comando `/memory`. Los recuerdos se organizan por categorías y se aíslan estrictamente dentro de bloques `<user_profile>` con sanitización anti-inyección de instrucciones (*prompt injection*).
-  - **Zero-Knowledge Logging:** En los archivos de registro técnico (`.jsonl`) y consolas del servidor no se escribe en texto plano el contenido de los recuerdos personales ni las conversaciones privadas; los identificadores de auditoría se protegen mediante resúmenes criptográficos SHA-256.
-- **Administración de Cuotas en Ciclo Deslizante de 24 Horas (`QuotaManager`):**
-  - Para garantizar un acceso equitativo y prevenir sobrecostos de infraestructura, cada usuario dispone de depósitos de cuotas para conversación e investigación web. El saldo se descuenta por consumo y se repone automáticamente al cumplirse exactamente 24 horas de cada uso. Los usuarios pueden auditar su saldo en tiempo real mediante `/ai usage` y `/ai panel`.
+- **Memoria Personal Soberana y Dinámica de Trato (`PersonalMemory`):**
+  - El bot aprende de forma progresiva datos biográficos, preferencias y estilos de humor o modos de trato recíprocos (`dynamic`) con cada usuario.
+  - **Aislamiento Multitenant Estricto:** Lo aprendido sobre un usuario está indexado por su `userId` único y **jamás se traslada a otros usuarios ni a terceros**.
+  - **Rotación y Filtros de Privilegios:** Se establece un límite de 20 recuerdos por usuario (con política de desalojo FIFO/LRU). El sistema bloquea activamente intentos de registrar contraseñas, tokens bancarios o auto-adscripción de privilegios de administración.
+  - **Auditoría y Borrado Inmediato (`/ai panel`):** Desde la interfaz interactiva de Discord, el usuario puede revisar sus recuerdos etiquetados por procedencia (`*(aprendido en chat)*`, `*(dinámica de trato)*`, `*(añadido manual)*`), eliminar hechos puntuales o ejecutar una purga completa instantánea.
+- **Memoria de Entidades del Servidor y Filtro Anti-Drama (`ServerEntityMemory`):**
+  - Para contextualizar servidores, Hoshiko puede registrar roles, proyectos comunitarios o aficiones técnicas. Cuenta con un **Gatekeeper de Salud Social** que rechaza de forma absoluta chismes, acusaciones, polémicas o insultos sobre terceros.
+  - **Cero Espontaneidad:** La información de los miembros de la comunidad **nunca se menciona de forma espontánea en charlas casuales**; únicamente se invoca si el usuario realiza una pregunta explícita a través de comandos o menciones directas.
+- **Administración de Cuotas con Reinicio Diario a las 00:00 Ecuador (`QuotaManager`):**
+  - Los usuarios disponen de depósitos separados e independientes: 20 consultas de investigación web y 40 de conversación general. El saldo se renueva diariamente a las **00:00 hora de Ecuador** (`America/Guayaquil`). El estado de consumo puede auditarse en tiempo real mediante `/ai usage` y `/ai panel`.
+- **Ilusión de Espera Responsable (10 Segundos) en Búsqueda Web:**
+  - Cuando se requiere verificación y búsqueda web en internet, Hoshiko implementa una fase progresiva de 10 segundos dividida en 5 etapas limpias para procesar fuentes y mitigar alucinaciones. Las charlas casuales y consultas locales responden de forma inmediata (0 ms de espera adicional).
 - **Validación Anti-SSRF en Imágenes (`ImageValidator`):**
   - Antes de evaluar imágenes adjuntas para análisis visual, el sistema comprueba estrictamente que las URLs apunten a dominios seguros de Discord y bloquea cualquier intento de sondeo hacia redes locales o direcciones IP privadas.
 
@@ -80,7 +87,7 @@ Conforme a la LOPDP de Ecuador (Art. 7) y estándares internacionales equivalent
 2. **Interés Legítimo de Seguridad, Moderación y Prevención de Abusos:** Operar los filtros de AutoMod, bloquear enlaces de phishing, mantener el registro de casos disciplinarios (`Case`, `Warning`), conservar el `authorId` interno en confesiones para impedir abusos impunes y generar registros técnicos de diagnóstico.
 3. **Configuración Comunitaria e Interés Funcional del Servidor:** Progresión de experiencia, roles por estado/reacción, Snipe (con aviso en el primer borrado) y comandos de historial de perfil/actividad en servidores compartidos, respetando siempre el derecho del usuario a solicitar la eliminación de sus datos.
 
-> **No venta de datos ni entrenamiento propio:** El responsable de Hoshiko **no vende datos personales a terceros** ni utiliza los mensajes o conversaciones de los usuarios para entrenar modelos de inteligencia artificial propios.
+> **No venta a terceros ni cesión comercial:** El responsable de Hoshiko **no vende datos personales a terceros** ni transfiere datos a proveedores externos para entrenamiento de modelos comerciales. El Bot recopila y procesa fragmentos de consultas y conversaciones del usuario en los diversos servidores donde interactúa **única y exclusivamente para el entrenamiento y adaptación contextual de su propio sistema de IA y memoria personal individual hacia dicho usuario**, manteniéndolos cifrados en reposo (AES-256-GCM) y bajo su control y derecho de supresión inmediata.
 
 ---
 
@@ -102,6 +109,10 @@ Los datos persistentes se almacenan en **MongoDB** y las cachés temporales en *
   - El comando `/snipe` filtra y deja de mostrar cualquier mensaje eliminado una vez transcurrida **1 hora (60 minutos)** desde su borrado.
   - En MongoDB, el documento de Snipe del canal tiene un índice TTL de **1 hora (`3600 segundos`)** sobre su última actualización (`updatedAt`). Dado que el documento agrupa las entradas por canal, nuevos mensajes borrados en el mismo canal pueden renovar la fecha de actualización del contenedor en la base de datos hasta que transcurra 1 hora sin borrados en ese canal, aunque las entradas de más de 1 hora no se muestran nunca en el comando.
   - **Diferencia con `#message-log`:** Si el servidor activó el canal `#message-log`, el mensaje enviado a ese canal de Discord no expira a la hora y permanece en Discord bajo el control de los administradores del servidor.
+- **Historial de Conversaciones (`Conversation`):**
+  - Los historiales de mensajes intercambiados con la IA se almacenan cifrados con **AES-256-GCM** y cuentan con un índice TTL de expiración automática de **30 días (`2592000 segundos`)** sobre la última interacción (`lastInteraction`), purgándose periódicamente.
+- **Memoria Personal Soberana (`PersonalMemory`):**
+  - Los hechos y dinámicas de trato se almacenan cifrados con **AES-256-GCM**. Cuentan con rotación automática FIFO (máx. 20 hechos) y un índice TTL parcial opcional de **90 días** para usuarios que seleccionen dicha retención. El usuario puede purgar su memoria personal en cualquier momento desde `/ai panel` o `/memory`.
 - **Registros Técnicos en Disco (`.jsonl`):** Un proceso programado diario (`cleanOldLogs` a las 03:00) elimina automáticamente los archivos de log técnico que superen los **14 días** de antigüedad.
 
 ### 4.2. Datos de Conservación Indefinida y Qué Sucede al Retirar el Bot

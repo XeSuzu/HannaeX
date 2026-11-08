@@ -5,6 +5,8 @@ export interface CommandDetail {
   category: string;
   purpose: string;
   syntax: string;
+  prefixSyntax?: string;
+  aliases?: string[];
   subcommands?: { name: string; desc: string; syntax?: string }[];
   options?: { name: string; desc: string; required: boolean; type?: string }[];
   userPerms?: string[];
@@ -241,21 +243,33 @@ export const CURATED_COMMAND_DETAILS: Record<string, CommandDetail> = {
   "setup-automod": {
     name: "setup-automod",
     category: "Moderation",
-    purpose: "Configura el motor de Auto-Mod de Hoshiko (Anti-Spam, Anti-Links, Filtro de Palabras, IA Moderación).",
-    syntax: "/setup-automod <view|modulo|allow-link|remove-link|whitelist-user|ai-mode>",
+    purpose: "Configura el motor de Auto-Mod de Hoshiko, exclusiones para alianzas/plantillas y sincronización nativa con Discord.",
+    syntax: "/setup-automod <view|modulo|canal-exento|rol-exento|allow-link|remove-link|whitelist-user|ai-mode|sync>",
+    prefixSyntax: "hoshi automod <view|canal|rol|sync>",
     subcommands: [
-      { name: "view", desc: "Muestra el estado actual de los módulos de moderación automática." },
-      { name: "modulo", desc: "Activa o desactiva un módulo específico (antiSpam, antiLinks, wordFilter, aiModeration)." },
+      { name: "view", desc: "Muestra el panel de configuración, módulos activos, canales y roles exentos." },
+      { name: "canal-exento", desc: "Exenta un canal de automod, anti-links y anti-spam (ej. #alianzas, #plantillas e hilos)." },
+      { name: "rol-exento", desc: "Exenta un rol de automod, anti-links y anti-spam (ej. @Alianzas, @Staff, @VIP)." },
+      { name: "modulo", desc: "Activa o desactiva módulos de seguridad (antiSpam, antiLinks, wordFilter, aiModeration)." },
       { name: "allow-link", desc: "Añade un dominio a la whitelist de enlaces permitidos." },
-      { name: "remove-link", desc: "Elimina un dominio de la lista de permitidos." },
-      { name: "whitelist-user", desc: "Exenta a un usuario de las sanciones automáticas." },
+      { name: "remove-link", desc: "Elimina un dominio de la whitelist de permitidos." },
+      { name: "whitelist-user", desc: "Exenta a un usuario específico de las sanciones automáticas." },
+      { name: "ai-mode", desc: "Configura la IA de moderación en modo shadow (auditoría en logs) o enforce (sanción directa)." },
+      { name: "sync", desc: "Sincroniza y despliega las reglas de seguridad oficiales con el AutoMod nativo de Discord (0ms)." },
     ],
     userPerms: ["Gestionar Servidor (ManageGuild)"],
-    botPerms: ["Gestionar Mensajes", "Moderar Miembros", "Ver Registro de Auditoría"],
-    prerequisites: "Configurar un canal de `modlog` con `/setup-logs` para recibir alertas.",
-    examples: ["/setup-automod view", "/setup-automod modulo nombre:Anti-Raid activo:True"],
-    status: "beta",
-    statusNote: "Módulos de seguridad en evolución activa (Beta).",
+    botPerms: ["Gestionar Mensajes", "Moderar Miembros", "Gestionar Servidor"],
+    prerequisites: "Configurar canales de logs con `/setup-logs` para registrar detecciones y auditorías.",
+    examples: [
+      "/setup-automod view",
+      "/setup-automod canal-exento canal:#alianzas agregar:True",
+      "/setup-automod rol-exento rol:@Alianzas agregar:True",
+      "/setup-automod sync",
+      "hoshi automod canal add #plantillas",
+      "hoshi automod sync",
+    ],
+    status: "operativa",
+    statusNote: "Totalmente integrado con el protocolo AutoMod de Discord (0ms) y heurística contra falso positivo de plantillas.",
   },
   "setup-logs": {
     name: "setup-logs",
@@ -473,7 +487,303 @@ export const CURATED_COMMAND_DETAILS: Record<string, CommandDetail> = {
     status: "operativa",
   },
 
-  // ================= INFORMACIÓN & UTILIDAD =================
+  // ================= PERFILES & ACTIVIDAD (PREFIX ENABLED) =================
+  activity: {
+    name: "activity",
+    category: "Profiles",
+    purpose: "Muestra la actividad en tiempo real de Discord de un miembro o tarjeta visual de Spotify si está escuchando música.",
+    syntax: "/activity [usuario:@miembro]",
+    prefixSyntax: "hoshi activity [@usuario|ID] | xactivity | xact | xspotify",
+    aliases: ["act", "spotify", "presence"],
+    options: [
+      { name: "usuario", desc: "Usuario del que deseas ver la actividad (opcional).", required: false, type: "Usuario" },
+    ],
+    examples: ["/activity", "hoshi activity @usuario", "xspotify"],
+    status: "operativa",
+  },
+  avatar: {
+    name: "avatar",
+    category: "Profiles",
+    purpose: "Muestra el avatar y banner de un usuario en máxima resolución con botones de descarga directa en formatos PNG, JPG, WEBP y GIF.",
+    syntax: "/avatar [usuario:@miembro]",
+    prefixSyntax: "hoshi avatar [@usuario|ID] | hoshi banner [@usuario|ID] | xav | xpfp | xfoto",
+    aliases: ["av", "pfp", "foto", "banner"],
+    options: [
+      { name: "usuario", desc: "Usuario al que deseas ver el avatar o banner.", required: false, type: "Usuario" },
+    ],
+    examples: ["/avatar", "hoshi avatar @usuario", "hoshi banner @usuario", "xav"],
+    status: "operativa",
+  },
+  avatars: {
+    name: "avatars",
+    category: "Profiles",
+    purpose: "Genera una cuadrícula Canvas con el historial de avatares guardados del usuario (globales y de servidor con Nitro).",
+    syntax: "/avatars [usuario:@miembro]",
+    prefixSyntax: "hoshi avatars [@usuario|ID] | xavatars",
+    options: [
+      { name: "usuario", desc: "Selecciona al usuario cuyo historial deseas ver.", required: false, type: "Usuario" },
+    ],
+    examples: ["/avatars", "hoshi avatars @usuario"],
+    status: "operativa",
+  },
+  users: {
+    name: "users",
+    category: "Profiles",
+    purpose: "Muestra las estadísticas de miembros del servidor o el historial guardado de un usuario en específico.",
+    syntax: "/users [usuario:@miembro]",
+    prefixSyntax: "hoshi users [@usuario|ID] | xusers",
+    options: [
+      { name: "usuario", desc: "Selecciona un usuario para ver su historial.", required: false, type: "Usuario" },
+    ],
+    examples: ["/users", "hoshi users @usuario"],
+    status: "operativa",
+  },
+  userinfo: {
+    name: "userinfo",
+    category: "Profiles",
+    purpose: "Muestra una ficha detallada con información, roles, permisos y estado de un usuario.",
+    syntax: "/userinfo [usuario:@miembro]",
+    prefixSyntax: "hoshi userinfo [@usuario|ID] | xuserinfo | xwhois | xui | xperfil",
+    aliases: ["whois", "ui", "perfil"],
+    options: [
+      { name: "usuario", desc: "Usuario del que deseas ver la información.", required: false, type: "Usuario" },
+    ],
+    examples: ["/userinfo", "hoshi userinfo @usuario", "xwhois @usuario"],
+    status: "operativa",
+  },
+
+  // ================= INTERACCIONES SOCIALES (PREFIX ENABLED) =================
+  hug: {
+    name: "hug",
+    category: "Interactions",
+    purpose: "Envía un abrazo lleno de cariño con GIF anime e interfaz interactiva con botones para aceptar o rechazar.",
+    syntax: "/hug usuario:@miembro",
+    prefixSyntax: "hoshi hug <@usuario|ID|reply> | xhug",
+    options: [
+      { name: "usuario", desc: "A quién deseas abrazar.", required: true, type: "Usuario" },
+    ],
+    examples: ["/hug usuario:@amigo", "hoshi hug @amigo", "xhug"],
+    status: "operativa",
+  },
+  cuddle: {
+    name: "cuddle",
+    category: "Interactions",
+    purpose: "Acurrúcate tiernamente con alguien con botones interactivos y GIFs animados seleccionados.",
+    syntax: "/cuddle usuario:@miembro",
+    prefixSyntax: "hoshi cuddle <@usuario|ID|reply> | xcuddle",
+    options: [
+      { name: "usuario", desc: "Con quién deseas acurrucarte.", required: true, type: "Usuario" },
+    ],
+    examples: ["/cuddle usuario:@amigo", "hoshi cuddle @amigo"],
+    status: "operativa",
+  },
+  kiss: {
+    name: "kiss",
+    category: "Interactions",
+    purpose: "Manda un besito kawaii a alguien, registrando y contando los besos acumulados en la base de datos.",
+    syntax: "/kiss usuario:@miembro",
+    prefixSyntax: "hoshi kiss <@usuario|ID|reply> | xkiss",
+    options: [
+      { name: "usuario", desc: "A quién deseas besar.", required: true, type: "Usuario" },
+    ],
+    examples: ["/kiss usuario:@pareja", "hoshi kiss @pareja"],
+    status: "operativa",
+  },
+  poke: {
+    name: "poke",
+    category: "Interactions",
+    purpose: "Molesta insistentemente a un miembro con un poke y opción de contraataque interactivo.",
+    syntax: "/poke usuario:@miembro",
+    prefixSyntax: "hoshi poke <@usuario|ID|reply> | xpoke",
+    options: [
+      { name: "usuario", desc: "A quién deseas pokear.", required: true, type: "Usuario" },
+    ],
+    examples: ["/poke usuario:@amigo", "hoshi poke @amigo"],
+    status: "operativa",
+  },
+  pat: {
+    name: "pat",
+    category: "Interactions",
+    purpose: "Acaricia suavemente la cabeza de alguien dándole palmaditas reconfortantes.",
+    syntax: "/pat usuario:@miembro",
+    prefixSyntax: "hoshi pat <@usuario|ID|reply> | xpat",
+    options: [
+      { name: "usuario", desc: "A quién deseas darle palmaditas.", required: true, type: "Usuario" },
+    ],
+    examples: ["/pat usuario:@amigo", "hoshi pat @amigo", "xpat @amigo"],
+    status: "operativa",
+  },
+  slap: {
+    name: "slap",
+    category: "Interactions",
+    purpose: "Dale una cachetada épica a alguien con opción de devolver el golpe.",
+    syntax: "/slap usuario:@miembro",
+    prefixSyntax: "hoshi slap <@usuario|ID|reply> | xslap",
+    options: [
+      { name: "usuario", desc: "A quién deseas cachetear.", required: true, type: "Usuario" },
+    ],
+    examples: ["/slap usuario:@amigo", "hoshi slap @amigo"],
+    status: "operativa",
+  },
+  highfive: {
+    name: "highfive",
+    category: "Interactions",
+    purpose: "Choca los cinco con otro miembro para celebrar momentos destacados.",
+    syntax: "/highfive usuario:@miembro",
+    prefixSyntax: "hoshi highfive <@usuario|ID|reply> | xhighfive",
+    options: [
+      { name: "usuario", desc: "Con quién chocar los cinco.", required: true, type: "Usuario" },
+    ],
+    examples: ["/highfive usuario:@amigo", "hoshi highfive @amigo"],
+    status: "operativa",
+  },
+  bite: {
+    name: "bite",
+    category: "Interactions",
+    purpose: "Pega una mordida juguetona a alguien con posibilidad de morder de vuelta o ponerse a llorar.",
+    syntax: "/bite usuario:@miembro",
+    prefixSyntax: "hoshi bite <@usuario|ID|reply> | xbite",
+    options: [
+      { name: "usuario", desc: "A quién deseas morder.", required: true, type: "Usuario" },
+    ],
+    examples: ["/bite usuario:@amigo", "hoshi bite @amigo"],
+    status: "operativa",
+  },
+  dance: {
+    name: "dance",
+    category: "Interactions",
+    purpose: "Baila en solitario o arrastra a alguien a la pista de baile con música y energía festiva.",
+    syntax: "/dance [usuario:@miembro]",
+    prefixSyntax: "hoshi dance [@usuario|ID|reply] | xdance",
+    options: [
+      { name: "usuario", desc: "Con quién bailar (opcional).", required: false, type: "Usuario" },
+    ],
+    examples: ["/dance", "/dance usuario:@amigo", "hoshi dance @amigo"],
+    status: "operativa",
+  },
+  sad: {
+    name: "sad",
+    category: "Interactions",
+    purpose: "Expresa tristeza o desánimo en el chat recibiendo palabras de apoyo y empatía.",
+    syntax: "/sad",
+    prefixSyntax: "hoshi sad | xsad",
+    examples: ["/sad", "hoshi sad", "xsad"],
+    status: "operativa",
+  },
+  happy: {
+    name: "happy",
+    category: "Interactions",
+    purpose: "Comparte tu alegría y energía positiva con un GIF festivo de celebración.",
+    syntax: "/happy",
+    prefixSyntax: "hoshi happy | xhappy",
+    examples: ["/happy", "hoshi happy", "xhappy"],
+    status: "operativa",
+  },
+  blush: {
+    name: "blush",
+    category: "Interactions",
+    purpose: "Reacciona con sonrojo y ternura ante un cumplido o momento cute.",
+    syntax: "/blush",
+    prefixSyntax: "hoshi blush | xblush",
+    examples: ["/blush", "hoshi blush", "xblush"],
+    status: "operativa",
+  },
+  cry: {
+    name: "cry",
+    category: "Interactions",
+    purpose: "Llora en solitario o consuela a otro miembro con un abrazo reconfortante y mensaje cálido.",
+    syntax: "/cry [usuario:@miembro]",
+    prefixSyntax: "hoshi cry [@usuario|ID|reply] | xcry",
+    options: [
+      { name: "usuario", desc: "A quién consolar (opcional).", required: false, type: "Usuario" },
+    ],
+    examples: ["/cry", "hoshi cry", "hoshi cry @amigo"],
+    status: "operativa",
+  },
+  wave: {
+    name: "wave",
+    category: "Interactions",
+    purpose: "Saluda amistosamente al servidor o a un usuario en particular con la mano.",
+    syntax: "/wave [usuario:@miembro]",
+    prefixSyntax: "hoshi wave [@usuario|ID|reply] | xwave",
+    options: [
+      { name: "usuario", desc: "A quién saludar (opcional).", required: false, type: "Usuario" },
+    ],
+    examples: ["/wave", "hoshi wave @amigo", "xwave"],
+    status: "operativa",
+  },
+
+  // ================= UTILIDADES DE PREFIJO CLÁSICO =================
+  ping: {
+    name: "ping",
+    category: "Fun",
+    purpose: "Mide la latencia de respuesta de los mensajes y la conexión en tiempo real del WebSocket de Discord.",
+    syntax: "/ping",
+    prefixSyntax: "hoshi ping | xping | h!ping",
+    examples: ["/ping", "hoshi ping", "xping"],
+    status: "operativa",
+  },
+  say: {
+    name: "say",
+    category: "Fun",
+    purpose: "Hace que Hoshiko repita un mensaje en el canal (con protección anti-menciones masivas y registro de auditoría).",
+    syntax: "/say mensaje:<texto>",
+    prefixSyntax: "hoshi say <mensaje> | xsay <mensaje>",
+    options: [
+      { name: "mensaje", desc: "Texto que dirá el bot.", required: true, type: "Texto" },
+    ],
+    userPerms: ["Gestionar Mensajes (ManageMessages)"],
+    examples: ["/say mensaje:¡Bienvenidos al evento!", "hoshi say ¡Hola a todos!"],
+    status: "operativa",
+  },
+  translate: {
+    name: "translate",
+    category: "Fun",
+    purpose: "Traduce texto o el mensaje al que respondes a múltiples idiomas utilizando la IA de Hoshiko.",
+    syntax: "/translate [idioma:es|en|pt...] <texto>",
+    prefixSyntax: "hoshi translate [idioma] <texto|reply> | xtranslate",
+    options: [
+      { name: "texto", desc: "Texto a traducir.", required: true, type: "Texto" },
+      { name: "idioma", desc: "Idioma destino.", required: false, type: "Opciones" },
+    ],
+    examples: ["/translate texto:Hello world", "hoshi translate en Hola mundo", "xtranslate es Bonjour"],
+    status: "operativa",
+  },
+  prefix: {
+    name: "prefix",
+    category: "Setups",
+    purpose: "Consulta o cambia el símbolo con el que responde el bot a los comandos de texto en el servidor.",
+    syntax: "/setprefix nuevo:<simbolo>",
+    prefixSyntax: "hoshi prefix <nuevo_simbolo> | xprefix <nuevo_simbolo> | xsetprefix",
+    aliases: ["setprefix", "cambiarprefijo"],
+    options: [
+      { name: "nuevo", desc: "Nuevo prefijo para el servidor (máx. 3 caracteres).", required: true, type: "Texto" },
+    ],
+    userPerms: ["Administrador (Administrator)"],
+    examples: ["/setprefix nuevo:!", "hoshi prefix !", "xprefix ."],
+    status: "operativa",
+  },
+  snipe: {
+    name: "snipe",
+    category: "Fun",
+    purpose: "Recupera y muestra el último mensaje eliminado en el canal de texto actual si el módulo está habilitado.",
+    syntax: "/snipe",
+    prefixSyntax: "hoshi snipe | xsnipe",
+    examples: ["/snipe", "hoshi snipe", "xsnipe"],
+    status: "operativa",
+  },
+  afk: {
+    name: "afk",
+    category: "Information",
+    purpose: "Configura tu estado ausente (AFK) con un motivo para avisar automáticamente a quienes te mencionen.",
+    syntax: "/afk motivo:<razón>",
+    prefixSyntax: "hoshi afk [motivo] | xafk [motivo]",
+    options: [
+      { name: "motivo", desc: "Razón por la que estarás ausente.", required: false, type: "Texto" },
+    ],
+    examples: ["/afk motivo:Estudiando para el examen", "hoshi afk Almorzando"],
+    status: "operativa",
+  },
   invite: {
     name: "invite",
     category: "Utility",
@@ -503,7 +813,9 @@ export const CURATED_COMMAND_DETAILS: Record<string, CommandDetail> = {
     category: "Information",
     purpose: "Muestra una ficha interactiva completa con estadísticas, roles, canales y boosts del servidor.",
     syntax: "/serverinfo",
-    examples: ["/serverinfo"],
+    prefixSyntax: "hoshi serverinfo | xserverinfo | h!serverinfo",
+    aliases: ["server", "guildinfo", "svinfo"],
+    examples: ["/serverinfo", "hoshi serverinfo", "xserver"],
     status: "operativa",
   },
   stats: {
@@ -542,6 +854,21 @@ export const CURATED_COMMAND_DETAILS: Record<string, CommandDetail> = {
     syntax: "/wordfilter <agregar|eliminar|listar>",
     userPerms: ["Gestionar Servidor (ManageGuild)"],
     examples: ["/wordfilter listar", "/wordfilter agregar palabra:palabrota"],
+    status: "operativa",
+  },
+  "dev-servers": {
+    name: "dev-servers",
+    category: "Owner",
+    purpose: "Muestra la lista de servidores activos de Hoshiko en un embed paginado de hasta 50 casitas y archivo .txt detallado.",
+    syntax: "/dev-servers [txt:<true|false>]",
+    prefixSyntax: "hoshi dev-servers [--txt] | hoshi dev_servers",
+    aliases: ["dev_servers", "devservers", "servidores-dev"],
+    options: [
+      { name: "txt", desc: "Forzar adjuntar el archivo .txt con la lista completa de servidores.", required: false, type: "Booleano" },
+    ],
+    userPerms: ["Exclusivo para el Desarrollador (BOT_OWNER_ID)"],
+    botPerms: ["Ver Canales", "Enviar Mensajes", "Insertar Enlaces", "Adjuntar Archivos"],
+    examples: ["/dev-servers", "/dev-servers txt:True", "hoshi dev-servers", "hoshi dev_servers --txt"],
     status: "operativa",
   },
 };
@@ -599,8 +926,14 @@ export function getCommandDetail(
     options: options.length > 0 ? options : undefined,
     userPerms: userPerms.length > 0 ? userPerms : ["Disponible para todos los miembros"],
     botPerms: ["Ver Canales", "Enviar Mensajes", "Insertar Enlaces"],
+    prefixSyntax: typeof slashCmd?.prefixRun === "function"
+      ? `hoshi ${name} | x${name}`
+      : undefined,
+    aliases: Array.isArray(slashCmd?.aliases) ? slashCmd.aliases : undefined,
     examples: subcommands.length > 0
       ? [`/${name} ${subcommands[0].name}`]
+      : typeof slashCmd?.prefixRun === "function"
+      ? [`/${name}`, `hoshi ${name}`]
       : [`/${name}`],
     status: "operativa",
   };

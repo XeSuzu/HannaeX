@@ -43,7 +43,7 @@ export async function handleCommandError(
   try {
     await safeRespondFn(interaction, {
       content: errorMessage,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   } catch {}
 }

@@ -310,6 +310,7 @@ async function buildActivityReply(
 
 const command: SlashCommand = {
   category: "Profiles",
+  aliases: ["act", "spotify", "presence"],
   data: new SlashCommandBuilder()
     .setName("activity")
     .setDescription("Muestra la actividad actual de un usuario en Discord.")

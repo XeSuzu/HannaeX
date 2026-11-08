@@ -1,10 +1,10 @@
 # Términos y Condiciones de Uso de Hoshiko
 
 **Título:** Términos y Condiciones de Uso de Hoshiko  
-**Identificador de Versión:** `HOSHIKO-PUB-TOS-2.0.0`  
+**Identificador de Versión:** `HOSHIKO-PUB-TOS-2.1.0`  
 **Fecha de Elaboración:** 6 de noviembre de 2026  
-**Fecha de Última Revisión:** 7 de noviembre de 2026  
-**Estado:** `PUBLICATION-READY` *(Auditado técnicamente y verificado contra el código fuente de Hoshiko v2.0.0)*  
+**Fecha de Última Revisión:** 8 de noviembre de 2026  
+**Estado:** `PUBLICATION-READY` *(Auditado técnicamente y verificado contra el código fuente de Hoshiko v2.1.0)*  
 **Alcance:** Aplicación principal de Discord **Hoshiko** (`apps/hoshiko`). Las funciones de defensa perimetral (`apps/hoshiko-security`) operan como software desacoplado e independiente.  
 **Referencias:** [Política de Privacidad](./PRIVACY_POLICY.md), [Licencia del Proyecto](../LICENSE)  
 
@@ -36,11 +36,13 @@ Según la configuración y los permisos que conceda cada servidor, Hoshiko ofrec
    - Generación de tarjetas visuales (ranking, perfil, actividad de presencia como Spotify o Roblox, y tarjetas recreativas de redes sociales) e insignias de reputación.
 2. **Módulos Comunitarios y Sociales:**
    - Sistema de confesiones comunitarias (`/confess`), buzón de sugerencias (`/suggest`), dinámicas de afinidad y parejas (`/ship`, `/pareja`), estado AFK (`/afk`), rachas diarias grupales o en dúo (`/crear-racha`, `/racha`), roles automáticos por estado personalizado y roles por reacción.
-3. **Inteligencia Artificial, Búsqueda y Utilidades:**
+3. **Inteligencia Artificial, Búsqueda y Memoria Adaptativa Cifrada:**
    - Asistencia conversacional en canal (por mención directa o respuesta) enrutada a través del gateway seguro Gemini Relay.
-   - Resolución local instantánea de saludos cotidianos y preguntas básicas sin acudir a modelos externos.
-   - Memoria personal soberana del usuario gestionable y borrable en cualquier momento (`/memory`).
-   - Depósitos y administración de cuotas equitativas con reposición en ciclos deslizantes de 24 horas (`/ai usage`, `/ai panel`).
+   - Resolución local instantánea de saludos cotidianos y preguntas básicas sin acudir a modelos externos ni generar esperas.
+   - **Memoria Personal Soberana Cifrada (AES-256-GCM):** El bot aprende de manera adaptativa hechos biográficos, preferencias y estilos dinámicos de trato/bromas con cada usuario individual, almacenándolos en reposo bajo cifrado de grado militar. Lo aprendido con un usuario **se aplica exclusivamente a ese usuario** y no se comparte con terceros ni otros servidores.
+   - **Auditoría y Borrado Autónomo (`/ai panel`, `/memory`):** El usuario puede ver el origen de cada recuerdo (`aprendido en chat`, `dinámica de trato`, `añadido manual`), borrar recuerdos individuales o purgar toda su memoria de inmediato.
+   - **Depósitos de Cuotas Diarias Independientes:** 20 consultas de investigación y 40 de conversación, con reposición diaria fija a las **00:00 hora de Ecuador** (`America/Guayaquil`), auditables en tiempo real vía `/ai usage` y `/ai panel`.
+   - **Investigación Web Grounded:** En consultas que requieran búsqueda en internet, Hoshiko implementa una fase de análisis progresivo de 10 segundos para verificar fuentes; las charlas casuales y consultas locales son de respuesta instantánea (0 ms de espera adicional).
    - Traducción rápida de textos (`/translate`), búsqueda de imágenes, consulta de letras musicales (`/lyrics`) e información de usuario, avatares y actividad (`/avatars`, `/users`, `/activity`).
 4. **Moderación Manual y AutoMod Convencional:**
    - Comandos para moderadores (`/warn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/unban`, `/tempban`, `/massban`, `/purge`, `/case`, `/cases`, `/historial`, `/lock`, `/unlock`, `/slowmode`).
@@ -62,10 +64,13 @@ Quien añade o configura a Hoshiko en un servidor de Discord declara tener autor
 
 Al utilizar Hoshiko, usted se compromete a no:
 
-1. Utilizar el Bot, sus comandos o el sistema de confesiones para infringir la ley, acosar, difamar, amenazar, publicar datos privados de terceros (*doxxing*) o difundir material ilícito o de abuso infantil.
+1. Utilizar el Bot, sus comandos, su memoria comunitaria o el sistema de confesiones para infringir la ley, acosar, difamar, propagar chismes o rumores maliciosos, amenazar, publicar datos privados de terceros (*doxxing*) o difundir material ilícito o de abuso infantil.
 2. Intentar manipular las instrucciones internas de la inteligencia artificial (*prompt injection* o *jailbreaks*) ni forzar la generación de contenidos que vulneren las políticas de Discord o de los proveedores externos.
 3. Eludir sanciones locales del servidor (como bloqueos en confesiones mediante `/confession-ban`, silenciamientos o expulsiones) utilizando cuentas secundarias.
 4. Ejecutar solicitudes automatizadas masivas, abusar de errores técnicos o interferir con la estabilidad de la infraestructura del Bot.
+
+### 5.1. Regla Especial sobre Memoria Comunitaria y Convivencia
+La memoria comunitaria de los servidores (`ServerEntityMemory`) está regulada por un filtro estricto anti-drama (*Gatekeeper*). Queda prohibido registrar u orientar a la IA a almacenar acusaciones, insultos o polémicas sobre terceros. Hoshiko descarta activamente dicha información y solo reconoce entidades constructivas (roles, aficiones y proyectos técnicos), las cuales **únicamente se mencionan ante preguntas explícitas** del usuario, jamás de forma espontánea.
 
 ### 5.1. Regla Especial sobre Confesiones
 Aunque una confesión se publique como anónima frente a los miembros del canal, **Hoshiko registra internamente el identificador de Discord (`userId`) y el nombre de usuario (`authorTag`) del autor** con el fin de prevenir abusos, permitir al personal del servidor aplicar bloqueos locales (`/confession-ban`) o auditar infracciones graves mediante los controles habilitados.
@@ -79,10 +84,11 @@ Aunque una confesión se publique como anónima frente a los miembros del canal,
 
 ---
 
-## 7. Contenido de Usuarios y Sugerencias
+## 7. Contenido de Usuarios, Aprendizaje y Adaptación del Servicio
 
-1. **Contenido del Usuario:** Usted conserva los derechos que le correspondan sobre el texto e imágenes que envía al Bot, y autoriza su procesamiento técnico en la medida necesaria para ejecutar la función solicitada y conforme a lo descrito en la [Política de Privacidad](./Privacy-Policy.md).
-2. **Sugerencias al Proyecto:** Si envía ideas o propuestas de mejora funcional para Hoshiko, el titular podrá evaluarlas e implementarlas sin obligación de compensación económica. Esto no otorga ninguna licencia sobre mensajes privados ni contenidos ajenos a dicha sugerencia.
+1. **Contenido del Usuario y Aprendizaje Propio:** Usted conserva los derechos que le correspondan sobre el texto e imágenes que envía al Bot. Para permitir que Hoshiko aprenda y se adapte de forma continua a su estilo, consultas y preferencias, usted autoriza a Hoshiko a procesar fragmentos de sus interacciones y consultas a través de los servidores donde interactúa con ella, **única y exclusivamente para el entrenamiento, adaptación contextual y memoria personal del propio Bot hacia usted**.
+2. **Cifrado y Aislamiento de Datos:** Dichos fragmentos e historiales de conversación se almacenan en reposo bajo **cifrado criptográfico AES-256-GCM**, no se utilizan para entrenar modelos base de terceros, no se venden ni se comparten con otros usuarios. El usuario conserva la soberanía total para auditar y purgar estos datos en cualquier momento desde `/ai panel` o `/memory`.
+3. **Sugerencias al Proyecto:** Si envía ideas o propuestas de mejora funcional para Hoshiko, el titular podrá evaluarlas e implementarlas sin obligación de compensación económica. Esto no otorga ninguna licencia sobre mensajes privados ni contenidos ajenos a dicha sugerencia.
 
 ---
 

@@ -1,9 +1,9 @@
 # 05 — AI and Moderation Disclosure (Internal Reference Dossier)
 
 **Título:** Divulgación Técnica de Inteligencia Artificial y Moderación Asistida  
-**Identificador de Versión:** `HOSHIKO-INT-AIMOD-3.0.0`  
+**Identificador de Versión:** `HOSHIKO-INT-AIMOD-3.1.0`  
 **Fecha de Elaboración:** 2026-11-06  
-**Fecha de Última Revisión:** 2026-11-06  
+**Fecha de Última Revisión:** 2026-11-08  
 **Estado:** `INTERNALLY-APPROVED`  
 **Alcance:** `apps/hoshiko` (Bot Principal)  
 **Referencias:** `Services/gemini.ts`, `Features/aiHandler.ts`, `Features/automod/aiJudge.ts`, `Features/automod/aiHistorySummarizer.ts`  
@@ -16,11 +16,12 @@ En `apps/hoshiko`, el SDK `@google/generative-ai` se invoca en cinco flujos clar
 
 | Flujo / Archivo | Modelo Utilizado (`config/aiModels.ts`) | Datos Enviados a Google | Almacenamiento Local del Resultado |
 | :--- | :--- | :--- | :--- |
-| **1. Conversación en Canal** (`Features/aiHandler.ts`, `conversationContext.ts`, `conversationReply.ts`) | `gemini-2.5-flash-lite` (con herramienta `googleSearch` en interacciones directas) | Instrucción del sistema (`SystemPrompts`), nombre del servidor y canal, username del autor, hasta 15 recuerdos (`UserMemory`), últimos 10 a 15 mensajes del canal y hasta 1 imagen adjunta (≤ 5 MB). | La respuesta se publica en Discord. No se guarda en `Conversation` (modelo huérfano). |
-| **2. Extracción de Hechos Biográficos** (`Services/gemini.ts:extractFacts`, invocado por `aiHandler.ts`) | `gemini-2.5-flash-lite` | Sólo cuando `shouldExtractFacts(message.content)` detecta patrones biográficos explícitos: se envía el texto del mensaje del usuario para extraer hechos cortos (5–100 caracteres). | Hasta 15 hechos por `{ userId, guildId }` en MongoDB (`UserMemory`). |
-| **3. Traducción** (`Services/translationService.ts`, comando `/translate`) | `gemini-2.5-flash` | Texto proporcionado por el usuario e idioma de destino. | Efímero; se responde en el canal de Discord sin guardar en DB. |
-| **4. Juez de AutoMod IA** (`Features/automod/aiJudge.ts`) | `gemini-2.5-flash-lite` | Mensaje sospechoso, reglas activas del servidor (`serverRules`) y contexto breve para clasificar en `ok`, `spam`, `scam`, `toxic`, `raid` o `unsure`. | Veredicto en caché RAM (`automod_ai_verdicts`) por 1 hora. Si actúa o envía a revisión, crea registro en `CaseModel` y/o embed en `#message-review` / `#mod-log`. |
-| **5. Resumen Disciplinario** (`Features/automod/aiHistorySummarizer.ts`, comando `/historial`) | `gemini-2.5-flash-lite` | `userTag`, `userId` y los últimos 15 casos disciplinarios (`action`, `reason` truncado a 100 caracteres, `ruleId`, `createdAt`). | Efímero; se muestra al moderador que ejecutó `/historial`. |
+| **1. Conversación en Canal** (`Features/aiHandler.ts`, `conversationContext.ts`, `conversationReply.ts`) | `gemini-2.5-flash-lite` (con herramienta `googleSearch` en interacciones directas y retardo de 10s en 5 fases; 0ms en casual) | Instrucción del sistema (`SystemPrompts`), nombre del servidor y canal, username del autor, hasta 20 recuerdos cifrados (`PersonalMemory`), últimos 10 a 15 mensajes del canal y hasta 1 imagen adjunta (≤ 5 MB). | La respuesta se publica en Discord y se persiste en `Conversation` (historial cifrado en reposo con AES-256-GCM, hasta 40 turnos). |
+| **2. Extracción de Hechos y Dinámica de Trato** (`Services/gemini.ts:extractFacts`, invocado por `aiHandler.ts`) | `gemini-2.5-flash-lite` | Sólo cuando `shouldExtractFacts` detecta hechos biográficos, preferencias o estilos dinámicos de humor: se envía el mensaje para extraer hechos concisos (5–140 caracteres). | Hasta 20 hechos por `userId` en MongoDB (`PersonalMemory`), clasificados (`biography`, `dynamic`, `preference`) y **cifrados en reposo con AES-256-GCM**. |
+| **3. Memoria Comunitaria Anti-Drama** (`ServerEntityMemoryService.ts`) | N/A (Motor Heurístico / Mongoose) | Ningún dato enviado a Google para extracción de entidades no consentidas. Solo filtra toxicidad y chismes localmente con `TOXIC_DRAMA_PATTERNS`. | Entidades válidas (roles, aficiones) por `{ guildId, entityId }`. Cero espontaneidad en charlas casuales. |
+| **4. Traducción** (`Services/translationService.ts`, comando `/translate`) | `gemini-2.5-flash` | Texto proporcionado por el usuario e idioma de destino. | Efímero; se responde en el canal de Discord sin guardar en DB. |
+| **5. Juez de AutoMod IA** (`Features/automod/aiJudge.ts`) | `gemini-2.5-flash-lite` | Mensaje sospechoso, reglas activas del servidor (`serverRules`) y contexto breve para clasificar en `ok`, `spam`, `scam`, `toxic`, `raid` o `unsure`. | Veredicto en caché RAM (`automod_ai_verdicts`) por 1 hora. Si actúa o envía a revisión, crea registro en `CaseModel` y/o embed en `#message-review` / `#mod-log`. |
+| **6. Resumen Disciplinario** (`Features/automod/aiHistorySummarizer.ts`, comando `/historial`) | `gemini-2.5-flash-lite` | `userTag`, `userId` y los últimos 15 casos disciplinarios (`action`, `reason` truncado a 100 caracteres, `ruleId`, `createdAt`). | Efímero; se muestra al moderador que ejecutó `/historial`. |
 
 ---
 

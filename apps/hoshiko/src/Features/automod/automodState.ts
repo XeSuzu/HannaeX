@@ -544,29 +544,108 @@ export function calculateJoinRiskScore(signals: {
 }
 
 /**
- * Detección de muro de texto por patrones (saltos de línea o repetición masiva de caracteres)
+ * Caracteres decorativos habituales en plantillas de servidores, alianzas, cuadros y separadores estéticos.
+ */
+const DECORATIVE_CHARS = new Set([
+  "=", "═", "-", "─", "━", "_", "~", "*", "+", "•", "·", "✧", "✦", "★", "☆",
+  "░", "▒", "▓", "█", "│", "┃", "║", "┌", "┐", "└", "┘", "╔", "╗", "╚", "╝",
+  "╭", "╮", "╯", "╰", "·", "•", "—", "―", "‹", "›", "«", "»", "❯", "❮"
+]);
+
+/**
+ * Detecta si el mensaje es una plantilla creativa (alianza, presentación de servidor,
+ * formato de reclutamiento o lista estructurada).
+ * Evita falsos positivos en usuarios que se ponen creativos con diseños, viñetas y emojis.
+ */
+export function isCreativeTemplate(content: string): boolean {
+  if (!content || content.length < 90) return false;
+
+  // Si tiene estiramiento malicioso de chat (5+ líneas vacías consecutivas), nunca es plantilla válida
+  if (/(?:\r?\n[ \t]*){5,}/.test(content)) return false;
+
+  // Extraer palabras reales de al menos 3 caracteres
+  const words = content.match(/[\p{L}\p{N}]{3,}/gu) || [];
+  if (words.length < 6) return false;
+
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
+  if (uniqueWords.size < 6) return false;
+
+  const hasInviteOrLink = /(?:discord\.(?:gg|io|me|li)|discord(?:app)?\.com\/invite|https?:\/\/)/i.test(content);
+  const hasTemplateKeywords = /\b(?:alianzas?|alliances?|partners?|afiliados?|requisitos?|ofrecemos?|buscamos?|servidor|comunidad|bienvenid[oa]s?|únete|unete|roles|sorteos|beneficios|server|welcome|plantilla)\b/i.test(content);
+  const hasBulletedFormatting = /(?:^|\n)[ \t]*(?:[•\-*✦✧▫▪📌✨🌸👑⚡💎🎯📍🚀]|\d+\.)[ \t]+/m.test(content);
+  const hasDecorativeBorders = /[═─━~*_\-]{4,}/.test(content);
+
+  const indicatorScore =
+    (hasInviteOrLink ? 1 : 0) +
+    (hasTemplateKeywords ? 1 : 0) +
+    (hasBulletedFormatting ? 1 : 0) +
+    (hasDecorativeBorders ? 1 : 0);
+
+  return indicatorScore >= 2 || (hasTemplateKeywords && indicatorScore >= 1);
+}
+
+/**
+ * Detección de muro de texto por patrones (saltos de línea o repetición masiva de caracteres).
+ * Diseñado para detectar flood/stretching visual malicioso sin penalizar plantillas creativas,
+ * alianzas, listas formateadas ni arte ASCII moderado.
  */
 export function isTextWall(content: string): boolean {
   if (!content) return false;
 
-  const newlines = (content.match(/\n/g) || []).length;
-  // Exceso de saltos de línea (10+ saltos es spam visual en cualquier longitud)
-  if (newlines >= 10) return true;
+  // 1. Detección de flood visual vertical: 5 o más saltos de línea consecutivos vacíos (chat stretching)
+  if (/(?:\r?\n[ \t]*){5,}/.test(content)) {
+    return true;
+  }
 
-  if (content.length >= 150) {
-    if (newlines >= 15) return true;
+  // 2. Monolito sin espacios: 300+ caracteres continuos sin ningún espacio ni salto de línea (rompe layouts)
+  if (/[^\s]{300,}/.test(content)) {
+    return true;
+  }
 
-    // Patrón: Un mismo carácter repetido >= 60% en mensaje largo (>= 200 chars)
-    if (content.length >= 200) {
-      const counts = new Map<string, number>();
-      let maxCharCount = 0;
-      for (const char of content) {
-        if (char === " " || char === "\n") continue;
-        const c = (counts.get(char) || 0) + 1;
-        counts.set(char, c);
-        if (c > maxCharCount) maxCharCount = c;
-      }
-      if (maxCharCount / content.length >= 0.6) return true;
+  // Si es una plantilla de alianza o mensaje creativo con diseño estructurado, omitir bloqueos por saltos normales
+  const isTemplate = isCreativeTemplate(content);
+
+  const lines = content.split(/\r?\n/);
+  const totalLines = lines.length;
+  const newlines = totalLines - 1;
+
+  if (isTemplate) {
+    // Si es una plantilla creativa:
+    // Solo se considera muro de texto si supera 55 líneas o si más del 50% de las líneas están vacías
+    const emptyLinesCount = lines.filter((l) => l.trim().length === 0).length;
+    if (emptyLinesCount > 10 && emptyLinesCount / totalLines > 0.5) {
+      return true;
+    }
+    if (totalLines > 55 && !content.includes("```")) {
+      return true;
+    }
+  } else {
+    // Para mensajes comunes sin formato de plantilla ni enlaces:
+    // Exceso de saltos de línea (10+ saltos es spam visual en mensajes no estructurados)
+    if (newlines >= 10) return true;
+
+    if (content.length >= 150) {
+      if (newlines >= 15) return true;
+    }
+  }
+
+  // 3. Patrón de repetición masiva de un mismo carácter alfanumérico en mensajes largos (>= 200 chars)
+  // Ignorando caracteres decorativos como ═, ─, ━, etc.
+  if (content.length >= 200) {
+    const counts = new Map<string, number>();
+    let maxAlnumCharCount = 0;
+    let totalConsidered = 0;
+
+    for (const char of content) {
+      if (char === " " || char === "\n" || char === "\r" || DECORATIVE_CHARS.has(char)) continue;
+      totalConsidered++;
+      const c = (counts.get(char) || 0) + 1;
+      counts.set(char, c);
+      if (c > maxAlnumCharCount) maxAlnumCharCount = c;
+    }
+
+    if (totalConsidered >= 100 && maxAlnumCharCount / totalConsidered >= 0.6) {
+      return true;
     }
   }
 

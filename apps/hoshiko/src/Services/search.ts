@@ -229,6 +229,7 @@ export class SearchService {
             "X-API-KEY": apiKey,
             "Content-Type": "application/json",
           },
+          timeout: 4000,
         },
       );
 

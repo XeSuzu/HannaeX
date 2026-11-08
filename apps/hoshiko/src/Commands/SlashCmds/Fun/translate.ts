@@ -5,6 +5,7 @@ import {
 } from "discord.js";
 import { SlashCommand } from "../../../Interfaces/Command";
 import { LANGUAGE_MAP, translateText } from "../../../Services/translationService";
+import { QuotaManager } from "../../../Core/AI/Quota/QuotaManager";
 import {
   ADMIN_MARKER,
   markAsAdminMessage,
@@ -104,6 +105,48 @@ const command: SlashCommand = {
       return;
     }
 
+    const status = await QuotaManager.getStatus(interaction.user.id, interaction.guildId);
+    if (status.bothExhausted) {
+      const alreadyNotified = await QuotaManager.hasExhaustionNoticeBeenSent(
+        interaction.user.id,
+        interaction.guildId,
+      );
+      if (!alreadyNotified) {
+        await QuotaManager.markExhaustionNoticeSent(
+          interaction.user.id,
+          interaction.guildId,
+        );
+        const exhaustEmbed = QuotaManager.createUsageEmbed(
+          interaction.user.id,
+          interaction.user.username,
+          status,
+          interaction.guildId,
+          true,
+        );
+        const reply = await interaction.editReply({ embeds: [exhaustEmbed] });
+        if (reply?.id) markAsAdminMessage(reply.id);
+        return;
+      }
+      const reply = await interaction.editReply(
+        `Has alcanzado el límite diario de consultas para este ciclo ✨`,
+      );
+      if (reply?.id) markAsAdminMessage(reply.id);
+      return;
+    }
+
+    const quotaRes = await QuotaManager.reserveQuota(
+      interaction.user.id,
+      "conversation",
+      interaction.guildId,
+    );
+    if (!quotaRes.allowed) {
+      const reply = await interaction.editReply(
+        `Has alcanzado tu límite diario de mensajes conversacionales (40/40) para este ciclo ✨`,
+      );
+      if (reply?.id) markAsAdminMessage(reply.id);
+      return;
+    }
+
     try {
       const targetLang =
         targetInput === "auto"
@@ -115,6 +158,11 @@ const command: SlashCommand = {
       );
 
       if (!translated) {
+        await QuotaManager.rollbackQuota(
+          interaction.user.id,
+          "conversation",
+          interaction.guildId,
+        ).catch(() => null);
         const reply = await interaction.editReply(
           `❌ No se pudo obtener la traducción.${ADMIN_MARKER}`,
         );
@@ -139,6 +187,11 @@ const command: SlashCommand = {
       const reply = await interaction.editReply({ embeds: [embed] });
       if (reply?.id) markAsAdminMessage(reply.id);
     } catch (err: any) {
+      await QuotaManager.rollbackQuota(
+        interaction.user.id,
+        "conversation",
+        interaction.guildId,
+      ).catch(() => null);
       console.error("Error en /translate:", err?.message || err);
       const reply = await interaction.editReply(
         `❌ Ocurrió un error al traducir.${ADMIN_MARKER}`,

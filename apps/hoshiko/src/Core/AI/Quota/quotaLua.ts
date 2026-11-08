@@ -1,9 +1,17 @@
+/**
+ * CONSUME_OR_REFRESH_LUA
+ * KEYS[1]: ai_quota:{userId}
+ * ARGV[1]: qType ("conversation" | "research")
+ * ARGV[2]: maxCap (40 | 20)
+ * ARGV[3]: now (epoch ms)
+ * ARGV[4]: currentCycleStart (epoch ms de las 00:00 Ecuador del día actual)
+ */
 export const CONSUME_OR_REFRESH_LUA = `
 local key = KEYS[1]
 local qType = ARGV[1]
 local maxCap = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
-local cycleDur = tonumber(ARGV[4])
+local currentCycleStart = tonumber(ARGV[4])
 
 local balanceKey = qType .. "_balance"
 local consumedKey = qType .. "_consumed"
@@ -11,39 +19,45 @@ local startKey = qType .. "_start"
 
 local balance = redis.call("HGET", key, balanceKey)
 local consumed = redis.call("HGET", key, consumedKey)
-local cycleStart = redis.call("HGET", key, startKey)
+local storedStart = redis.call("HGET", key, startKey)
 
-if not balance then
+if not balance or not storedStart then
   balance = maxCap
   consumed = 0
-  cycleStart = now
-  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, cycleStart)
+  storedStart = currentCycleStart
+  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, storedStart)
 else
   balance = tonumber(balance)
   consumed = tonumber(consumed)
-  cycleStart = tonumber(cycleStart)
+  storedStart = tonumber(storedStart)
 end
 
--- Comprobar si el ciclo de 24h venció para reposición parcial exacta
-if (now - cycleStart) >= cycleDur then
-  balance = math.min(maxCap, balance + consumed)
+-- Reinicio diario estricto a las 00:00 de Ecuador (America/Guayaquil)
+if storedStart < currentCycleStart then
+  balance = maxCap
   consumed = 0
-  cycleStart = now
-  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, cycleStart)
+  storedStart = currentCycleStart
+  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, storedStart)
 end
 
--- Intentar consumir 1 unidad
+-- Intentar consumir 1 unidad atómica
 if balance >= 1 then
   balance = balance - 1
   consumed = consumed + 1
   redis.call("HSET", key, balanceKey, balance, consumedKey, consumed)
   redis.call("EXPIRE", key, 172800) -- TTL de 48h
-  return {1, balance, consumed, cycleStart}
+  return {1, balance, consumed, storedStart}
 else
-  return {0, balance, consumed, cycleStart}
+  return {0, balance, consumed, storedStart}
 end
 `;
 
+/**
+ * ROLLBACK_LUA
+ * KEYS[1]: ai_quota:{userId}
+ * ARGV[1]: qType ("conversation" | "research")
+ * ARGV[2]: maxCap (40 | 20)
+ */
 export const ROLLBACK_LUA = `
 local key = KEYS[1]
 local qType = ARGV[1]
@@ -65,12 +79,20 @@ end
 return 0
 `;
 
+/**
+ * GET_STATUS_LUA
+ * KEYS[1]: ai_quota:{userId}
+ * ARGV[1]: qType ("conversation" | "research")
+ * ARGV[2]: maxCap (40 | 20)
+ * ARGV[3]: now (epoch ms)
+ * ARGV[4]: currentCycleStart (epoch ms de las 00:00 Ecuador del día actual)
+ */
 export const GET_STATUS_LUA = `
 local key = KEYS[1]
 local qType = ARGV[1]
 local maxCap = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
-local cycleDur = tonumber(ARGV[4])
+local currentCycleStart = tonumber(ARGV[4])
 
 local balanceKey = qType .. "_balance"
 local consumedKey = qType .. "_consumed"
@@ -78,24 +100,25 @@ local startKey = qType .. "_start"
 
 local balance = redis.call("HGET", key, balanceKey)
 local consumed = redis.call("HGET", key, consumedKey)
-local cycleStart = redis.call("HGET", key, startKey)
+local storedStart = redis.call("HGET", key, startKey)
 
-if not balance then
+if not balance or not storedStart then
   balance = maxCap
   consumed = 0
-  cycleStart = now
+  storedStart = currentCycleStart
 else
   balance = tonumber(balance)
   consumed = tonumber(consumed)
-  cycleStart = tonumber(cycleStart)
+  storedStart = tonumber(storedStart)
 end
 
-if (now - cycleStart) >= cycleDur then
-  balance = math.min(maxCap, balance + consumed)
+-- Reinicio diario estricto a las 00:00 de Ecuador
+if storedStart < currentCycleStart then
+  balance = maxCap
   consumed = 0
-  cycleStart = now
-  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, cycleStart)
+  storedStart = currentCycleStart
+  redis.call("HSET", key, balanceKey, balance, consumedKey, consumed, startKey, storedStart)
 end
 
-return {balance, consumed, cycleStart}
+return {balance, consumed, storedStart}
 `;
