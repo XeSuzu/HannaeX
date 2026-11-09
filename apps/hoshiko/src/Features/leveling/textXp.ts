@@ -3,6 +3,10 @@ import { LevelConfigCache } from "../../Database/leveling/LevelConfigCache";
 import LocalLevel from "../../Database/leveling/localLevel.model";
 import { queueLocalMessageIncrement } from "../../Database/system/BulkWriteBuffer";
 import { HoshikoLogger } from "../../Security/Logger/HoshikoLogger";
+import {
+  fetchAvatarBuffer,
+  generateLevelUpBanner,
+} from "../../Utils/LevelBanners";
 import { getCurrentWeekStart, isMilestone, totalXpForLevel } from "./xpRules";
 import { assignLevelRoles } from "./levelRoleManager";
 
@@ -172,7 +176,16 @@ export async function handleLevelXp(message: Message): Promise<void> {
 
   if (!leveledUp) return;
 
+  let unlockedRoleName: string | undefined = undefined;
   if (config?.levelRoles.length && message.member) {
+    const roleGained = config.levelRoles.find(
+      (lr: any) => lr.level > oldLevel && lr.level <= newLevel,
+    );
+    if (roleGained) {
+      const matchedRole = message.guild.roles.cache.get(roleGained.roleId);
+      if (matchedRole) unlockedRoleName = matchedRole.name;
+    }
+
     await assignLevelRoles(
       message.member,
       config.levelRoles,
@@ -229,8 +242,63 @@ export async function handleLevelXp(message: Message): Promise<void> {
   if (announceMode === "silent") return;
   if (announceMode === "milestone" && !milestone) return;
 
+  // Generación de tarjeta Canvas si está activa
+  let bannerAttachment: any = null;
+  const bannerMode = config?.cardCustomization?.levelUpBannerMode ?? "canvas";
+
+  if (bannerMode === "canvas") {
+    try {
+      const avatarUrl = message.author.displayAvatarURL({
+        extension: "png",
+        size: 256,
+      });
+      const avatarBuffer = await fetchAvatarBuffer(avatarUrl);
+      if (avatarBuffer) {
+        let customBgBuffer: Buffer | null = null;
+        if (config?.cardCustomization?.customBackgroundUrl) {
+          try {
+            const bgRes = await fetch(
+              config.cardCustomization.customBackgroundUrl,
+            );
+            if (bgRes.ok) {
+              customBgBuffer = Buffer.from(await bgRes.arrayBuffer());
+            }
+          } catch {
+            customBgBuffer = null;
+          }
+        }
+
+        bannerAttachment = await generateLevelUpBanner({
+          username: message.author.displayName || message.author.username,
+          avatarBuffer,
+          oldLevel,
+          newLevel,
+          guildName: message.guild.name,
+          roleName: unlockedRoleName,
+          isMilestone: milestone,
+          backgroundTheme: config?.cardCustomization?.theme || "default",
+          customBackgroundBuffer: customBgBuffer,
+          levelPrefix: config?.cardCustomization?.levelPrefix || "Nivel",
+          title: config?.cardCustomization?.levelUpTitle,
+          subtitle: config?.cardCustomization?.levelUpSubtitle,
+          badgeText: config?.cardCustomization?.levelUpBadgeText,
+          footerText: config?.cardCustomization?.levelUpFooterText,
+        });
+      }
+    } catch (err) {
+      console.error("[Leveling] Error generando banner canvas de level up:", err);
+    }
+  }
+
+  const sendPayload = bannerAttachment
+    ? {
+        content: `🎉 ¡Felicidades <@${message.author.id}> por subir al **nivel ${newLevel}**!`,
+        files: [bannerAttachment],
+      }
+    : { embeds: [embed] };
+
   if (config?.announceDM) {
-    await message.author.send({ embeds: [embed] }).catch(() => null);
+    await message.author.send(sendPayload as any).catch(() => null);
     return;
   }
 
@@ -238,5 +306,5 @@ export async function handleLevelXp(message: Message): Promise<void> {
   const channel = message.guild.channels.cache.get(announceChannelId) as
     | TextChannel
     | undefined;
-  await channel?.send({ embeds: [embed] }).catch(() => null);
+  await channel?.send(sendPayload as any).catch(() => null);
 }

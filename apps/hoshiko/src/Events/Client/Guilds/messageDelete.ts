@@ -1,8 +1,6 @@
 import { AuditLogEvent, EmbedBuilder, Events, Message, PartialMessage } from "discord.js";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
-import GlobalProfile from "../../../Database/moderation/globalProfile.model";
 import { HoshikoLogger } from "../../../Security/Logger/HoshikoLogger";
-import { sendFirstDeleteNotice } from "../../../Services/SnipeConsentService";
 import { recordDeletedMessage } from "../../../Services/SnipeService";
 
 export default {
@@ -22,29 +20,7 @@ export default {
       );
 
       if (settings?.securityModules?.snipe) {
-        await recordDeletedMessage(message);
-
-        // Aviso en canal solo la primera vez que borra en este servidor
-        const profile = await GlobalProfile.findOne({
-          userId: message.author.id,
-        });
-        const alreadyNotified = profile?.snipeNotifiedGuilds?.includes(
-          message.guild.id,
-        );
-
-        if (!alreadyNotified) {
-          await sendFirstDeleteNotice(
-            message.author.id,
-            message.guild,
-            message.channelId,
-            client,
-          );
-          await GlobalProfile.findOneAndUpdate(
-            { userId: message.author.id },
-            { $addToSet: { snipeNotifiedGuilds: message.guild.id } },
-            { upsert: true },
-          );
-        }
+        recordDeletedMessage(message);
       }
     }
 

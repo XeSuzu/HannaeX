@@ -3,7 +3,13 @@ import type { HoshikoClient } from "../client/HoshikoClient";
 import { isAdminMessage } from "../Features/ai/adminMessageTracker";
 
 /** Commands that use the "hoshi ask" trigger pattern */
-export const TRIGGER_COMMANDS = ["ask", "img"] as const;
+export const TRIGGER_COMMANDS = [
+  "ask",
+  "img",
+  "lyrics",
+  "letra",
+  "letras",
+] as const;
 
 /**
  * Checks if a prefix string starts with "hoshi" (case-insensitive).

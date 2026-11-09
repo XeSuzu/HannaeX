@@ -20,6 +20,7 @@ export interface IGlobalProfile extends Document {
   // --- SNIPE ---
   // Servidores donde ya se le notificó sobre el snipe (DM de primer borrado)
   snipeNotifiedGuilds: string[];
+  snipeConsent?: "approved" | "rejected" | "unset";
 
   // --- META ---
   lastXpGain: Date;
@@ -43,6 +44,7 @@ const GlobalProfileSchema = new Schema<IGlobalProfile>({
   },
 
   snipeNotifiedGuilds: { type: [String], default: [] },
+  snipeConsent:        { type: String, enum: ["approved", "rejected", "unset"], default: "unset" },
 
   lastXpGain:    { type: Date, default: Date.now },
   lastReputation: { type: Date, default: Date.now },

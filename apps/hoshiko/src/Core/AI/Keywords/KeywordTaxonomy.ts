@@ -7,7 +7,8 @@ export type KeywordCategory =
   | "news"
   | "temporal"
   | "intent"
-  | "general";
+  | "general"
+  | "music";
 
 export interface TaxonomyGroup {
   category: KeywordCategory;
@@ -87,6 +88,14 @@ export const KEYWORD_TAXONOMY: TaxonomyGroup[] = [
     patterns: [
       // Verbos de búsqueda explícita o formulaciones directas
       /\b(busca|buscar|buscame|encuentra|investiga|investigar|investigame|googlea|googlear|googlealo|averigua|averiguar|informacion sobre|datos sobre|que paso|que ocurrio|que sucedio|que ha pasado|que se sabe de|cuando sale|cuando se estrena|a que hora)\b/i,
+    ],
+  },
+  {
+    category: "music",
+    weight: 1.1,
+    patterns: [
+      // Letras, canciones, adaptaciones y romanizaciones
+      /\b(letra|letras|lyrics|cancion|canciones|song|songs|ost|soundtrack|album|discografia|cantante|banda|tema musical|romanized|romaji|pinyin|traducida|traduccion)\b/i,
     ],
   },
 ];

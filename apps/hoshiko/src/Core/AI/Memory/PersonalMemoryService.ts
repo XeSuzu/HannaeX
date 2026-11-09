@@ -17,8 +17,8 @@ const SENSITIVE_DATA_PATTERNS = [
   // Credenciales, API keys y tokens
   /\b(?:ghp_[a-zA-Z0-9]{36}|xox[baprs]-[0-9a-zA-Z]{10,48}|ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*)\b/i,
   /\b(?:password|contrase[ñn]a|clave|token|pin)(?:\s*[:=]\s*|\s+(?:es|is)\s+)\S+/i,
-  // Tarjetas bancarias y números financieros (13 a 19 dígitos continuos o con guiones)
-  /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11})\b/,
+  // Tarjetas bancarias y números financieros (13 a 19 dígitos continuos, con espacios o con guiones)
+  /\b(?:4[0-9]{3}(?:[ -]?[0-9]{4}){3}|4[0-9]{12}|5[1-5][0-9]{2}(?:[ -]?[0-9]{4}){3}|3[47][0-9]{2}(?:[ -]?[0-9]{6}[ -]?[0-9]{5}|[0-9]{11})|3(?:0[0-5]|[68][0-9])[0-9](?:[ -]?[0-9]{6}[ -]?[0-9]{4}|[0-9]{9}))\b/,
   // Categorías sensibles críticas
   /\b(?:diagn[oó]stico|medicamento|psiquiatra|enfermedad terminal|historia cl[ií]nica)\b/i,
 ];
@@ -165,7 +165,7 @@ export class PersonalMemoryService {
       return [...memory.facts]
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, MAX_FACTS)
-        .map((f) => FieldEncryptionService.decrypt(f.fact));
+        .map((f) => f.fact);
     } catch {
       return [];
     }
@@ -234,8 +234,7 @@ export class PersonalMemoryService {
     // Deduplicación estricta
     const exists = memory.facts.some(
       (f: IPersonalFact) =>
-        FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
-        normalized.toLowerCase(),
+        f.fact.toLowerCase() === normalized.toLowerCase(),
     );
     if (exists) {
       return {
@@ -329,20 +328,20 @@ export class PersonalMemoryService {
     // Deduplicación estricta
     const exists = memory.facts.some(
       (f: IPersonalFact) =>
-        FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
-        normalized.toLowerCase(),
+        f.fact.toLowerCase() === normalized.toLowerCase(),
     );
     if (exists) {
       return { success: false };
     }
 
     // Si alcanza el límite máximo de recuerdos (20), retirar el recuerdo auto-extraído más antiguo (FIFO)
+    // Si no hay recuerdos automáticos para desalojar, se preservan los manuales y no se guarda el nuevo
     if (memory.facts.length >= MAX_FACTS) {
       const oldestAutoIdx = memory.facts.findIndex((f: IPersonalFact) => f.source === "auto_extracted");
       if (oldestAutoIdx !== -1) {
         memory.facts.splice(oldestAutoIdx, 1);
       } else {
-        memory.facts.shift();
+        return { success: false };
       }
     }
 
@@ -443,6 +442,13 @@ export class PersonalMemoryService {
         await memory.save();
       }
 
+      // Purga sincronizada de recuerdos legados en UserMemory
+      if (this.isDbAvailable()) {
+        try {
+          await UserMemory.deleteMany({ userId });
+        } catch {}
+      }
+
       this.auditLog({
         timestamp: new Date(),
         eventType: "ALL_CLEARED",
@@ -489,7 +495,7 @@ export class PersonalMemoryService {
   ): Promise<Array<{ guildId: string; fact: string; createdAt: Date }>> {
     if (!userId || mongoose.connection.readyState !== 1) return [];
     try {
-      const legacyDocs = await UserMemory.find({ userId }).lean();
+      const legacyDocs = await UserMemory.find({ userId });
       const legacyFacts: Array<{ guildId: string; fact: string; createdAt: Date }> = [];
 
       for (const doc of legacyDocs) {
@@ -537,9 +543,7 @@ export class PersonalMemoryService {
       }
 
       const exists = memory.facts.some(
-        (f) =>
-          FieldEncryptionService.decrypt(f.fact).toLowerCase() ===
-          normalized.toLowerCase(),
+        (f) => f.fact.toLowerCase() === normalized.toLowerCase(),
       );
       if (exists) {
         return {
@@ -568,12 +572,23 @@ export class PersonalMemoryService {
       memory.lastInteraction = new Date();
       await memory.save();
 
-      // Eliminar el hecho de UserMemory para que no vuelva a listarse
+      // Eliminar el hecho de UserMemory mediante documentos hidratados con descifrado
       try {
-        await UserMemory.updateMany(
-          { userId },
-          { $pull: { facts: { fact: normalized } } },
-        );
+        const legacyDocs = await UserMemory.find({ userId });
+        for (const doc of legacyDocs) {
+          const matchIdx = doc.facts.findIndex(
+            (f) => f.fact.trim().toLowerCase() === normalized.toLowerCase(),
+          );
+          if (matchIdx !== -1) {
+            doc.facts.splice(matchIdx, 1);
+            if (doc.facts.length === 0) {
+              await UserMemory.deleteOne({ _id: doc._id });
+            } else {
+              await doc.save();
+            }
+            break;
+          }
+        }
       } catch {}
 
       this.auditLog({

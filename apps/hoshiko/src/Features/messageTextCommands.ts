@@ -25,7 +25,7 @@ export async function handleTextMessageSnipe(message: Message, args: string[]) {
     return;
   }
 
-  const { total, entry } = await getSnipeEntry(message.channelId, position);
+  const { total, entry } = getSnipeEntry(message.channelId, position);
   if (!total || !entry) {
     await message.reply({ content: buildSnipeNotFoundMessage(position, total) });
     return;

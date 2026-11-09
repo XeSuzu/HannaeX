@@ -266,7 +266,8 @@ type SetupView =
   | "custom_perms"
   | "confirm"
   | "manual"
-  | "manual_channel";
+  | "manual_channel"
+  | "audit_complement";
 
 const command: SlashCommand = {
   category: "Moderation",
@@ -377,6 +378,15 @@ const command: SlashCommand = {
             .setEmoji("🛠️")
             .setStyle(ButtonStyle.Primary),
           new ButtonBuilder()
+            .setCustomId("logs_audit_complement")
+            .setLabel(
+              configuredCount === 6
+                ? "Revisar Canales"
+                : `Revisar y Complementar (${6 - configuredCount} faltan)`,
+            )
+            .setEmoji("🔍")
+            .setStyle(configuredCount === 6 ? ButtonStyle.Secondary : ButtonStyle.Success),
+          new ButtonBuilder()
             .setCustomId("logs_manage_perms")
             .setLabel("Permisos por canal")
             .setEmoji("🔐")
@@ -394,6 +404,105 @@ const command: SlashCommand = {
         );
 
         return { embeds: [embed], components: [row1] };
+      }
+
+      // ─── VISTA: REVISAR Y COMPLEMENTAR CANALES (§ Auditoría y Reparación) ──
+      if (currentView === "audit_complement") {
+        await guild.channels.fetch().catch(() => null);
+
+        let cat: CategoryChannel | null = null;
+        if (logsSetup.categoryId) {
+          const c = guild.channels.cache.get(logsSetup.categoryId);
+          if (c && c.type === ChannelType.GuildCategory) cat = c as CategoryChannel;
+        }
+        if (!cat) {
+          const found = guild.channels.cache.find(
+            (c) =>
+              c.type === ChannelType.GuildCategory &&
+              c.name.toLowerCase() === LOGS_CATEGORY_NAME.toLowerCase(),
+          );
+          if (found && found.type === ChannelType.GuildCategory) cat = found as CategoryChannel;
+        }
+
+        const missingList: string[] = [];
+        let healthyCount = 0;
+        const channelAuditLines: string[] = [];
+
+        for (const spec of CORE_LOG_CHANNELS) {
+          const chId = logChannels[spec.key];
+          let ch = chId ? guild.channels.cache.get(chId) : null;
+          if (!ch) {
+            const byName = guild.channels.cache.find(
+              (c) =>
+                c.type === ChannelType.GuildText &&
+                c.name.toLowerCase() === spec.name.toLowerCase(),
+            );
+            if (byName) ch = byName;
+          }
+
+          if (ch && ch.isTextBased()) {
+            healthyCount++;
+            const isInCat = cat && ch.parentId === cat.id;
+            const note = isInCat
+              ? "En categoría privada"
+              : "Fuera de categoría (se reubicará al complementar)";
+            channelAuditLines.push(
+              `${spec.emoji} **${spec.label}** — ✅ <#${ch.id}> *(${note})*`,
+            );
+          } else {
+            missingList.push(spec.label);
+            channelAuditLines.push(
+              `${spec.emoji} **${spec.label}** — ❌ **FALTANTE** *(No existe o fue eliminado)*`,
+            );
+          }
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle("🔍 Revisión y Diagnóstico de Canales de Logs")
+          .setColor(missingList.length === 0 ? 0x57f287 : 0xfaa61a)
+          .setDescription(
+            `Diagnóstico en tiempo real de la infraestructura de auditoría en **${guild.name}**:\n\n` +
+              `📁 **Categoría:** ${cat ? `**${cat.name}** (<#${cat.id}>)` : "`⚠️ No encontrada (se creará automáticamente)`"}\n` +
+              `📊 **Estado:** \`${healthyCount}/6\` canales operativos\n\n` +
+              `**Detalle por canal:**\n` +
+              channelAuditLines.join("\n") +
+              (missingList.length > 0
+                ? `\n\n⚠️ **Acción recomendada:** Se detectaron **${missingList.length}** canal(es) faltante(s) (${missingList.join(", ")}). Presiona **Complementar Canales Faltantes** para crearlos y enlazarlos de forma segura sin tocar los que ya existen.`
+                : `\n\n✨ **Todo en orden:** Todos los canales están creados, enlazados y protegidos.`),
+          )
+          .setFooter({
+            text: "Hoshiko Logs • Herramienta de reparación y complemento",
+          })
+          .setTimestamp();
+
+        const row = new ActionRowBuilder<ButtonBuilder>();
+        if (missingList.length > 0 || !cat) {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId("logs_execute_complement")
+              .setLabel(
+                missingList.length > 0
+                  ? `Complementar ${missingList.length} Canal(es) Faltante(s)`
+                  : "Crear Categoría Faltante",
+              )
+              .setEmoji("⚡")
+              .setStyle(ButtonStyle.Success),
+          );
+        }
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId("logs_audit_refresh")
+            .setLabel("Re-analizar")
+            .setEmoji("🔄")
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId("logs_welcome")
+            .setLabel("Volver al Panel")
+            .setEmoji("↩️")
+            .setStyle(ButtonStyle.Secondary),
+        );
+
+        return { embeds: [embed], components: [row] };
       }
 
       // ─── 2. PASO OBLIGATORIO: ELECCIÓN DE MODO DE PERMISOS (§6) ──────────
@@ -773,8 +882,58 @@ const command: SlashCommand = {
       return { embeds: [embed], components: [menu, buttons] };
     };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const formatEstimatedTime = (sec: number): string => {
+  if (sec >= 60) {
+    const mins = Math.floor(sec / 60);
+    const rem = sec % 60;
+    return rem > 0 ? `~${mins}m ${rem}s` : `~${mins}m`;
+  }
+  return `~${sec}s`;
+};
+
     /**
-     * Ejecuta la creación/reparación idempotente de la categoría 🔒 HOSHIKO LOGS y sus 6 canales,
+     * Renderiza el embed rotativo de espera anti-raid durante la creación pausada de canales (~1:30 min).
+     */
+    const renderAntiRaidProgressEmbed = (
+      currentStep: number,
+      totalSteps: number,
+      currentAction: string,
+      completedList: string[],
+    ) => {
+      const percent = Math.min(100, Math.round((currentStep / totalSteps) * 100));
+      const filled = Math.min(10, Math.max(0, Math.round((percent / 100) * 10)));
+      const bar = "■".repeat(filled) + "□".repeat(10 - filled);
+      const remainingSeconds = Math.max(0, Math.round((totalSteps - currentStep) * 13));
+
+      const embed = new EmbedBuilder()
+        .setTitle("🌸 Preparando los Canales de Logs")
+        .setColor(0x5865f2)
+        .setDescription(
+          `> ⏳ **Me estoy tomando un momento (~1 minuto) para dejar todo listo...**\n` +
+            `> Estoy creando y organizando cada canal con calma para asegurarme de que todos los permisos queden bien protegidos y todo funcione perfecto en tu servidor. ✨\n\n` +
+            `📊 **Progreso:** \`[${bar}]\` **(${currentStep}/${totalSteps} — ${percent}%)**\n` +
+            `⏱️ **Tiempo estimado:** \`${formatEstimatedTime(remainingSeconds)}\`\n` +
+            `🔨 **Paso actual:** \`${currentAction}\``,
+        )
+        .setFooter({
+          text: "Hoshiko Logs 🌸 • Solo tomará un ratito, gracias por tu paciencia",
+        })
+        .setTimestamp();
+
+      if (completedList.length > 0) {
+        embed.addFields({
+          name: "📋 Registro de Canales",
+          value: completedList.slice(-6).join("\n"),
+        });
+      }
+
+      return embed;
+    };
+
+    /**
+     * Ejecuta la creación/reparación de la categoría 🔒 HOSHIKO LOGS y sus 6 canales con protección anti-raid (~30s),
      * o actualiza únicamente los overwrites si postSetupPermEditOnly === true.
      */
     const applyLogsConfiguration = async (onlyUpdatePermissions: boolean) => {
@@ -795,13 +954,34 @@ const command: SlashCommand = {
       const issues: string[] = [];
       const createdOrReused: string[] = [];
 
-      // 1. Resolver o crear categoría privada 🔒 HOSHIKO LOGS
+      // Paso 1 de 7: Resolver o crear categoría privada 🔒 HOSHIKO LOGS
+      if (!onlyUpdatePermissions) {
+        await interaction
+          .editReply({
+            embeds: [
+              renderAntiRaidProgressEmbed(
+                1,
+                7,
+                `Creando y protegiendo categoría privada \`${LOGS_CATEGORY_NAME}\`...`,
+                createdOrReused,
+              ),
+            ],
+            components: [],
+          })
+          .catch(() => null);
+      }
+
+      // Refrescar caché de canales desde la API de Discord
+      await guild.channels.fetch().catch(() => null);
+
       let category: CategoryChannel | null = null;
       if (currentSetup.categoryId) {
-        const cached = guild.channels.cache.get(currentSetup.categoryId);
-        if (cached && cached.type === ChannelType.GuildCategory) {
-          category = cached as CategoryChannel;
-        }
+        try {
+          const fetched = await guild.channels.fetch(currentSetup.categoryId).catch(() => null);
+          if (fetched && fetched.type === ChannelType.GuildCategory) {
+            category = fetched as CategoryChannel;
+          }
+        } catch {}
       }
       if (!category) {
         const found = guild.channels.cache.find(
@@ -809,7 +989,9 @@ const command: SlashCommand = {
             ch.type === ChannelType.GuildCategory &&
             ch.name.toLowerCase() === LOGS_CATEGORY_NAME.toLowerCase(),
         );
-        if (found) category = found as CategoryChannel;
+        if (found && found.type === ChannelType.GuildCategory) {
+          category = found as CategoryChannel;
+        }
       }
 
       const unionRoles =
@@ -823,6 +1005,7 @@ const command: SlashCommand = {
             )
           : [];
 
+      let didCreateCat = false;
       if (!category && !onlyUpdatePermissions) {
         try {
           category = await guild.channels.create({
@@ -831,6 +1014,8 @@ const command: SlashCommand = {
             permissionOverwrites: buildChannelOverwrites(guild, unionRoles),
             reason: `Configuración guiada de Hoshiko Logs por ${interaction.user.tag}`,
           });
+          didCreateCat = true;
+          createdOrReused.push(`📁 Categoría **${LOGS_CATEGORY_NAME}** creada y asegurada`);
         } catch (err: any) {
           issues.push(
             `No se pudo crear la categoría \`${LOGS_CATEGORY_NAME}\`: ${err?.message || "Error de permisos"}`,
@@ -847,15 +1032,44 @@ const command: SlashCommand = {
               `No se pudieron actualizar los permisos de la categoría \`${category?.name}\`: ${err?.message || "Error"}`,
             );
           });
+        createdOrReused.push(`📁 Categoría **${category.name}** sincronizada`);
+      } else if (category) {
+        createdOrReused.push(`📁 Categoría **${category.name}** reutilizada`);
       }
 
-      // 2. Resolver, crear o actualizar cada uno de los 6 canales núcleo
-      for (const spec of CORE_LOG_CHANNELS) {
+      if (didCreateCat && !onlyUpdatePermissions) {
+        await sleep(13000);
+      } else if (!onlyUpdatePermissions) {
+        await sleep(1000);
+      }
+
+      // Pasos 2 a 7: Resolver, crear o actualizar cada uno de los 6 canales núcleo con pausa segura
+      for (let idx = 0; idx < CORE_LOG_CHANNELS.length; idx++) {
+        const spec = CORE_LOG_CHANNELS[idx];
+        const stepNumber = idx + 2;
+
+        if (!onlyUpdatePermissions) {
+          await interaction
+            .editReply({
+              embeds: [
+                renderAntiRaidProgressEmbed(
+                  stepNumber,
+                  7,
+                  `Configurando canal seguro **${spec.label}** y permisos privados...`,
+                  createdOrReused,
+                ),
+              ],
+              components: [],
+            })
+            .catch(() => null);
+        }
+
         const allowedRoles =
           permissionMode === "custom" ? channelRoles[spec.key] || [] : [];
         const overwrites = buildChannelOverwrites(guild, allowedRoles);
 
         let targetChannel: TextChannel | null = null;
+        let didCreateChannel = false;
         const savedId = currentChannels[spec.key];
         if (savedId) {
           const existing = guild.channels.cache.get(savedId);
@@ -874,24 +1088,70 @@ const command: SlashCommand = {
           if (byNameInCat) targetChannel = byNameInCat as TextChannel;
         }
 
+        if (!targetChannel) {
+          const byNameAny = guild.channels.cache.find(
+            (ch) =>
+              ch.type === ChannelType.GuildText &&
+              ch.name.toLowerCase() === spec.name.toLowerCase(),
+          );
+          if (byNameAny) targetChannel = byNameAny as TextChannel;
+        }
+
         if (!targetChannel && !onlyUpdatePermissions) {
+          // Determinar parent seguro: la categoría debe existir y tener < 50 canales
+          let safeParentId: string | undefined = undefined;
+          if (category?.id) {
+            const liveCat = guild.channels.cache.get(category.id);
+            if (liveCat && liveCat.type === ChannelType.GuildCategory) {
+              const count = guild.channels.cache.filter((c) => c.parentId === category.id).size;
+              if (count < 50) safeParentId = category.id;
+            }
+          }
+
           try {
             targetChannel = await guild.channels.create({
               name: spec.name,
               type: ChannelType.GuildText,
               topic: `Hoshiko Logs • ${spec.description}`,
-              parent: category?.id,
+              parent: safeParentId,
               permissionOverwrites: overwrites,
               reason: `Configuración guiada de Hoshiko Logs por ${interaction.user.tag}`,
             });
+            didCreateChannel = true;
             currentChannels[spec.key] = targetChannel.id;
             createdOrReused.push(
               `✨ **${spec.label}** creado (<#${targetChannel.id}>)`,
             );
           } catch (err: any) {
-            issues.push(
-              `Fallo al crear \`${spec.label}\`: ${err?.message || "Error desconocido"}`,
-            );
+            const errMsg = String(err?.message || "").toLowerCase();
+            // Fallback inmediato sin parent si Discord rechaza parent_id
+            if (errMsg.includes("parent") || err?.rawError?.errors?.parent_id) {
+              try {
+                targetChannel = await guild.channels.create({
+                  name: spec.name,
+                  type: ChannelType.GuildText,
+                  topic: `Hoshiko Logs • ${spec.description}`,
+                  permissionOverwrites: overwrites,
+                  reason: `Configuración guiada de Hoshiko Logs (fallback sin categoría) por ${interaction.user.tag}`,
+                });
+                didCreateChannel = true;
+                currentChannels[spec.key] = targetChannel.id;
+                createdOrReused.push(
+                  `✨ **${spec.label}** creado (<#${targetChannel.id}>)`,
+                );
+                if (safeParentId) {
+                  await targetChannel.setParent(safeParentId, { lockPermissions: false }).catch(() => null);
+                }
+              } catch (fallbackErr: any) {
+                issues.push(
+                  `Fallo al crear \`${spec.label}\`: ${fallbackErr?.message || "Error desconocido"}`,
+                );
+              }
+            } else {
+              issues.push(
+                `Fallo al crear \`${spec.label}\`: ${err?.message || "Error desconocido"}`,
+              );
+            }
           }
         } else if (targetChannel) {
           currentChannels[spec.key] = targetChannel.id;
@@ -920,6 +1180,12 @@ const command: SlashCommand = {
           issues.push(
             `El canal **${spec.label}** aún no existe. Usa el asistente guiado para crearlo.`,
           );
+        }
+
+        if (didCreateChannel && !onlyUpdatePermissions) {
+          await sleep(13000);
+        } else if (!onlyUpdatePermissions) {
+          await sleep(1000);
         }
       }
 
@@ -955,19 +1221,215 @@ const command: SlashCommand = {
       return new EmbedBuilder()
         .setTitle(
           issues.length === 0
-            ? "✅ Hoshiko Logs configurado correctamente"
-            : "⚠️ Hoshiko Logs aplicado con observaciones",
+            ? "✅ Canales de logs configurados"
+            : "⚠️ Canales de logs aplicados con observaciones",
         )
         .setColor(issues.length === 0 ? 0x57f287 : 0xfaa61a)
         .setDescription(
           `📁 **Categoría:** ${category ? `**${category.name}**` : "`No disponible`"}\n` +
-            `🔐 **Modo de permisos:** **${permissionMode === "default" ? "Predeterminada (Solo Administrador)" : "Personalizada por rol"}**\n\n` +
-            `**Estado de canales:**\n${createdOrReused.join("\n") || "Sin canales procesados"}` +
+            `🔐 **Modo de permisos:** **${permissionMode === "default" ? "Predeterminado (Solo Administrador)" : "Personalizado por rol"}**\n` +
+            `✨ **Estado:** Estructura de logs organizada y protegida con éxito.\n\n` +
+            `**Registro de canales:**\n${createdOrReused.join("\n") || "Sin canales procesados"}` +
             (issues.length > 0
-              ? `\n\n**Incidencias detectadas:**\n${issues.map((x) => `• ${x}`).join("\n")}`
+              ? `\n\n**Observaciones:**\n${issues.map((x) => `• ${x}`).join("\n")}`
               : ""),
         )
-        .setFooter({ text: "Hoshiko Logs • Configuración guardada" })
+        .setFooter({ text: "Hoshiko Logs 🌸 • Configuración completada" })
+        .setTimestamp();
+    };
+
+    /**
+     * Revisa, re-vincula y complementa exclusivamente los canales que falten o estén fuera de la categoría.
+     * Útil cuando algún canal específico (como #server-logs) no se pudo crear en la primera pasada.
+     */
+    const executeComplementChannels = async () => {
+      await guild.channels.fetch().catch(() => null);
+
+      const permCheck = checkRequiredBotLogPermissions(guild);
+      if (!permCheck.ok) {
+        return new EmbedBuilder()
+          .setTitle("❌ Permisos insuficientes en Hoshiko")
+          .setColor(0xed4245)
+          .setDescription(
+            `No pude complementar los canales porque me faltan permisos:\n\n` +
+              permCheck.missing.map((m) => `• **${m}**`).join("\n"),
+          );
+      }
+
+      const settings = await SettingsManager.getSettings(guildId);
+      const currentChannels = { ...((settings as any)?.logChannels || {}) };
+      const currentSetup = { ...((settings as any)?.logsSetup || {}) };
+      const issues: string[] = [];
+      const complementLog: string[] = [];
+
+      // 1. Resolver o crear categoría 🔒 HOSHIKO LOGS
+      let category: CategoryChannel | null = null;
+      if (currentSetup.categoryId) {
+        try {
+          const ch = await guild.channels.fetch(currentSetup.categoryId).catch(() => null);
+          if (ch && ch.type === ChannelType.GuildCategory) category = ch as CategoryChannel;
+        } catch {}
+      }
+      if (!category) {
+        const found = guild.channels.cache.find(
+          (ch) =>
+            ch.type === ChannelType.GuildCategory &&
+            ch.name.toLowerCase() === LOGS_CATEGORY_NAME.toLowerCase(),
+        );
+        if (found && found.type === ChannelType.GuildCategory) category = found as CategoryChannel;
+      }
+
+      const unionRoles =
+        permissionMode === "custom"
+          ? Array.from(
+              new Set(
+                Object.values(channelRoles)
+                  .flat()
+                  .filter(Boolean),
+              ),
+            )
+          : [];
+
+      if (!category) {
+        try {
+          category = await guild.channels.create({
+            name: LOGS_CATEGORY_NAME,
+            type: ChannelType.GuildCategory,
+            permissionOverwrites: buildChannelOverwrites(guild, unionRoles),
+            reason: `Complemento de Hoshiko Logs por ${interaction.user.tag}`,
+          });
+          complementLog.push(`📁 Categoría **${LOGS_CATEGORY_NAME}** creada y asegurada`);
+        } catch (err: any) {
+          issues.push(
+            `Fallo al crear categoría \`${LOGS_CATEGORY_NAME}\`: ${err?.message || "Error"}`,
+          );
+        }
+      } else {
+        complementLog.push(`📁 Categoría **${category.name}** verificada`);
+      }
+
+      let safeParentId: string | undefined = undefined;
+      if (category?.id) {
+        const liveCat = guild.channels.cache.get(category.id);
+        if (liveCat && liveCat.type === ChannelType.GuildCategory) {
+          const count = guild.channels.cache.filter((c) => c.parentId === category.id).size;
+          if (count < 50) safeParentId = category.id;
+        }
+      }
+
+      // 2. Revisar cada uno de los canales núcleo
+      for (const spec of CORE_LOG_CHANNELS) {
+        const allowedRoles =
+          permissionMode === "custom" ? channelRoles[spec.key] || [] : [];
+        const overwrites = buildChannelOverwrites(guild, allowedRoles);
+
+        let targetChannel: TextChannel | null = null;
+        const savedId = currentChannels[spec.key];
+        if (savedId) {
+          const existing = guild.channels.cache.get(savedId);
+          if (existing && existing.isTextBased()) {
+            targetChannel = existing as TextChannel;
+          }
+        }
+
+        // Si no está por ID guardado, buscar por nombre exacto en el servidor
+        if (!targetChannel) {
+          const byName = guild.channels.cache.find(
+            (ch) =>
+              ch.type === ChannelType.GuildText &&
+              ch.name.toLowerCase() === spec.name.toLowerCase(),
+          );
+          if (byName) targetChannel = byName as TextChannel;
+        }
+
+        if (targetChannel) {
+          currentChannels[spec.key] = targetChannel.id;
+          // Si está fuera de categoría, intentar moverlo
+          if (safeParentId && targetChannel.parentId !== safeParentId) {
+            await targetChannel.setParent(safeParentId, { lockPermissions: false }).catch(() => null);
+            complementLog.push(`📦 **${spec.label}** reubicado en la categoría (<#${targetChannel.id}>)`);
+          } else {
+            complementLog.push(`✅ **${spec.label}** ya en orden (<#${targetChannel.id}>)`);
+          }
+        } else {
+          // El canal falta: crearlo de forma segura con fallback anti-parent_id
+          try {
+            targetChannel = await guild.channels.create({
+              name: spec.name,
+              type: ChannelType.GuildText,
+              topic: `Hoshiko Logs • ${spec.description}`,
+              parent: safeParentId,
+              permissionOverwrites: overwrites,
+              reason: `Complemento de canal de log por ${interaction.user.tag}`,
+            });
+            currentChannels[spec.key] = targetChannel.id;
+            complementLog.push(`✨ **${spec.label}** creado exitosamente (<#${targetChannel.id}>)`);
+          } catch (createErr: any) {
+            const msg = String(createErr?.message || "").toLowerCase();
+            if (msg.includes("parent") || createErr?.rawError?.errors?.parent_id) {
+              try {
+                targetChannel = await guild.channels.create({
+                  name: spec.name,
+                  type: ChannelType.GuildText,
+                  topic: `Hoshiko Logs • ${spec.description}`,
+                  permissionOverwrites: overwrites,
+                  reason: `Complemento de canal (fallback sin categoría) por ${interaction.user.tag}`,
+                });
+                currentChannels[spec.key] = targetChannel.id;
+                complementLog.push(`✨ **${spec.label}** creado (<#${targetChannel.id}>)`);
+                if (safeParentId) {
+                  await targetChannel.setParent(safeParentId, { lockPermissions: false }).catch(() => null);
+                }
+              } catch (fallbackErr: any) {
+                issues.push(
+                  `Fallo al crear \`${spec.label}\`: ${fallbackErr?.message || "Error"}`,
+                );
+              }
+            } else {
+              issues.push(
+                `Fallo al crear \`${spec.label}\`: ${createErr?.message || "Error"}`,
+              );
+            }
+          }
+          await sleep(13000);
+        }
+      }
+
+      const configuredCount = CORE_LOG_CHANNELS.filter(
+        (c) => currentChannels[c.key] && guild.channels.cache.has(currentChannels[c.key]),
+      ).length;
+
+      const updatePayload: Record<string, any> = {
+        "logsSetup.categoryId": category?.id ?? currentSetup.categoryId ?? null,
+        "logsSetup.permissionMode": permissionMode,
+        "logsSetup.channelRoles": channelRoles,
+        "logsSetup.status": configuredCount === 6 && issues.length === 0 ? "configured" : "partial",
+        "logsSetup.lastIssues": issues,
+        "logsSetup.updatedAt": new Date(),
+      };
+
+      for (const spec of CORE_LOG_CHANNELS) {
+        updatePayload[`logChannels.${spec.key}`] = currentChannels[spec.key] ?? null;
+      }
+
+      await SettingsManager.updateSettings(guildId, updatePayload as any);
+
+      return new EmbedBuilder()
+        .setTitle(
+          issues.length === 0
+            ? "✅ Canales complementados y sincronizados"
+            : "⚠️ Canales complementados con observaciones",
+        )
+        .setColor(issues.length === 0 ? 0x57f287 : 0xfaa61a)
+        .setDescription(
+          `📁 **Categoría:** ${category ? `**${category.name}**` : "`No disponible`"}\n` +
+            `📊 **Canales activos:** \`${configuredCount}/6\`\n\n` +
+            `**Detalle de acciones:**\n${complementLog.join("\n")}` +
+            (issues.length > 0
+              ? `\n\n**Incidencias:**\n${issues.map((x) => `• ${x}`).join("\n")}`
+              : ""),
+        )
+        .setFooter({ text: "Hoshiko Logs 🌸 • Complemento finalizado" })
         .setTimestamp();
     };
 
@@ -1134,8 +1596,66 @@ const command: SlashCommand = {
             postSetupPermEditOnly = false;
             const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
               new ButtonBuilder()
+                .setCustomId("logs_audit_complement")
+                .setLabel("Revisar y Complementar")
+                .setEmoji("🔍")
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
                 .setCustomId("logs_welcome")
                 .setLabel("Volver al panel de Hoshiko Logs")
+                .setEmoji("📋")
+                .setStyle(ButtonStyle.Primary),
+            );
+            await interaction.editReply({
+              embeds: [resultEmbed],
+              components: [backRow],
+            });
+            return;
+          }
+
+          if (i.customId === "logs_audit_complement") {
+            currentView = "audit_complement";
+            await interaction.editReply(await generateUI());
+            return;
+          }
+
+          if (i.customId === "logs_audit_refresh") {
+            await guild.channels.fetch().catch(() => null);
+            await interaction.editReply(await generateUI());
+            return;
+          }
+
+          if (i.customId === "logs_execute_complement") {
+            await interaction
+              .editReply({
+                embeds: [
+                  new EmbedBuilder()
+                    .setTitle("🌸 Preparando los Canales de Logs")
+                    .setColor(0x5865f2)
+                    .setDescription(
+                      `> ⏳ **Me estoy tomando un momento (~1 minuto) para dejar todo listo...**\n` +
+                        `> Estoy creando y organizando los canales faltantes con calma para asegurarme de que todos los permisos queden bien protegidos y todo funcione perfecto en tu servidor. ✨\n\n` +
+                        `🔨 **Paso actual:** \`Comprobando infraestructura y complementando canales...\``,
+                    )
+                    .setFooter({
+                      text: "Hoshiko Logs 🌸 • Solo tomará un ratito, gracias por tu paciencia",
+                    }),
+                ],
+                components: [],
+              })
+              .catch(() => null);
+
+            const resultEmbed = await executeComplementChannels();
+            currentView = "welcome";
+            const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId("logs_audit_complement")
+                .setLabel("Revisar Canales")
+                .setEmoji("🔍")
+                .setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder()
+                .setCustomId("logs_welcome")
+                .setLabel("Volver al panel")
                 .setEmoji("📋")
                 .setStyle(ButtonStyle.Primary),
             );

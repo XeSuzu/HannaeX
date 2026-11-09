@@ -117,6 +117,9 @@ export class KeywordIntentClassifier {
       } else if (matchedCategories.has("economy")) {
         deductionHint =
           "[Deducción de consulta telegráfica: Consulta de cotización, divisas o finanzas. Proporciona los valores de cotización más recientes y fuentes].";
+      } else if (matchedCategories.has("music")) {
+        deductionHint =
+          "[Deducción de consulta musical: El usuario solicita letra, traducción o romanización de una canción. Consulta y verifica la letra fáctica real en la web para no inventar versos. Si hay una errata en el título o artista, corrígela con naturalidad y entrega el texto fiel (original, romaji y/o traducción en español)].";
       } else {
         deductionHint =
           "[Deducción de consulta telegráfica: El usuario envió palabras clave sueltas. Razoná la entidad y el aspecto fáctico consultado para responder directo al punto].";

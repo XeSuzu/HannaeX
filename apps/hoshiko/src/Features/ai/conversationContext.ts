@@ -41,7 +41,7 @@ export function extractCleanUserMessage(
   );
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const triggerPrefixRegex = new RegExp(
-    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
+    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x)(?:\\s*ask)?|h!(?:\\s*ask)?)(?:\\b|\\s*)`,
     "i",
   );
   if (triggerPrefixRegex.test(userMessage)) {
@@ -215,7 +215,7 @@ export async function buildConversationContext(
     "\\$&",
   );
   const triggerPrefixRegex = new RegExp(
-    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
+    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x)(?:\\s*ask)?|h!(?:\\s*ask)?)(?:\\b|\\s*)`,
     "i",
   );
   if (triggerPrefixRegex.test(userMessage)) {

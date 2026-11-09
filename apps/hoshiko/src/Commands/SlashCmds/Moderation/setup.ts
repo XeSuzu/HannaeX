@@ -19,7 +19,6 @@ import {
   applyConfigDraft,
 } from "../../../Features/automod/aiConfigAssistant";
 import { SlashCommand } from "../../../Interfaces/Command";
-import { handleSnipeChannelSelect } from "./setupUtils/snipe";
 import { generateSetupUI, SetupView } from "./setupUtils/ui";
 
 const command: SlashCommand = {
@@ -73,14 +72,8 @@ const command: SlashCommand = {
         }
         const isPremium = await PremiumManager.isPremium(guildId);
 
-        // ─── CANAL SELECCIONADO (SNIPE / MODLOG RÁPIDO) ──────────────────
+        // ─── CANAL SELECCIONADO (MODLOG RÁPIDO) ──────────────────────────
         if (i.isChannelSelectMenu()) {
-          if (i.customId === "snipe_channel_select") {
-            const activated = await handleSnipeChannelSelect(i, guildId);
-            if (activated) await refreshUI("security");
-            return;
-          }
-
           if (i.customId === "quick_modlog_select") {
             const selectedChannelId = i.values[0];
             await SettingsManager.updateSettings(guildId, {
@@ -221,11 +214,6 @@ const command: SlashCommand = {
             set?.securityModules?.[
               moduleName as keyof typeof set.securityModules
             ] || false;
-
-          if (moduleName === "snipe" && !current) {
-            await refreshUI("snipe_confirm");
-            return;
-          }
 
           const nextValue = !current;
           const updates: Record<string, any> = {

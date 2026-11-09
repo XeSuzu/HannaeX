@@ -1,5 +1,8 @@
 // src/Commands/SlashCmds/Fun/snipe.ts
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+} from "discord.js";
 import { SettingsManager } from "../../../Database/guild/SettingsManager";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import { SlashCommand } from "../../../Interfaces/Command";
@@ -28,10 +31,12 @@ const command: SlashCommand = {
 
   async execute(
     interaction: ChatInputCommandInteraction,
-    client: HoshikoClient,
+    _client: HoshikoClient,
   ) {
+    if (!interaction.guildId) return;
+
     // 1. Verificar si snipe está habilitado en el servidor
-    const settings = await SettingsManager.getSettings(interaction.guildId!);
+    const settings = await SettingsManager.getSettings(interaction.guildId);
     if (!settings?.securityModules?.snipe) {
       await interaction.editReply({
         content:
@@ -41,7 +46,6 @@ const command: SlashCommand = {
     }
 
     const position = interaction.options.getInteger("numero") || 1;
-    // ✅ ahora (leyendo directo de la ram al instante)
     const { total, entry } = getSnipeEntry(interaction.channelId, position);
 
     if (!total || !entry) {
@@ -51,6 +55,7 @@ const command: SlashCommand = {
       return;
     }
 
+    // Publicación normal e instantánea en el canal
     const embed = buildSnipeEmbed(entry, position, total);
     await interaction.editReply({ embeds: [embed] });
   },

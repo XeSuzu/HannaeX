@@ -8,10 +8,29 @@ const EMBED_DESCRIPTION_LIMIT = 4000;
 // ✦ el núcleo de velocidad: nuestro caché local
 export const snipeCache = new Collection<string, ISnipeEntry[]>();
 
+// Limpieza periódica en RAM para prevenir fugas de memoria
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [channelId, entries] of snipeCache.entries()) {
+      const valid = entries.filter(
+        (entry) => now - entry.deletedAt.getTime() <= SNIPE_EXPIRE_MS,
+      );
+      if (valid.length === 0) {
+        snipeCache.delete(channelId);
+      } else if (valid.length !== entries.length) {
+        snipeCache.set(channelId, valid);
+      }
+    }
+  }, 10 * 60 * 1000).unref?.();
+}
+
 // ─── utilidades visuales ──────────────────────────────────────────────────────
 
 export const buildSnipeFooter = (position: number, total: number) =>
-  `snipe ${position}/${total} • hoshiko • expira en 1h`;
+  total > 1
+    ? `🐾 Me dio curiosidad y lo guardé un ratito • ${position}/${total} • Expira en 1h`
+    : `🐾 Me dio curiosidad y lo guardé un ratito • Expira en 1h`;
 
 export const buildSnipeNotFoundMessage = (position: number, total: number) =>
   position === 1
@@ -19,7 +38,9 @@ export const buildSnipeNotFoundMessage = (position: number, total: number) =>
     : `solo tengo guardados **${total}** mensajes borrados aquí.`;
 
 const normalizeSnipeDescription = (content: string | null | undefined) => {
-  const text = content?.trim() || "*(solo imagen/sticker)*";
+  const raw = content?.trim();
+  if (!raw) return "*(solo imagen/sticker)*";
+  const text = raw.startsWith("> ") ? raw : `> ${raw}`;
   return text.length > EMBED_DESCRIPTION_LIMIT
     ? `${text.slice(0, EMBED_DESCRIPTION_LIMIT)}…`
     : text;
@@ -31,25 +52,71 @@ export const buildSnipeEmbed = (
   total: number,
 ) => {
   const embed = new EmbedBuilder()
-    .setColor(0x2b2d31) // color invisible para la estética minimalista
+    .setColor(0xffb7c5) // Rosa suave estético de Hoshiko
     .setAuthor({
-      name: `${entry.author} borró esto:`,
+      name: `${entry.author}`,
       iconURL: entry.authorAvatar,
     })
     .setDescription(normalizeSnipeDescription(entry.content))
     .setFooter({ text: buildSnipeFooter(position, total) })
     .setTimestamp(entry.deletedAt);
 
-  if (entry.image) embed.setImage(entry.image);
+  if (entry.image) {
+    embed.setImage(entry.image);
+  }
+
   return embed;
 };
+
+// ─── extractor inteligente multi-fuente de imágenes y gifs ───────────────────
+
+export function extractMediaUrl(
+  message: Message | PartialMessage,
+): string | null {
+  // 1. Archivo adjunto que sea imagen o GIF animado
+  if (message.attachments && message.attachments.size > 0) {
+    const imageAttachment = message.attachments.find((att) => {
+      if (att.contentType?.startsWith("image/")) return true;
+      return /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(att.url);
+    });
+    if (imageAttachment) {
+      return imageAttachment.url || imageAttachment.proxyURL || null;
+    }
+  }
+
+  // 2. Sticker de Discord (estático o animado)
+  if (message.stickers && message.stickers.size > 0) {
+    const sticker = message.stickers.first();
+    if (sticker?.url) return sticker.url;
+  }
+
+  // 3. GIF o Imagen generado por Embed de Discord (Tenor / Giphy)
+  if (message.embeds && message.embeds.length > 0) {
+    const firstEmbed = message.embeds[0];
+    if (firstEmbed.image?.url) return firstEmbed.image.url;
+    if (firstEmbed.thumbnail?.url) return firstEmbed.thumbnail.url;
+    if (firstEmbed.video?.url && (firstEmbed.data as any).type === "gifv") {
+      return firstEmbed.video.url;
+    }
+  }
+
+  // 4. Enlace directo a imagen o GIF en el contenido
+  if (message.content) {
+    const match = message.content.match(
+      /https?:\/\/\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?/i,
+    );
+    if (match) return match[0];
+  }
+
+  return null;
+}
 
 // ─── sistema híbrido ram + mongo ──────────────────────────────────────────────
 
 // 1. hidratación: carga los snipes de mongo a la ram al encender
 export const hydrateSnipes = async () => {
-  const docs = await Snipe.find();
   const now = Date.now();
+  const docs = await Snipe.find();
 
   for (const doc of docs) {
     const validSnipes = doc.snipes.filter(
@@ -93,12 +160,14 @@ export const recordDeletedMessage = (message: Message | PartialMessage) => {
   if (!message.guild || !message.author) return;
 
   const channelId = message.channel.id;
+  const mediaUrl = extractMediaUrl(message);
+
   const payload: ISnipeEntry = {
     content: message.content || "*(solo imagen/sticker)*",
     author: message.author.tag,
     authorId: message.author.id,
     authorAvatar: message.author.displayAvatarURL(),
-    image: message.attachments?.first()?.proxyURL || null,
+    image: mediaUrl,
     deletedAt: new Date(),
   };
 

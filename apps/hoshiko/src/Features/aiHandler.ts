@@ -83,7 +83,12 @@ export default async (
   if (cmdPrefixMatch) {
     const candidateCmd = cmdPrefixMatch[1].toLowerCase();
     const isAiPassthrough =
-      candidateCmd === "ask" || candidateCmd === "img" || candidateCmd === "ximg";
+      candidateCmd === "ask" ||
+      candidateCmd === "img" ||
+      candidateCmd === "ximg" ||
+      candidateCmd === "lyrics" ||
+      candidateCmd === "letra" ||
+      candidateCmd === "letras";
     if (
       !isAiPassthrough &&
       (candidateCmd === "snipe" ||
@@ -112,7 +117,7 @@ export default async (
   const isPremium = await PremiumManager.isPremium(message.guild.id);
 
   // --- 🎵 CANCIONES ---
-  const parsedLyrics = parseLyricsCommand(message.content);
+  const parsedLyrics = parseLyricsCommand(message.content, prefix);
   if (parsedLyrics) {
     processedMessagesCache.set(message.id, { processed: true });
     await handleLyricsResponse(message, parsedLyrics);
@@ -122,7 +127,7 @@ export default async (
   // --- 🚨 DETECCIÓN DE GATILLOS ---
   const isMentioned = isMentionTrigger(message, client);
   const askRegex = new RegExp(
-    `^(?:hoshi(?:\\s+ask)?|(?:${escapedPrefix}|x|h!)\\s*ask)\\b`,
+    `^(?:hoshi(?:\\s+(?:ask|letras?|lyrics))?|(?:${escapedPrefix}|x|h!)\\s*(?:ask|letras?|lyrics))\\b`,
     "i",
   );
   const prefixMatch =

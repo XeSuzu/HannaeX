@@ -53,3 +53,20 @@ export interface GlobalRankData {
   totalVoiceMinutes: number;
   tier: (typeof GLOBAL_TIERS)[0];
 }
+
+export interface LevelUpBannerData {
+  username: string;
+  avatarBuffer: Buffer;
+  oldLevel: number;
+  newLevel: number;
+  guildName: string;
+  roleName?: string | null;
+  isMilestone?: boolean;
+  backgroundTheme?: string;
+  customBackgroundBuffer?: Buffer | null;
+  levelPrefix?: string;
+  title?: string;
+  subtitle?: string;
+  badgeText?: string;
+  footerText?: string;
+}

@@ -22,7 +22,6 @@ export type SetupView =
   | "behavior"
   | "identity"
   | "security"
-  | "snipe_confirm"
   | "logs_quick";
 
 const SECURITY_LEVEL_META: Record<
@@ -303,7 +302,7 @@ export async function generateSetupUI(
       .addFields(
         {
           name: "🔗 Filtros de Chat y Contenido",
-          value: `**Anti-Spam:** ${modules.antiSpam ? "🟢 ON" : "🔴 OFF"}\n**Anti-Links:** ${modules.antiLinks ? "🟢 ON" : "🔴 OFF"}\n**Filtro Palabras:** ${modules.wordFilter ? "🟢 ON" : "🔴 OFF"}\n**IA Moderación:** ${modules.aiModeration ? `🟢 ON (\`${modules.aiMode || "enforce"}\`)` : "🔴 OFF"}`,
+          value: `**Anti-Spam:** ${modules.antiSpam ? "🟢 ON" : "🔴 OFF"}\n**Anti-Links:** ${modules.antiLinks ? "🟢 ON" : "🔴 OFF"}\n**Filtro Palabras:** ${modules.wordFilter ? "🟢 ON" : "🔴 OFF"}\n**IA Moderación:** ${modules.aiModeration ? `🟢 ON (\`${modules.aiMode || "enforce"}\`)` : "🔴 OFF"}\n**Snipe:** ${modules.snipe ? "🟢 ON" : "🔴 OFF"}`,
           inline: true,
         },
         {
@@ -328,7 +327,7 @@ export async function generateSetupUI(
       }),
     );
 
-    // Fila 2: Interruptores de Módulos (4 botones)
+    // Fila 2: Interruptores de Módulos (5 botones)
     const toggleRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("sec_antiSpam")
@@ -357,6 +356,13 @@ export async function generateSetupUI(
         .setEmoji("🤖")
         .setStyle(
           modules.aiModeration ? ButtonStyle.Success : ButtonStyle.Secondary,
+        ),
+      new ButtonBuilder()
+        .setCustomId("sec_snipe")
+        .setLabel(`Snipe: ${modules.snipe ? "ON" : "OFF"}`)
+        .setEmoji("🕵️")
+        .setStyle(
+          modules.snipe ? ButtonStyle.Success : ButtonStyle.Secondary,
         ),
     );
 
@@ -413,30 +419,15 @@ export async function generateSetupUI(
     };
   }
 
-  // ─── 6. VISTA ANIDADA: CONFIRMACIÓN DE SNIPE ─────────────────────────────
-  const embed = new EmbedBuilder()
-    .setTitle("🕵️ Activar Módulo Snipe")
-    .setDescription(
-      "Para cumplir con los Términos de Servicio de Discord, antes de activar **Snipe** es necesario publicar un **aviso de privacidad** en un canal de texto público (visible para `@everyone`).\n\nSelecciona el canal público en el menú inferior para publicar el aviso y activar la función.",
-    )
-    .setColor(0xfee75c)
-    .setFooter(footer);
-
-  const channelRow =
-    new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
-      new ChannelSelectMenuBuilder()
-        .setCustomId("snipe_channel_select")
-        .setPlaceholder("Selecciona un canal público para el aviso...")
-        .setChannelTypes(
-          ChannelType.GuildText,
-          ChannelType.GuildAnnouncement,
-        ),
-    );
-
-  return {
-    embeds: [embed],
-    components: [channelRow, buildBackRow("security")],
-  };
+  // Fallback a vista principal si no coincide
+  return generateSetupUI(
+    guildId,
+    channelId,
+    clientUser,
+    interactionUser,
+    "main",
+    guild,
+  );
 }
 
 

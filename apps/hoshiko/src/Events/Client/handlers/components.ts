@@ -24,6 +24,7 @@ import {
 } from "../../../Features/automod/automodState";
 import { LocalCacheService } from "../../../App/infrastructure/cache/LocalCacheService";
 import { handleRachaButton } from "../../../Handlers/Buttons/racha";
+import { handleSnipeConsentButton } from "../../../Services/SnipeConsentService";
 import type { HoshikoClient } from "../../../client/HoshikoClient";
 import {
   HoshikoLogger,
@@ -48,6 +49,13 @@ export async function handleComponents(
 ) {
   if (interaction.customId.startsWith("racha_")) {
     await handleRachaButton(interaction, client);
+    return;
+  }
+
+  if (interaction.customId.startsWith("snipe_consent:")) {
+    if (interaction.isButton()) {
+      await handleSnipeConsentButton(interaction);
+    }
     return;
   }
 

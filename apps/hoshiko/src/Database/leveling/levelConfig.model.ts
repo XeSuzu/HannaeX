@@ -14,6 +14,12 @@ export interface ICardCustomization {
   badgeSubtitle?: string | null;
   panelTopText?: string;
   panelBottomText?: string;
+  // --- Textos editables para la tarjeta de Subida de Nivel (Level Up) ---
+  levelUpTitle?: string;
+  levelUpSubtitle?: string;
+  levelUpBadgeText?: string;
+  levelUpFooterText?: string;
+  levelUpBannerMode?: "canvas" | "embed";
 }
 
 export interface ILevelConfig extends Document {
@@ -86,6 +92,15 @@ const levelConfigSchema = new Schema<ILevelConfig>({
     badgeSubtitle: { type: String, default: null },
     panelTopText: { type: String, default: "TOP" },
     panelBottomText: { type: String, default: "SERVIDOR" },
+    levelUpTitle: { type: String, default: "¡NIVEL ALCANZADO!" },
+    levelUpSubtitle: { type: String, default: "¡Felicidades {user}!" },
+    levelUpBadgeText: { type: String, default: "SUBIDA DE RANGO" },
+    levelUpFooterText: { type: String, default: "{guildName}" },
+    levelUpBannerMode: {
+      type: String,
+      enum: ["canvas", "embed"],
+      default: "canvas",
+    },
   },
 
   // XP mensajes

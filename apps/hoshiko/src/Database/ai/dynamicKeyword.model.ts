@@ -7,7 +7,8 @@ export type KeywordCategory =
   | "economy"
   | "tech"
   | "news"
-  | "general";
+  | "general"
+  | "music";
 
 export interface IDynamicKeyword extends Document {
   keyword: string;
@@ -32,7 +33,7 @@ const DynamicKeywordSchema = new Schema<IDynamicKeyword>(
     },
     category: {
       type: String,
-      enum: ["anime", "gaming", "sports", "economy", "tech", "news", "general"],
+      enum: ["anime", "gaming", "sports", "economy", "tech", "news", "general", "music"],
       default: "general",
     },
     hits: {
