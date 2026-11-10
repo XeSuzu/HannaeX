@@ -1,6 +1,7 @@
 import { AppConfig } from "./App/config/AppConfig";
 import { RedisClientService } from "./App/infrastructure/redis/RedisClient";
 import { HoshikoLogger, LogLevel, PerformanceMonitor } from "./Security";
+import { FieldEncryptionService } from "./Security/Encryption/FieldEncryptionService";
 import { connectWithRetry } from "./Services/mongo";
 import { loadAntiCrash } from "./Utils/antiCrash";
 import { loadHandlers } from "./bootstrap/loadHandlers";
@@ -27,6 +28,11 @@ async function start(): Promise<void> {
       context: "System/Performance",
       message: `Hoshiko starting on ${stats.platform}. RAM usage: ${stats.ramUsage}`,
     });
+
+    // Validación estricta fail-closed de cifrado en reposo
+    if (process.env.NODE_ENV === "production" || process.env.DATABASE_ENCRYPTION_KEY) {
+      FieldEncryptionService.validateOrThrow();
+    }
 
     await connectWithRetry();
     if (AppConfig.get().REDIS_ENABLED) {

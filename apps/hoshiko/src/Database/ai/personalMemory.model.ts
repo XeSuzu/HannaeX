@@ -96,14 +96,18 @@ const PersonalMemorySchema = new Schema<IPersonalMemory>(
   { timestamps: true, bufferCommands: false, toJSON: { getters: true }, toObject: { getters: true } },
 );
 
-// Índice TTL parcial opcional para usuarios que elijan retención de 90 días
-PersonalMemorySchema.index(
-  { lastInteraction: 1 },
-  { expireAfterSeconds: 7776000, partialFilterExpression: { retentionDays: 90 } },
-);
+// NOTA DE SEGURIDAD Y PRIVACIDAD:
+// Se elimina el índice TTL a nivel de documento completo { lastInteraction: 1, expireAfterSeconds: 7776000 }
+// para evitar la eliminación accidental de recuerdos explícitos del usuario y sus preferencias.
+// La expiración de recuerdos automáticos se gestiona a nivel granular de elemento en PersonalMemoryService.
 
 export const PersonalMemory: Model<IPersonalMemory> =
   mongoose.models.PersonalMemory ||
   mongoose.model<IPersonalMemory>("PersonalMemory", PersonalMemorySchema);
+
+// Eliminar el índice legado TTL de documento en MongoDB si aún existiera
+if (mongoose.connection.readyState === 1 && PersonalMemory.collection) {
+  PersonalMemory.collection.dropIndex("lastInteraction_1").catch(() => {});
+}
 
 export default PersonalMemory;

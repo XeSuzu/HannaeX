@@ -168,3 +168,34 @@ test("Phase 1 - PrivateConversationSessionManager: Aislamiento por usuario/canal
   assert.equal(slidingTurns.length, 10, "La ventana deslizante debe limitar a 10 turnos");
   assert.equal(slidingTurns[9].text, "Turno 14");
 });
+
+test("Phase 1 - PersonalMemory: Retención diferenciada (recuerdos explícitos permanentes vs auto-extraídos 90d)", async () => {
+  const userId = `retention_user_${Date.now()}`;
+
+  // 1. Guardar recuerdo explícito
+  const expRes = await PersonalMemoryService.addExplicitFact(userId, "Le gusta la astronomía y la astrofísica", "gustos");
+  assert.equal(expRes.success, true);
+
+  // 2. Guardar recuerdo auto-extraído
+  const autoRes = await PersonalMemoryService.addAutoExtractedFact(userId, "Mencionó que estudia ingeniería de sistemas", "biography");
+  assert.equal(autoRes.success, true);
+
+  // Simular paso de tiempo (>90 días) en el recuerdo auto-extraído manipulando su createdAt en fallbackMemories
+  const memory = await PersonalMemoryService.getMemory(userId);
+  assert.ok(memory);
+
+  const autoFact = memory.facts.find((f) => f.source === "auto_extracted");
+  assert.ok(autoFact);
+  // Modificar fecha a hace 95 días
+  autoFact.createdAt = new Date(Date.now() - 95 * 24 * 60 * 60 * 1000);
+
+  // Consultar hechos: el auto-extraído caducado debe filtrarse automáticamente
+  const activeFacts = await PersonalMemoryService.getFacts(userId);
+  assert.equal(activeFacts.length, 1, "Solo debe retornar el recuerdo explícito permanente");
+  assert.equal(activeFacts[0], "Le gusta la astronomía y la astrofísica");
+
+  // El recuerdo explícito debe permanecer intacto
+  const refreshedMemory = await PersonalMemoryService.getMemory(userId);
+  const explicitFact = refreshedMemory.facts.find((f) => f.source === "explicit");
+  assert.ok(explicitFact, "El recuerdo explícito nunca debe ser eliminado por la política de 90 días");
+});

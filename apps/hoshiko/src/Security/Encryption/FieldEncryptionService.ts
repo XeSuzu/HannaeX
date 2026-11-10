@@ -4,31 +4,48 @@ export class FieldEncryptionService {
   private static cachedKey: Buffer | null = null;
   private static keyEvaluated = false;
 
+  /**
+   * Valida estrictamente la clave de cifrado AES-256-GCM.
+   * Si la clave no está configurada o es inválida, lanza un error controlado (fail-closed).
+   * La clave debe ser de exactamente 32 bytes (64 caracteres hexadecimales o 32 bytes UTF-8).
+   */
+  public static validateOrThrow(customKey?: string): Buffer {
+    const rawKey = (customKey ?? process.env.DATABASE_ENCRYPTION_KEY)?.trim();
+    if (!rawKey) {
+      throw new Error(
+        "[FieldEncryptionService] DATABASE_ENCRYPTION_KEY no configurada. Política fail-closed: el sistema requiere una clave válida para operar con datos sensibles cifrados.",
+      );
+    }
+
+    if (/^[0-9a-fA-F]{64}$/.test(rawKey)) {
+      return Buffer.from(rawKey, "hex");
+    }
+
+    if (Buffer.byteLength(rawKey, "utf8") === 32) {
+      return Buffer.from(rawKey, "utf8");
+    }
+
+    throw new Error(
+      `[FieldEncryptionService] DATABASE_ENCRYPTION_KEY inválida: debe tener exactamente 32 bytes (64 caracteres hex o 32 bytes UTF-8). Longitud recibida: ${rawKey.length} caracteres.`,
+    );
+  }
+
+  /**
+   * Obtiene el Buffer de la clave de cifrado evaluando el entorno.
+   * Si la clave es inválida o ausente, retorna null y registra el fallo de forma segura.
+   */
   public static getKeyBuffer(): Buffer | null {
     if (this.keyEvaluated) {
       return this.cachedKey;
     }
 
-    const rawKey = process.env.DATABASE_ENCRYPTION_KEY?.trim();
-    if (!rawKey) {
-      this.cachedKey = null;
-      this.keyEvaluated = true;
-      return null;
-    }
-
     try {
-      if (/^[0-9a-fA-F]{64}$/.test(rawKey)) {
-        this.cachedKey = Buffer.from(rawKey, "hex");
-      } else if (rawKey.length === 32) {
-        this.cachedKey = Buffer.from(rawKey, "utf8");
-      } else {
-        console.warn(
-          "[FieldEncryptionService] DATABASE_ENCRYPTION_KEY inválida: debe tener 64 caracteres hexadecimales (32 bytes). Modo sin cifrado activo.",
-        );
-        this.cachedKey = null;
-      }
-    } catch (err) {
-      console.error("[FieldEncryptionService] Error interpretando DATABASE_ENCRYPTION_KEY:", err);
+      this.cachedKey = this.validateOrThrow();
+    } catch (err: any) {
+      console.error(
+        "[FieldEncryptionService] Fallo en validación de clave de cifrado:",
+        err?.message || "Clave no válida",
+      );
       this.cachedKey = null;
     }
 
@@ -54,7 +71,9 @@ export class FieldEncryptionService {
 
   /**
    * Cifra una cadena con AES-256-GCM.
-   * Si la clave no está disponible o el texto ya está cifrado, se devuelve tal cual.
+   * Comportamiento estricto fail-closed:
+   * Si la clave no está disponible o el cifrado falla, LANZA UNA EXCEPCIÓN.
+   * Se prohíbe terminantemente retornar texto plano como mecanismo de degradación.
    */
   public static encrypt(plaintext: string): string {
     if (!plaintext || typeof plaintext !== "string") {
@@ -67,7 +86,9 @@ export class FieldEncryptionService {
 
     const key = this.getKeyBuffer();
     if (!key) {
-      return plaintext;
+      throw new Error(
+        "[FieldEncryptionService] Fallo fail-closed: No se puede cifrar el dato porque DATABASE_ENCRYPTION_KEY es inválida o inexistente. Prohibido persistir datos sensibles en texto plano.",
+      );
     }
 
     try {
@@ -81,15 +102,20 @@ export class FieldEncryptionService {
       const authTag = cipher.getAuthTag();
 
       return `enc:v1:${iv.toString("hex")}:${authTag.toString("hex")}:${ciphertext.toString("hex")}`;
-    } catch (err) {
-      console.error("[FieldEncryptionService] Error cifrando campo:", err);
-      return plaintext;
+    } catch (err: any) {
+      console.error(
+        "[FieldEncryptionService] Fallo en operación de cifrado AES-256-GCM. Abortando persistencia.",
+      );
+      throw new Error(
+        `[FieldEncryptionService] Cifrado fallido: ${err?.message || "Error interno del cifrador"}`,
+      );
     }
   }
 
   /**
    * Descifra una cadena cifrada con AES-256-GCM.
-   * Si la cadena no está cifrada (datos legados), se retorna directamente sin alterar.
+   * Si la cadena no está cifrada (datos legados preexistentes), se retorna para evitar pérdida de datos.
+   * Si la cadena está cifrada, valida la integridad de los componentes y la etiqueta de autenticación (AuthTag).
    */
   public static decrypt(cipherOrPlain: string): string {
     if (!cipherOrPlain || typeof cipherOrPlain !== "string") {
@@ -97,22 +123,29 @@ export class FieldEncryptionService {
     }
 
     if (!this.isEncrypted(cipherOrPlain)) {
+      // Datos legados anteriores a la implementación del cifrado
       return cipherOrPlain;
     }
 
     const key = this.getKeyBuffer();
     if (!key) {
-      console.warn("[FieldEncryptionService] No se puede descifrar sin DATABASE_ENCRYPTION_KEY.");
+      console.warn(
+        "[FieldEncryptionService] No se puede descifrar el registro sin una DATABASE_ENCRYPTION_KEY válida.",
+      );
       return "[Dato cifrado protegido]";
     }
 
     try {
       const parts = cipherOrPlain.split(":");
       if (parts.length !== 5) {
-        return cipherOrPlain;
+        return "[Dato cifrado no recuperable]";
       }
 
       const [, , ivHex, tagHex, dataHex] = parts;
+      if (!ivHex || !tagHex || !dataHex || ivHex.length !== 24 || tagHex.length !== 32) {
+        return "[Dato cifrado no recuperable]";
+      }
+
       const iv = Buffer.from(ivHex, "hex");
       const authTag = Buffer.from(tagHex, "hex");
       const encryptedData = Buffer.from(dataHex, "hex");
@@ -127,6 +160,9 @@ export class FieldEncryptionService {
 
       return decrypted.toString("utf8");
     } catch {
+      console.error(
+        "[FieldEncryptionService] Error durante el descifrado: fallo de autenticidad (AuthTag inválido o datos manipulados).",
+      );
       return "[Dato cifrado no recuperable]";
     }
   }

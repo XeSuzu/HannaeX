@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import cron, { type ScheduledTask } from "node-cron";
+import { PersonalMemoryService } from "../Core/AI/Memory/PersonalMemoryService";
 import { processMissedCycles } from "../Services/StreakService";
 import { TempModerationService } from "../Services/TempModerationService";
 import type { HoshikoClient } from "../client/HoshikoClient";
@@ -102,7 +103,7 @@ export function startCronJobs(client: HoshikoClient): void {
     logCleanupCronTask.stop();
   }
 
-  // Rutina diaria a las 03:00 para purgar logs .jsonl de más de 14 días
+  // Rutina diaria a las 03:00 para purgar logs .jsonl de más de 14 días y recuerdos auto-extraídos de más de 90 días
   logCleanupCronTask = cron.schedule("0 3 * * *", async () => {
     try {
       const cleanResult = await cleanOldLogs();
@@ -116,6 +117,12 @@ export function startCronJobs(client: HoshikoClient): void {
       }
     } catch (err) {
       console.error("[Cron] cleanOldLogs falló:", err);
+    }
+
+    try {
+      await PersonalMemoryService.purgeExpiredAutoExtractedFacts();
+    } catch (err) {
+      console.error("[Cron] purgeExpiredAutoExtractedFacts falló:", err);
     }
   });
 }

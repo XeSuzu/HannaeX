@@ -1,4 +1,5 @@
 import { AvatarHistory } from "./userTracking.models";
+import { TrackingOptOutManager } from "./TrackingOptOutManager";
 
 const MAX_AVATARS = 30;
 
@@ -13,6 +14,11 @@ export class AvatarHistoryManager {
     },
   ): Promise<void> {
     if (!avatarUrl || !options.guildId) return;
+
+    // Respetar oposición de privacidad (Opt-out)
+    if (await TrackingOptOutManager.isOptedOut(userId)) {
+      return;
+    }
 
     const alreadyExists = await AvatarHistory.exists({
       userId,
@@ -49,5 +55,13 @@ export class AvatarHistoryManager {
   static async getAvatars(userId: string, guildId: string) {
     const history = await AvatarHistory.findOne({ userId, guildId });
     return history?.avatars ?? [];
+  }
+
+  static async deleteAvatars(userId: string, guildId?: string): Promise<number> {
+    if (!userId) return 0;
+    const filter: Record<string, string> = { userId };
+    if (guildId) filter.guildId = guildId;
+    const res = await AvatarHistory.deleteMany(filter);
+    return res.deletedCount || 0;
   }
 }

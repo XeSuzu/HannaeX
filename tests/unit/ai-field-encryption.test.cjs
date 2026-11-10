@@ -42,10 +42,9 @@ test("FieldEncryptionService: Retrocompatibilidad con datos legados y degradaci�
   const legacyFact = "Usuario es streamer de Minecraft";
   assert.equal(FieldEncryptionService.decrypt(legacyFact), legacyFact, "Datos legados pasan transparentes");
 
-  // Cadena corrupta o manipulada
+  // Cadena corrupta o manipulada (alterar tag de autenticación)
   const validEncrypted = FieldEncryptionService.encrypt("Dato confidencial");
   const parts = validEncrypted.split(":");
-  // Alterar el tag de autenticación
   parts[3] = "00000000000000000000000000000000";
   const tampered = parts.join(":");
 
@@ -53,16 +52,42 @@ test("FieldEncryptionService: Retrocompatibilidad con datos legados y degradaci�
   assert.equal(recovered, "[Dato cifrado no recuperable]", "Debe proteger ante manipulación de datos");
 });
 
-test("FieldEncryptionService: Modo seguro sin clave (fallback suave)", () => {
+test("FieldEncryptionService: Comportamiento estricto fail-closed ante clave ausente o inválida", () => {
   const originalKey = process.env.DATABASE_ENCRYPTION_KEY;
   try {
+    // 1. Clave ausente
     delete process.env.DATABASE_ENCRYPTION_KEY;
     FieldEncryptionService.resetKeyCache();
     assert.equal(FieldEncryptionService.hasKey(), false);
 
-    const text = "Hecho temporal en servidor sin clave";
-    const result = FieldEncryptionService.encrypt(text);
-    assert.equal(result, text, "Sin clave, pasa en modo texto plano sin romper");
+    assert.throws(
+      () => FieldEncryptionService.validateOrThrow(),
+      /DATABASE_ENCRYPTION_KEY no configurada/,
+      "validateOrThrow debe fallar si la clave no está configurada",
+    );
+
+    assert.throws(
+      () => FieldEncryptionService.encrypt("Dato que no debe guardarse en texto plano"),
+      /Fallo fail-closed/,
+      "encrypt debe fallar estrictamente (fail-closed) y nunca devolver texto plano",
+    );
+
+    // 2. Clave inválida (longitud incorrecta)
+    process.env.DATABASE_ENCRYPTION_KEY = "clave_corta_insegura";
+    FieldEncryptionService.resetKeyCache();
+    assert.equal(FieldEncryptionService.hasKey(), false);
+
+    assert.throws(
+      () => FieldEncryptionService.validateOrThrow(),
+      /DATABASE_ENCRYPTION_KEY inválida/,
+      "validateOrThrow debe rechazar claves de longitud incorrecta",
+    );
+
+    assert.throws(
+      () => FieldEncryptionService.encrypt("Otro dato sensible"),
+      /Fallo fail-closed/,
+      "encrypt debe rechazar claves con formato o tamaño inválido",
+    );
   } finally {
     process.env.DATABASE_ENCRYPTION_KEY = originalKey;
     FieldEncryptionService.resetKeyCache();

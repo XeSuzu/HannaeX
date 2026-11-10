@@ -4,6 +4,7 @@ import {
   ISavedActivity,
   PresenceHistory,
 } from "./userTracking.models";
+import { TrackingOptOutManager } from "./TrackingOptOutManager";
 
 export class PresenceHistoryManager {
   static async savePresence(
@@ -12,6 +13,11 @@ export class PresenceHistoryManager {
     presence: Presence,
   ): Promise<void> {
     if (!userId || !guildId || !presence) return;
+
+    // Respetar oposición de privacidad (Opt-out)
+    if (await TrackingOptOutManager.isOptedOut(userId)) {
+      return;
+    }
 
     const activities = presence.activities.map((activity) => {
       const saved: ISavedActivity = {
@@ -64,5 +70,13 @@ export class PresenceHistoryManager {
     guildId: string,
   ): Promise<IPresenceHistory | null> {
     return PresenceHistory.findOne({ userId, guildId });
+  }
+
+  static async deletePresence(userId: string, guildId?: string): Promise<number> {
+    if (!userId) return 0;
+    const filter: Record<string, string> = { userId };
+    if (guildId) filter.guildId = guildId;
+    const res = await PresenceHistory.deleteMany(filter);
+    return res.deletedCount || 0;
   }
 }

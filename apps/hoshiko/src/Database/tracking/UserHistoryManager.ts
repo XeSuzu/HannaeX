@@ -1,4 +1,5 @@
 import { IUserRecord, UserHistory } from "./userTracking.models";
+import { TrackingOptOutManager } from "./TrackingOptOutManager";
 
 const MAX_USER_HISTORY_RECORDS = 40;
 
@@ -8,6 +9,11 @@ export class UserHistoryManager {
     record: Omit<IUserRecord, "createdAt"> & { createdAt?: Date },
   ): Promise<void> {
     if (!userId) return;
+
+    // Respetar derecho de oposición (Opt-out)
+    if (await TrackingOptOutManager.isOptedOut(userId)) {
+      return;
+    }
 
     const normalizedRecord = {
       ...record,
@@ -50,5 +56,11 @@ export class UserHistoryManager {
     const records = history?.records ?? [];
     if (!guildId) return records;
     return records.filter((record) => record.guildId === guildId);
+  }
+
+  static async deleteHistory(userId: string): Promise<number> {
+    if (!userId) return 0;
+    const res = await UserHistory.deleteOne({ userId });
+    return res.deletedCount || 0;
   }
 }

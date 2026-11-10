@@ -41,6 +41,8 @@ export class PersonalMemoryService {
   private static fallbackPreferences = new Map<string, IUserPreferences>();
   private static fallbackMemories = new Map<string, any>();
 
+  public static readonly AUTO_EXTRACTED_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 días
+
   static readonly DEFAULT_PREFERENCES: IUserPreferences = {
     style: "balanced",
     tonePreference: "default",
@@ -144,10 +146,31 @@ export class PersonalMemoryService {
   static async getMemory(userId: string): Promise<IPersonalMemory | null> {
     if (!userId) return null;
     if (!this.isDbAvailable()) {
-      return this.fallbackMemories.get(userId) || null;
+      const fallback = this.fallbackMemories.get(userId);
+      if (fallback && Array.isArray(fallback.facts)) {
+        const cutoff = Date.now() - this.AUTO_EXTRACTED_TTL_MS;
+        fallback.facts = fallback.facts.filter((f: IPersonalFact) => {
+          if (f.source === "auto_extracted") {
+            const createdAtMs = new Date(f.createdAt).getTime();
+            return !isNaN(createdAtMs) && createdAtMs >= cutoff;
+          }
+          return true;
+        });
+      }
+      return fallback || null;
     }
     try {
       const doc = await PersonalMemory.findOne({ userId });
+      if (doc && Array.isArray(doc.facts)) {
+        const cutoff = Date.now() - this.AUTO_EXTRACTED_TTL_MS;
+        doc.facts = (doc.facts as any).filter((f: IPersonalFact) => {
+          if (f.source === "auto_extracted") {
+            const createdAtMs = new Date(f.createdAt).getTime();
+            return !isNaN(createdAtMs) && createdAtMs >= cutoff;
+          }
+          return true;
+        });
+      }
       return doc || this.fallbackMemories.get(userId) || null;
     } catch {
       return this.fallbackMemories.get(userId) || null;
@@ -162,7 +185,17 @@ export class PersonalMemoryService {
         return [];
       }
 
+      const cutoff = Date.now() - this.AUTO_EXTRACTED_TTL_MS;
+
       return [...memory.facts]
+        .filter((f) => {
+          if (f.source === "auto_extracted") {
+            const createdAtMs = new Date(f.createdAt).getTime();
+            return !isNaN(createdAtMs) && createdAtMs >= cutoff;
+          }
+          // Recuerdos explícitos y confirmados son permanentes hasta supresión voluntaria del usuario
+          return true;
+        })
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, MAX_FACTS)
         .map((f) => f.fact);
@@ -620,6 +653,31 @@ export class PersonalMemoryService {
       return result.deletedCount || 0;
     } catch (err) {
       console.error("[PersonalMemoryService] Error en purga de UserMemory:", err);
+      return 0;
+    }
+  }
+
+  /**
+   * Purgado de recuerdos auto-extraídos con más de 90 días de antigüedad.
+   * Los recuerdos explícitos y legados confirmados NUNCA son afectados por esta purga.
+   */
+  static async purgeExpiredAutoExtractedFacts(): Promise<number> {
+    if (mongoose.connection.readyState !== 1) return 0;
+    try {
+      const cutoff = new Date(Date.now() - this.AUTO_EXTRACTED_TTL_MS);
+      const result = await PersonalMemory.updateMany(
+        { "facts": { $elemMatch: { source: "auto_extracted", createdAt: { $lt: cutoff } } } },
+        { $pull: { facts: { source: "auto_extracted", createdAt: { $lt: cutoff } } } },
+      );
+      const modifiedCount = result.modifiedCount || 0;
+      if (modifiedCount > 0) {
+        console.log(
+          `[PRIVACY_AUDIT] Purga de recuerdos auto-extraídos completada: ${modifiedCount} usuario(s) actualizados tras superar la ventana de retención de 90 días.`,
+        );
+      }
+      return modifiedCount;
+    } catch (err) {
+      console.error("[PersonalMemoryService] Error en purga de recuerdos auto-extraídos:", err);
       return 0;
     }
   }

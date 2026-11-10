@@ -1,11 +1,11 @@
 # Términos y Condiciones de Uso de Hoshiko
 
 **Título:** Términos y Condiciones de Uso de Hoshiko  
-**Identificador de Versión:** `HOSHIKO-PUB-TOS-2.1.0`  
+**Identificador de Versión:** `HOSHIKO-PUB-TOS-2.2.0`  
 **Fecha de Elaboración:** 6 de noviembre de 2026  
 **Fecha de Última Revisión:** 9 de noviembre de 2026  
 **Estado:** `Vigente`  
-**Alcance:** Aplicación principal de Discord **Hoshiko**. Las funciones de defensa perimetral operan como software desacoplado e independiente.  
+**Alcance:** Aplicación principal de Discord **Hoshiko**. Las funciones de defensa perimetral y seguridad especializada corresponden al proyecto desacoplado e independiente Hoshiko Security, el cual se encuentra actualmente en desarrollo y no forma parte del producto operativo de Hoshiko principal.  
 **Referencias:** [Política de Privacidad](/privacy), [Licencia del Proyecto](https://github.com/XeSuzu/HannaeX/blob/master/LICENSE)  
 
 ---
@@ -20,10 +20,13 @@ Estos Términos y Condiciones (en adelante, los **"Términos"**) regulan el acce
 
 ---
 
-## 2. Requisitos de Edad
+## 2. Requisitos de Edad y Restricciones de Proveedores de IA
 
 1. **Edad Mínima en Discord:** Para interactuar con Hoshiko debe tener al menos **13 años de edad**, o la edad mínima superior exigida por la legislación de su país de residencia para consentir válidamente el tratamiento de datos personales en servicios digitales (en Ecuador, la Ley Orgánica de Protección de Datos Personales establece los 15 años para el consentimiento directo de adolescentes sin intervención de representantes legales; en otros países puede variar entre 14 y 16 años).
-2. **Restricciones en Funciones de Inteligencia Artificial (Google Gemini):** Las funciones conversacionales, de traducción y de asistencia del Bot utilizan la API de Google Gemini. De conformidad con las [Condiciones de Servicio de Gemini API](https://ai.google.dev/gemini-api/terms), las funciones asistidas por inteligencia artificial están destinadas a personas mayores de 18 años o que interactúen bajo la supervisión y autorización expresa de sus representantes legales.
+2. **Restricciones Categóricas de Google Gemini API:** Las funciones conversacionales asistidas por inteligencia artificial utilizan la API de Google Gemini. De conformidad con las condiciones vigentes de Google ([Gemini API Additional Terms of Service](https://ai.google.dev/gemini-api/terms), actualizadas al 28 de abril de 2026):
+   - *«You must be 18 years of age or older to use the APIs. You also will not use the Services as part of a website, application, or other service (collectively, "API Clients") that is directed towards or is likely to be accessed by individuals under the age of 18.»*
+   - Las condiciones de Google no contemplan autorizaciones parentales como exención para clientes de API expuestos a menores de 18 años.
+   - En consecuencia, **las funciones conversacionales generativas de IA se encuentran restringidas exclusivamente a canales clasificados con restricción de edad (canales 18+/NSFW) o entornos con control de acceso verificado para adultos**, bloqueando su invocación en canales comunitarios abiertos donde sea probable el acceso de menores de 18 años.
 
 ---
 
@@ -37,12 +40,15 @@ Según la configuración de cada servidor y los permisos otorgados, Hoshiko prov
 2. **Módulos Comunitarios y Sociales:**
    - Publicación de confesiones comunitarias (`/confess`), buzón de sugerencias (`/suggest`), dinámicas recreativas de afinidad o parejas (`/ship`), estados de ausencia (`/afk`), seguimiento de rachas diarias (`/racha`), asignación de roles automáticos por estado y roles por reacción.
 3. **Inteligencia Artificial, Búsqueda y Memoria Adaptativa Cifrada:**
-   - Asistencia conversacional en canal (por mención directa o respuesta en hilo) procesada mediante una pasarela segura dedicada hacia Gemini API.
+   - Asistencia conversacional en canales autorizados procesada mediante una pasarela segura hacia Gemini API.
    - Resolución local e inmediata de saludos cotidianos y consultas frecuentes de soporte sin derivación externa ni latencias añadidas.
-   - **Memoria Personal Soberana Cifrada (AES-256-GCM):** Hoshiko aprende de forma adaptativa preferencias, datos descriptivos y dinámicas de trato recíprocas compartidas por el usuario, almacenándolas en reposo en nuestra base de datos bajo cifrado estándar AES-256-GCM. Lo aprendido con un usuario tiene alcance global y se aplica en cualquier servidor de Discord donde interactúe con el Bot; no se comparte con otros usuarios ni se comercializa con terceros.
-   - **Transmisión para Contextualización:** Al procesar consultas complejas de conversación con el usuario, los recuerdos personales pertinentes se descifran en memoria volátil y se integran dentro de las instrucciones enviadas a Google Gemini API para posibilitar una respuesta personalizada y contextualizada.
-   - **Política de Capacidad (Límite de 20 Recuerdos):** Se fija un tope máximo de 20 recuerdos por usuario. Al llegar a este límite, los recuerdos aprendidos automáticamente se reemplazan comenzando por el más antiguo (FIFO); los recuerdos introducidos manualmente por el usuario se conservan de forma permanente y únicamente se suprimen a petición expresa del titular.
-   - **Auditoría y Borrado Autónomo (`/ai panel`, `/memory`):** El usuario puede examinar sus recuerdos, suprimir entradas individuales o purgar toda su memoria de forma inmediata.
+   - **Cifrado Estricto Fail-Closed (AES-256-GCM):** Todo dato sensible referente a recuerdos personales e historial conversacional se almacena bajo cifrado a nivel de campo con AES-256-GCM. Si las claves criptográficas válidas no están disponibles, el sistema aborta de forma estricta (*fail-closed*), prohibiendo absolutamente cualquier almacenamiento alternativo en texto plano.
+   - **Memoria Personal Soberana:** Lo aprendido con un usuario tiene alcance global por usuario.
+   - **Retención Diferenciada:**
+     - **Recuerdos Explícitos:** Los recuerdos introducidos voluntariamente por el usuario (`/memory guardar`) son permanentes y solo se eliminan por voluntad expresa del usuario.
+     - **Recuerdos Auto-extraídos:** Los hechos detectados automáticamente por interacción cuentan con un ciclo de vida estrictamente acotado a **90 días**, purgándose automáticamente tras dicho período mediante tareas programadas.
+     - **Límite de Capacidad:** Máximo de 20 recuerdos por usuario. Si se alcanza el límite, se desaloja el recuerdo auto-extraído más antiguo (FIFO); los recuerdos explícitos nunca son desalojados automáticamente.
+   - **Auditoría, Oposición y Supresión Soberana (`/memory`, `/privacy`):** El usuario dispone de comandos interactivos para consultar sus recuerdos (`/memory ver`), borrarlos (`/memory borrar`, `/privacy borrar`) y activar el derecho de oposición (*opt-out*) para evitar el seguimiento de avatares, perfiles y presencia (`/privacy ajustes`).
    - **Depósitos de Cuotas Diarias Independientes:** Saldos de 20 consultas de investigación y 40 de conversación general, con restablecimiento diario a las **00:00 hora de Ecuador** (`America/Guayaquil`), verificables en tiempo real mediante `/ai usage` y `/ai panel`.
    - **Búsqueda Web Contextual:** En solicitudes que requieran contrastar información reciente en internet, Hoshiko aplica un proceso escalonado de 10 segundos para evaluar fuentes fiables; las charlas casuales y consultas locales son de respuesta instantánea.
    - Herramientas auxiliares de traducción rápida (`/translate`), búsqueda de imágenes seguras, consulta de letras musicales (`/lyrics`) e información comunitaria de avatares y actividad reciente (`/avatars`, `/users`, `/activity`).
@@ -100,10 +106,13 @@ Las características catalogadas como *Premium* en el Bot (tales como ampliació
 
 ---
 
-## 9. Retirada del Servidor, Suspensión y Terminación
+## 9. Retirada del Servidor, Suspensión y Purga Automatizada de Datos
 
 1. **Retiro por los Administradores:** Los administradores pueden remover a Hoshiko de su servidor en cualquier momento desde las opciones de administración de Discord.
-2. **Conservación de Registros:** La retirada del Bot interrumpe de inmediato la recepción de eventos, pero **no conlleva un borrado destructivo automático de todos los registros históricos de esa comunidad en la base de datos**. Los criterios de conservación y el procedimiento para solicitar la eliminación de datos se especifican en la [Política de Privacidad](/privacy).
+2. **Purga Automatizada Conforme a Discord Developer Terms:** De estricta conformidad con la Sección 4 de la *Discord Developer Policy* y los principios de minimización de datos:
+   - Ante el evento de retiro o expulsión del Bot de una comunidad (`guildDelete`), **el sistema ejecuta de forma automática la purga irreversible de todos los datos acotados a dicho servidor** (incluyendo configuraciones locales, niveles y experiencia del servidor, sesiones de voz, memorias de entidad comunitaria, historiales de conversación del servidor, registros de moderación local, snipes y confesiones locales).
+   - No se conservan registros huérfanos del servidor tras la desinstalación del Bot.
+   - Esta purga no afecta los perfiles globales del usuario ni sus recuerdos personales soberanos de IA, los cuales están vinculados de forma global al usuario y permanecen protegidos bajo su control individual.
 3. **Suspensión por Infracciones:** El titular del Servicio se reserva el derecho de restringir o revocar el acceso al Bot a usuarios o servidores que cometan abusos técnicos, violaciones a estos Términos o conductas lesivas contra la comunidad.
 
 ---

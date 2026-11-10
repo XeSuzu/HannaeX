@@ -157,6 +157,30 @@ const PresenceHistorySchema = new Schema<IPresenceHistory>({
 // ─── índice compuesto — evita full collection scan en getPresence ─────────────
 PresenceHistorySchema.index({ userId: 1, guildId: 1 }, { unique: true });
 
+// ─── TTL de 24 horas (86400s): la presencia es un dato efímero que no debe almacenarse indefinidamente ───
+PresenceHistorySchema.index({ updatedAt: 1 }, { expireAfterSeconds: 86400 });
+
 export const PresenceHistory: Model<IPresenceHistory> =
   (models.PresenceHistory as Model<IPresenceHistory>) ||
   model<IPresenceHistory>("PresenceHistory", PresenceHistorySchema);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRACKING OPT-OUT & PRIVACY PREFERENCES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ITrackingOptOut extends Document {
+  userId: string;
+  optedOut: boolean;
+  optedOutAt: Date;
+}
+
+const TrackingOptOutSchema = new Schema<ITrackingOptOut>({
+  userId: { type: String, required: true, unique: true, index: true },
+  optedOut: { type: Boolean, default: true },
+  optedOutAt: { type: Date, default: Date.now },
+});
+
+export const TrackingOptOut: Model<ITrackingOptOut> =
+  (models.TrackingOptOut as Model<ITrackingOptOut>) ||
+  model<ITrackingOptOut>("TrackingOptOut", TrackingOptOutSchema);
+
