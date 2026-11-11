@@ -1,6 +1,6 @@
 <div align="center">
 
-# ✨ HannaeX — Documento Maestro del Ecosistema
+# ✨ HannaeX 
 
 **Arquitectura, operaciones, seguridad y guía de desarrollo integral para colaboradores.**
 
